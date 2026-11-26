@@ -459,10 +459,23 @@ button:focus-visible,input:focus-visible,select:focus-visible,a:focus-visible{ou
 <h2 style="margin: 0; font-family: 'Space Grotesk', sans-serif; font-size: 16px; font-weight: 600">Where it operates</h2>
 <span style="font-size: 12px; color: #8B97A6">{{d.placesNote}}</span>
 </div>
+<div class="ch-msort" style="align-items: center; gap: 8px; padding: 10px 16px; border-bottom: 1px solid #1C232D">
+<label for="ch-psort" style="font-size: 12px; color: #8B97A6">Sort by</label>
+<select id="ch-psort" value="{{d.pmsortVal}}" onChange="{{d.pickPmsort}}" style="flex: 1; min-width: 0; height: 36px; padding: 0 10px; border-radius: 9px; border: 1px solid #1C232D; background: #0A0E13; color: #E6EDF3">
+<sc-for list="{{d.pmsortOpts}}" as="o" hint-placeholder-count="6">
+<option value="{{o.v}}">{{o.label}}</option>
+</sc-for>
+</select>
+</div>
 <div style="overflow-x: auto">
 <div style="min-width: 620px">
-<div aria-hidden="true" style="display: grid; grid-template-columns: minmax(180px, 2fr) 60px 100px 100px 90px 110px; gap: 12px; padding: 0 20px; height: 36px; align-items: center; background: #0B1016; border-bottom: 1px solid #1C232D; font-size: 11px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: #8B97A6">
-<span>Where</span><span>Grade</span><span style="text-align: right">APY 30D</span><span style="text-align: right">Payout</span><span style="text-align: right">Fee</span><span style="text-align: right">Stake</span>
+<div style="display: grid; grid-template-columns: minmax(180px, 2fr) 60px 100px 100px 90px 110px; gap: 12px; padding: 0 20px; height: 36px; align-items: center; background: #0B1016; border-bottom: 1px solid #1C232D; font-size: 11px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: #8B97A6">
+<span>Where</span>
+<span style="display: flex"><button type="button" class="ch-sorth" onClick="{{d.ps.g.pick}}" aria-pressed="{{d.ps.g.on}}" aria-label="{{d.ps.g.aria}}" style="color: {{d.ps.g.color}}">Grade<span aria-hidden="true">{{d.ps.g.arrow}}</span></button></span>
+<span style="display: flex; justify-content: flex-end"><button type="button" class="ch-sorth" onClick="{{d.ps.a30.pick}}" aria-pressed="{{d.ps.a30.on}}" aria-label="{{d.ps.a30.aria}}" style="color: {{d.ps.a30.color}}; white-space: nowrap">APY 30D<span aria-hidden="true">{{d.ps.a30.arrow}}</span></button></span>
+<span style="display: flex; justify-content: flex-end"><button type="button" class="ch-sorth" onClick="{{d.ps.pr.pick}}" aria-pressed="{{d.ps.pr.on}}" aria-label="{{d.ps.pr.aria}}" style="color: {{d.ps.pr.color}}">Payout<span aria-hidden="true">{{d.ps.pr.arrow}}</span></button></span>
+<span style="display: flex; justify-content: flex-end"><button type="button" class="ch-sorth" onClick="{{d.ps.fee.pick}}" aria-pressed="{{d.ps.fee.on}}" aria-label="{{d.ps.fee.aria}}" style="color: {{d.ps.fee.color}}">Fee<span aria-hidden="true">{{d.ps.fee.arrow}}</span></button></span>
+<span style="display: flex; justify-content: flex-end"><button type="button" class="ch-sorth" onClick="{{d.ps.stake.pick}}" aria-pressed="{{d.ps.stake.on}}" aria-label="{{d.ps.stake.aria}}" style="color: {{d.ps.stake.color}}">Stake<span aria-hidden="true">{{d.ps.stake.arrow}}</span></button></span>
 </div>
 <sc-for list="{{d.places}}" as="p" hint-placeholder-count="5">
 <button type="button" class="ch-row" onClick="{{p.pick}}" aria-pressed="{{p.on}}" style="width: 100%; text-align: left; color: inherit; border: 0; border-bottom: 1px solid #141A22; display: grid; grid-template-columns: minmax(180px, 2fr) 60px 100px 100px 90px 110px; gap: 12px; padding: 0 20px; height: 44px; align-items: center; background: {{p.bg}}">
@@ -581,7 +594,7 @@ class Component extends DCLogic {
     super(props);
     this.state = {
       data: null, err: null, mode: 'root', sn: null, q: '', snQ: '', snOpen: false, snAct: 0, grade: 'all', hideWarn: false, all: false, calcHk: null, amt: '1,000',
-      view: 'list', hk: null, wantNu: null, det: null, detErr: null, loc: null, amtD: '1,000', copied: null, allPlaces: false,
+      view: 'list', hk: null, wantNu: null, det: null, detErr: null, loc: null, amtD: '1,000', copied: null, allPlaces: false, pSortKey: null, pSortDir: 1,
       px: null, pxLive: false, pxDir: 0, sortKey: null, sortDir: 1, badImg: 0,
       // one layout at a time: the table, or cards below 900px
       narrow: typeof window !== 'undefined' && !!window.matchMedia && window.matchMedia(NARROW).matches,
@@ -683,7 +696,7 @@ class Component extends DCLogic {
   show(hk, nu) {
     if (this.state.view !== 'detail' && typeof window !== 'undefined') this.listY = window.scrollY || 0;
     const same = this.state.hk === hk && this.state.det;
-    this.setState({ view: 'detail', hk, wantNu: nu, loc: null, copied: null, allPlaces: false, det: same ? this.state.det : null, detErr: null });
+    this.setState({ view: 'detail', hk, wantNu: nu, loc: null, copied: null, allPlaces: false, det: same ? this.state.det : null, detErr: null, pSortKey: same ? this.state.pSortKey : null, pSortDir: same ? this.state.pSortDir : 1 });
     if (typeof window !== 'undefined' && window.scrollTo) window.scrollTo(0, 0);
     if (same) return;
     fetch(VALIDATOR_URL + encodeURIComponent(hk))
@@ -760,6 +773,33 @@ class Component extends DCLogic {
       const d = (y - x) * def.best * dir;
       return d !== 0 ? d : idx.get(a) - idx.get(b);
     });
+  }
+  // sort `items` by SORTS[key] applied to rowOf(item); nulls last, stable, dir 1 = best first
+  sortBy2(items, rowOf, key, dir) {
+    const def = SORTS[key];
+    if (!def) return items;
+    const idx = new Map(items.map((r, i) => [r, i]));
+    return items.slice().sort((a, b) => {
+      const x = def.val(rowOf(a)), y = def.val(rowOf(b));
+      if (x == null && y == null) return idx.get(a) - idx.get(b);
+      if (x == null) return 1;
+      if (y == null) return -1;
+      const d = (y - x) * def.best * dir;
+      return d !== 0 ? d : idx.get(a) - idx.get(b);
+    });
+  }
+  sortHeads(key, dir, accent, pick) {
+    const out = {};
+    Object.keys(SORTS).forEach((k) => {
+      const on = key === k, def = SORTS[k], words = def.word;
+      out[k] = {
+        on, color: on ? accent : '#8B97A6',
+        arrow: on ? (dir === 1 ? (def.best === 1 ? ' ↓' : ' ↑') : (def.best === 1 ? ' ↑' : ' ↓')) : ' ↕',
+        aria: on ? 'Sorted by ' + def.label + ', ' + (dir === 1 ? words[0] : words[1]) + '. Activate to reverse.' : 'Sort by ' + def.label + ', ' + words[0],
+        pick: () => pick(k),
+      };
+    });
+    return out;
   }
   sortBy(k) {
     const S = this.state;
@@ -1073,7 +1113,16 @@ class Component extends DCLogic {
         on: i === li, bg: i === li ? '#111A1F' : 'transparent', pick: () => { this.pickLoc(i); if (window.scrollTo) window.scrollTo(0, 0); },
       };
     });
-    const places = S.allPlaces ? placesAll : placesAll.slice(0, PLACES);
+    // "Where it operates" sorts like the list tables; the location tabs above keep their order
+    const pOrder = this.sortBy2(locs.map((l, i) => i), (i) => locs[i], S.pSortKey, S.pSortDir);
+    const placesSorted = pOrder.map((i) => placesAll[i]);
+    const places = S.allPlaces ? placesSorted : placesSorted.slice(0, PLACES);
+    const ps = this.sortHeads(S.pSortKey, S.pSortDir, accent, (k) => {
+      if (S.pSortKey === k) this.setState({ pSortDir: -S.pSortDir });
+      else this.setState({ pSortKey: k, pSortDir: 1 });
+    });
+    const pmsortOpts = [{ v: '', label: 'Default order' }];
+    Object.keys(SORTS).forEach((k) => { pmsortOpts.push({ v: k + ':1', label: SORTS[k].label + ' · ' + SORTS[k].word[0] }); pmsortOpts.push({ v: k + ':-1', label: SORTS[k].label + ' · ' + SORTS[k].word[1] }); });
     const ngraded = locs.filter((l) => l.g).length;
 
     return {
@@ -1093,6 +1142,8 @@ class Component extends DCLogic {
       calcVs: (gap == null ? '' : gap > 0.5 ? 'The best validators here would pay about ' + fmtInt(gap) + unit + ' more a year on the same stake.' : 'On par with the best validators here.') + (yr == null ? 'No 30-day yield yet, so no estimate.' : '') + (isRoot && yr > 0 ? ' About ' + usd(yr * px) + ' a year at today’s TAO price.' : ''),
       calcNote: isRoot ? 'Based on the 30-day APY. Rewards arrive as basket alpha; their τ value moves with alpha prices.' : 'Based on the 30-day APY, paid in alpha. What that alpha is worth in τ depends on the subnet’s price.',
       places, placesMore: !S.allPlaces && placesAll.length > places.length, placesTotal: placesAll.length,
+      ps, pmsortOpts, pmsortVal: S.pSortKey ? S.pSortKey + ':' + S.pSortDir : '',
+      pickPmsort: (e) => { const v = e.target.value; if (!v) this.setState({ pSortKey: null, pSortDir: 1 }); else { const [k, d] = v.split(':'); this.setState({ pSortKey: k, pSortDir: +d }); } },
       showAllPlaces: () => this.setState({ allPlaces: true }),
       // a button, not an #anchor: the hash is the route (#v/<hk>), so changing it would leave the page
       goPlaces: () => {

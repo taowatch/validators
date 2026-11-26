@@ -84,7 +84,7 @@ class Component extends DCLogic {
     super(props);
     this.state = {
       data: null, err: null, mode: 'root', sn: null, q: '', snQ: '', snOpen: false, snAct: 0, grade: 'all', hideWarn: false, all: false, calcHk: null, amt: '1,000',
-      view: 'list', hk: null, wantNu: null, det: null, detErr: null, loc: null, amtD: '1,000', copied: null, allPlaces: false,
+      view: 'list', hk: null, wantNu: null, det: null, detErr: null, loc: null, amtD: '1,000', copied: null, allPlaces: false, pSortKey: null, pSortDir: 1,
       px: null, pxLive: false, pxDir: 0, sortKey: null, sortDir: 1, badImg: 0,
       // one layout at a time: the table, or cards below 900px
       narrow: typeof window !== 'undefined' && !!window.matchMedia && window.matchMedia(NARROW).matches,
@@ -186,7 +186,7 @@ class Component extends DCLogic {
   show(hk, nu) {
     if (this.state.view !== 'detail' && typeof window !== 'undefined') this.listY = window.scrollY || 0;
     const same = this.state.hk === hk && this.state.det;
-    this.setState({ view: 'detail', hk, wantNu: nu, loc: null, copied: null, allPlaces: false, det: same ? this.state.det : null, detErr: null });
+    this.setState({ view: 'detail', hk, wantNu: nu, loc: null, copied: null, allPlaces: false, det: same ? this.state.det : null, detErr: null, pSortKey: same ? this.state.pSortKey : null, pSortDir: same ? this.state.pSortDir : 1 });
     if (typeof window !== 'undefined' && window.scrollTo) window.scrollTo(0, 0);
     if (same) return;
     fetch(VALIDATOR_URL + encodeURIComponent(hk))
@@ -263,6 +263,33 @@ class Component extends DCLogic {
       const d = (y - x) * def.best * dir;
       return d !== 0 ? d : idx.get(a) - idx.get(b);
     });
+  }
+  // sort `items` by SORTS[key] applied to rowOf(item); nulls last, stable, dir 1 = best first
+  sortBy2(items, rowOf, key, dir) {
+    const def = SORTS[key];
+    if (!def) return items;
+    const idx = new Map(items.map((r, i) => [r, i]));
+    return items.slice().sort((a, b) => {
+      const x = def.val(rowOf(a)), y = def.val(rowOf(b));
+      if (x == null && y == null) return idx.get(a) - idx.get(b);
+      if (x == null) return 1;
+      if (y == null) return -1;
+      const d = (y - x) * def.best * dir;
+      return d !== 0 ? d : idx.get(a) - idx.get(b);
+    });
+  }
+  sortHeads(key, dir, accent, pick) {
+    const out = {};
+    Object.keys(SORTS).forEach((k) => {
+      const on = key === k, def = SORTS[k], words = def.word;
+      out[k] = {
+        on, color: on ? accent : '#8B97A6',
+        arrow: on ? (dir === 1 ? (def.best === 1 ? ' ↓' : ' ↑') : (def.best === 1 ? ' ↑' : ' ↓')) : ' ↕',
+        aria: on ? 'Sorted by ' + def.label + ', ' + (dir === 1 ? words[0] : words[1]) + '. Activate to reverse.' : 'Sort by ' + def.label + ', ' + words[0],
+        pick: () => pick(k),
+      };
+    });
+    return out;
   }
   sortBy(k) {
     const S = this.state;
@@ -576,7 +603,16 @@ class Component extends DCLogic {
         on: i === li, bg: i === li ? '#111A1F' : 'transparent', pick: () => { this.pickLoc(i); if (window.scrollTo) window.scrollTo(0, 0); },
       };
     });
-    const places = S.allPlaces ? placesAll : placesAll.slice(0, PLACES);
+    // "Where it operates" sorts like the list tables; the location tabs above keep their order
+    const pOrder = this.sortBy2(locs.map((l, i) => i), (i) => locs[i], S.pSortKey, S.pSortDir);
+    const placesSorted = pOrder.map((i) => placesAll[i]);
+    const places = S.allPlaces ? placesSorted : placesSorted.slice(0, PLACES);
+    const ps = this.sortHeads(S.pSortKey, S.pSortDir, accent, (k) => {
+      if (S.pSortKey === k) this.setState({ pSortDir: -S.pSortDir });
+      else this.setState({ pSortKey: k, pSortDir: 1 });
+    });
+    const pmsortOpts = [{ v: '', label: 'Default order' }];
+    Object.keys(SORTS).forEach((k) => { pmsortOpts.push({ v: k + ':1', label: SORTS[k].label + ' · ' + SORTS[k].word[0] }); pmsortOpts.push({ v: k + ':-1', label: SORTS[k].label + ' · ' + SORTS[k].word[1] }); });
     const ngraded = locs.filter((l) => l.g).length;
 
     return {
@@ -596,6 +632,8 @@ class Component extends DCLogic {
       calcVs: (gap == null ? '' : gap > 0.5 ? 'The best validators here would pay about ' + fmtInt(gap) + unit + ' more a year on the same stake.' : 'On par with the best validators here.') + (yr == null ? 'No 30-day yield yet, so no estimate.' : '') + (isRoot && yr > 0 ? ' About ' + usd(yr * px) + ' a year at today’s TAO price.' : ''),
       calcNote: isRoot ? 'Based on the 30-day APY. Rewards arrive as basket alpha; their τ value moves with alpha prices.' : 'Based on the 30-day APY, paid in alpha. What that alpha is worth in τ depends on the subnet’s price.',
       places, placesMore: !S.allPlaces && placesAll.length > places.length, placesTotal: placesAll.length,
+      ps, pmsortOpts, pmsortVal: S.pSortKey ? S.pSortKey + ':' + S.pSortDir : '',
+      pickPmsort: (e) => { const v = e.target.value; if (!v) this.setState({ pSortKey: null, pSortDir: 1 }); else { const [k, d] = v.split(':'); this.setState({ pSortKey: k, pSortDir: +d }); } },
       showAllPlaces: () => this.setState({ allPlaces: true }),
       // a button, not an #anchor: the hash is the route (#v/<hk>), so changing it would leave the page
       goPlaces: () => {

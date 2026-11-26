@@ -276,6 +276,14 @@ button:focus-visible,input:focus-visible,select:focus-visible,a:focus-visible{ou
 </sc-if>
 
 <sc-if value="{{d.ready}}" hint-placeholder-val="{{ true }}">
+<section aria-label="Command" style="border: 1px solid #1E2622; background: #0B0E0D">
+<div style="padding: 8px 12px; display: flex; flex-wrap: wrap; align-items: center; gap: 8px">
+<label for="tm-cmd" style="color: #4BE38A; font-weight: 700">&gt;</label>
+<input id="tm-cmd" value="{{cmd}}" data-on-input="{{onCmd}}" data-on-keydown="{{onCmdKey}}" aria-label="Command" autocomplete="off" spellcheck="false" placeholder="sort fee · sort stake asc · sort default · help · back" style="flex: 1 1 260px; min-width: 0; height: 34px; padding: 0 10px; border: 1px solid #2C3A33; background: #07090A; color: #E8F2EA">
+<button type="button" class="tm-btn" data-on-click="{{runCmd}}" style="height: 34px; padding: 0 14px; border: 1px solid #2C3A33; background: transparent; color: #D4DDD6">RUN ⏎</button>
+</div>
+<div aria-live="polite" style="padding: 0 12px 8px; color: {{fbColor}}; min-height: 20px; word-break: break-word">{{feedback}}</div>
+</section>
 <section aria-label="Validator" style="border: 1px solid #1E2622; background: #0B0E0D">
 <div style="padding: 8px 12px; border-bottom: 1px solid #1E2622; color: #8A978E; word-break: break-word"><span style="color: #4BE38A">$</span> <span style="color: #E8F2EA">validator {{d.slug}} --at {{d.locArg}}</span></div>
 <div style="padding: 12px; display: flex; flex-wrap: wrap; align-items: baseline; gap: 8px 18px">
@@ -366,10 +374,21 @@ button:focus-visible,input:focus-visible,select:focus-visible,a:focus-visible{ou
 
 <section id="tm-places" aria-label="Where it operates" style="border: 1px solid #1E2622; background: #0B0E0D">
 <div style="padding: 8px 12px; border-bottom: 1px solid #1E2622; color: #8A978E; text-transform: uppercase; letter-spacing: 0.08em">┌ where it operates · {{d.placesNote}}</div>
+<label class="tm-msort" style="align-items: center; gap: 6px; margin: 8px 12px; height: 30px; padding: 0 6px; border: 1px solid #2C3A33">
+<span style="color: #8A978E">sort</span>
+<select value="{{d.psortVal}}" data-on-change="{{d.pickPsort}}" aria-label="Sort places by" style="flex: 1; min-width: 0; height: 26px; border: 0; background: #0B0E0D; color: #E8F2EA">
+<sc-for list="{{d.psortOpts}}" as="o" hint-placeholder-count="6">
+<option value="{{o.v}}">{{o.label}}</option>
+</sc-for>
+</select>
+</label>
 <div style="overflow-x: auto">
 <div style="min-width: 760px">
 <div style="display: grid; grid-template-columns: 70px minmax(140px, 1fr) 48px 90px 90px 80px 100px; gap: 10px; padding: 6px 12px; color: #8A978E; text-transform: uppercase; letter-spacing: 0.06em; border-bottom: 1px solid #1E2622">
-<span>where</span><span>name</span><span>grade</span><span style="text-align: right">apy 30d</span><span style="text-align: right">payout</span><span style="text-align: right">fee</span><span style="text-align: right">stake τ</span>
+<span>where</span><span>name</span>
+<sc-for list="{{d.pcols}}" as="h" hint-placeholder-count="5">
+<button type="button" class="tm-btn" data-on-click="{{h.sort}}" aria-label="{{h.aria}}" aria-pressed="{{h.on}}" aria-sort="{{h.ariaSort}}" style="justify-self: {{h.justify}}; padding: 0; border: 0; border-bottom: 1px solid {{h.uline}}; background: transparent; color: {{h.fg}}; text-transform: uppercase; letter-spacing: 0.06em; white-space: nowrap">{{h.label}} {{h.arrow}}</button>
+</sc-for>
 </div>
 <sc-for list="{{d.places}}" as="p" hint-placeholder-count="6">
 <button type="button" class="tm-row" data-on-click="{{p.pick}}" aria-pressed="{{p.on}}" style="width: 100%; display: grid; grid-template-columns: 70px minmax(140px, 1fr) 48px 90px 90px 80px 100px; gap: 10px; padding: 5px 12px; border: 0; border-bottom: 1px solid #111713; background: {{p.bg}}; color: #D4DDD6; text-align: left">
@@ -402,6 +421,6 @@ button:focus-visible,input:focus-visible,select:focus-visible,a:focus-visible{ou
 </div>
 </template>
 <script src="/dc-lite.js?v=0ced284fd338"></script>
-<script src="/terminal.js?v=a24a8648b1c7"></script>
+<script src="/terminal.js?v=ea2b1f8c34dc"></script>
 </body>
 </html>

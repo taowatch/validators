@@ -461,10 +461,23 @@ button:focus-visible,input:focus-visible,select:focus-visible,a:focus-visible{ou
 <h2 style="margin: 0; font-family: 'Space Grotesk', sans-serif; font-size: 16px; font-weight: 600">Where it operates</h2>
 <span style="font-size: 12px; color: #8B97A6">{{d.placesNote}}</span>
 </div>
+<div class="ch-msort" style="align-items: center; gap: 8px; padding: 10px 16px; border-bottom: 1px solid #1C232D">
+<label for="ch-psort" style="font-size: 12px; color: #8B97A6">Sort by</label>
+<select id="ch-psort" value="{{d.pmsortVal}}" data-on-change="{{d.pickPmsort}}" style="flex: 1; min-width: 0; height: 36px; padding: 0 10px; border-radius: 9px; border: 1px solid #1C232D; background: #0A0E13; color: #E6EDF3">
+<sc-for list="{{d.pmsortOpts}}" as="o" hint-placeholder-count="6">
+<option value="{{o.v}}">{{o.label}}</option>
+</sc-for>
+</select>
+</div>
 <div style="overflow-x: auto">
 <div style="min-width: 620px">
-<div aria-hidden="true" style="display: grid; grid-template-columns: minmax(180px, 2fr) 60px 100px 100px 90px 110px; gap: 12px; padding: 0 20px; height: 36px; align-items: center; background: #0B1016; border-bottom: 1px solid #1C232D; font-size: 11px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: #8B97A6">
-<span>Where</span><span>Grade</span><span style="text-align: right">APY 30D</span><span style="text-align: right">Payout</span><span style="text-align: right">Fee</span><span style="text-align: right">Stake</span>
+<div style="display: grid; grid-template-columns: minmax(180px, 2fr) 60px 100px 100px 90px 110px; gap: 12px; padding: 0 20px; height: 36px; align-items: center; background: #0B1016; border-bottom: 1px solid #1C232D; font-size: 11px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: #8B97A6">
+<span>Where</span>
+<span style="display: flex"><button type="button" class="ch-sorth" data-on-click="{{d.ps.g.pick}}" aria-pressed="{{d.ps.g.on}}" aria-label="{{d.ps.g.aria}}" style="color: {{d.ps.g.color}}">Grade<span aria-hidden="true">{{d.ps.g.arrow}}</span></button></span>
+<span style="display: flex; justify-content: flex-end"><button type="button" class="ch-sorth" data-on-click="{{d.ps.a30.pick}}" aria-pressed="{{d.ps.a30.on}}" aria-label="{{d.ps.a30.aria}}" style="color: {{d.ps.a30.color}}; white-space: nowrap">APY 30D<span aria-hidden="true">{{d.ps.a30.arrow}}</span></button></span>
+<span style="display: flex; justify-content: flex-end"><button type="button" class="ch-sorth" data-on-click="{{d.ps.pr.pick}}" aria-pressed="{{d.ps.pr.on}}" aria-label="{{d.ps.pr.aria}}" style="color: {{d.ps.pr.color}}">Payout<span aria-hidden="true">{{d.ps.pr.arrow}}</span></button></span>
+<span style="display: flex; justify-content: flex-end"><button type="button" class="ch-sorth" data-on-click="{{d.ps.fee.pick}}" aria-pressed="{{d.ps.fee.on}}" aria-label="{{d.ps.fee.aria}}" style="color: {{d.ps.fee.color}}">Fee<span aria-hidden="true">{{d.ps.fee.arrow}}</span></button></span>
+<span style="display: flex; justify-content: flex-end"><button type="button" class="ch-sorth" data-on-click="{{d.ps.stake.pick}}" aria-pressed="{{d.ps.stake.on}}" aria-label="{{d.ps.stake.aria}}" style="color: {{d.ps.stake.color}}">Stake<span aria-hidden="true">{{d.ps.stake.arrow}}</span></button></span>
 </div>
 <sc-for list="{{d.places}}" as="p" hint-placeholder-count="5">
 <button type="button" class="ch-row" data-on-click="{{p.pick}}" aria-pressed="{{p.on}}" style="width: 100%; text-align: left; color: inherit; border: 0; border-bottom: 1px solid #141A22; display: grid; grid-template-columns: minmax(180px, 2fr) 60px 100px 100px 90px 110px; gap: 12px; padding: 0 20px; height: 44px; align-items: center; background: {{p.bg}}">
@@ -498,6 +511,6 @@ button:focus-visible,input:focus-visible,select:focus-visible,a:focus-visible{ou
 </div>
 </template>
 <script src="/dc-lite.js?v=0ced284fd338"></script>
-<script src="/app.js?v=a8c89b814b18"></script>
+<script src="/app.js?v=4dc489611ff7"></script>
 </body>
 </html>

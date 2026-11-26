@@ -71,7 +71,7 @@ class Component extends DCLogic {
     super(props);
     this.state = {
       data: null, err: null, mode: 'root', sn: null, grades: [], hideWarn: false, q: '', sort: null, dir: -1, cur: 0, limit: PAGE, allSn: false, snQ: '',
-      cmd: '', feedback: 'type help for commands · keys: j/k move, enter open, / command, s sort, g grade, t default UI', fbOk: true, amt: '1,000',
+      psort: null, pdir: -1, cmd: '', feedback: 'type help for commands · keys: j/k move, enter open, / command, s sort, g grade, t default UI', fbOk: true, amt: '1,000',
       view: 'list', hk: null, wantNu: null, det: null, detErr: null, loc: null, amtD: '1,000', copied: null,
       px: null, pxLive: false, pxDir: 0, keys: keysStored(),
     };
@@ -163,7 +163,7 @@ class Component extends DCLogic {
   show(hk, nu) {
     if (this.state.view !== 'detail' && typeof window !== 'undefined') this.listY = window.scrollY || 0;
     const same = this.state.hk === hk && this.state.det;
-    this.setState({ view: 'detail', hk, wantNu: nu, loc: null, copied: null, det: same ? this.state.det : null, detErr: null });
+    this.setState({ view: 'detail', hk, wantNu: nu, loc: null, copied: null, det: same ? this.state.det : null, detErr: null, psort: same ? this.state.psort : null, pdir: same ? this.state.pdir : -1 });
     if (typeof window !== 'undefined' && window.scrollTo) window.scrollTo(0, 0);
     if (same) return;
     fetch(VALIDATOR_URL + encodeURIComponent(hk))
@@ -241,8 +241,8 @@ class Component extends DCLogic {
       if (k === 'Escape') { e.preventDefault(); this.back(); }
       else if ((k === 'h' || k === 'l') && n) { e.preventDefault(); this.pickLoc((li + (k === 'l' ? 1 : -1) + n) % n); }
       else if (k === 'c' && V) { e.preventDefault(); this.copyHk(V.hk); }
-      // back() may finish later through popstate → toList(); it focuses the command line then
-      else if (k === '/') { e.preventDefault(); this.pendingCmdFocus = true; this.back(); }
+      else if (k === 's' && V) { e.preventDefault(); this.cyclePSort(); }
+      else if (k === '/') { e.preventDefault(); this.focusCmd(); }
       return;
     }
     if (!S.data) return;
@@ -283,6 +283,17 @@ class Component extends DCLogic {
     const S = this.state, i = SORTS.findIndex((s) => s[0] === S.sort), n = i + 1 >= SORTS.length ? null : SORTS[i + 1];
     this.setState({ sort: n ? n[0] : null, dir: -1, cur: 0, feedback: 'ok: ' + (n ? 'sort ' + n[1] : 'default order'), fbOk: true });
   }
+  // sort order for a list of rows by SORT_KEY[key]; dir < 0 = best first (as in the list table), nulls last
+  sortIdx(items, rowOf, key, dir) {
+    const f = SORT_KEY[key];
+    if (!f) return items;
+    const better = key === 'grade' || key === 'fee' ? 1 : -1, m = dir < 0 ? better : -better;
+    return items.map((r, i) => [r, i]).sort((a, b) => { const x = f(rowOf(a[0])), y = f(rowOf(b[0])); if (x == null && y == null) return a[1] - b[1]; if (x == null) return 1; if (y == null) return -1; return (x - y) * m || a[1] - b[1]; }).map((x) => x[0]);
+  }
+  cyclePSort() {
+    const S = this.state, i = SORTS.findIndex((s) => s[0] === S.psort), n = i + 1 >= SORTS.length ? null : SORTS[i + 1];
+    this.setState({ psort: n ? n[0] : null, pdir: -1, feedback: 'ok: places ' + (n ? 'sorted by ' + n[1] : 'in default order'), fbOk: true });
+  }
   cycleGrade() {
     const order = [[], ['A'], ['A', 'B'], ['C', 'D'], ['F']], S = this.state;
     const i = order.findIndex((g) => g.join() === S.grades.join()), next = order[(i + 1) % order.length];
@@ -299,14 +310,23 @@ class Component extends DCLogic {
   }
 
   // ---- command line ----
+  // On a validator page, commands that act on the list (root, sn, grade, search …) go back to it;
+  // sort/help/keys/v stay (sort orders the page's "where it operates" table).
   run() {
+    const onDetail = this.state.view === 'detail', c = (this.state.cmd.trim().toLowerCase().split(/\s+/)[0] || '');
+    if (onDetail && c === 'back') { this.setState({ cmd: '' }); this.back(); return; }
+    this.runCmd();
+    const stay = ['', 'sort', 's', 'help', '?', 'keys', 'v', 'find', 'open'].includes(c);
+    if (onDetail && !stay && this.state.fbOk && this.state.view === 'detail') this.back();
+  }
+  runCmd() {
     const raw = this.state.cmd.trim(), t = raw.toLowerCase().split(/\s+/).filter(Boolean);
     const D = this.state.data;
     const ok = (m, patch) => this.setState(Object.assign({ feedback: 'ok: ' + m, fbOk: true, cmd: '', cur: 0, limit: PAGE }, patch || {}));
     const bad = (m) => this.setState({ feedback: 'error: ' + m, fbOk: false });
     if (!t.length) return;
     const c = t[0];
-    if (c === 'help' || c === '?') return this.setState({ feedback: 'root · sn <netuid|name> · grade a b … | grade (all) · sort grade|earn|payout|fee|stake [asc] · v <name> · warn on|off · keys on|off · clear · anything else searches', fbOk: true, cmd: '' });
+    if (c === 'help' || c === '?') return this.setState({ feedback: 'root · sn <netuid|name> · grade a b … | grade (all) · sort grade|earn|payout|fee|stake [asc] (on a validator page: its places) · v <name> · warn on|off · keys on|off · clear · anything else searches', fbOk: true, cmd: '' });
     if (c === 'root') return ok('root validators', { mode: 'root' });
     if (c === 'sn' || c === 'subnet') {
       const arg = t.slice(1).join(' ');
@@ -332,8 +352,12 @@ class Component extends DCLogic {
     }
     if (c === 'sort' || c === 's') {
       const k = { grade: 'grade', earn: 'earn', apy: 'earn', payout: 'payout', pay: 'payout', fee: 'fee', stake: 'stake' }[t[1]];
+      if (t[1] === 'default' || t[1] === 'none') return this.state.view === 'detail' ? ok('places in default order', { psort: null, pdir: -1 }) : ok('default order', { sort: null, dir: -1 });
       if (!k) return bad('sort by grade, earn, payout, fee or stake');
+      if (t[2] && t[2] !== 'asc') return bad('sort <col> [asc]');
       const dir = t[2] === 'asc' ? 1 : -1;
+      // on a validator page the command sorts its "where it operates" table
+      if (this.state.view === 'detail') return ok('places sorted by ' + k + (dir > 0 ? ' (worst first)' : ' (best first)'), { psort: k, pdir: dir });
       return ok('sort ' + k + (dir > 0 ? ' (worst first)' : ' (best first)'), { sort: k, dir });
     }
     if (c === 'v' || c === 'find' || c === 'open') {
@@ -377,9 +401,13 @@ class Component extends DCLogic {
       blockTxt: D && D.block ? '#' + fmtInt(D.block) : '…',
       age: ageMin == null ? '…' : ageMin < 120 ? ageMin + 'm' : ageMin < 2880 ? Math.round(ageMin / 60) + 'h' : Math.round(ageMin / 1440) + 'd',
       modeTxt: S.view === 'detail' ? 'validator' : this.alpha() ? 'subnet ' + (D ? this.snOf(D) : '') : 'root',
-      keysHint: !S.keys ? 'single-key shortcuts off' : S.view === 'detail' ? 'h/l prev/next place · c copy · esc back · t default UI' : 'j/k move · enter open · / command · s sort · g grade · esc clear · t default UI',
+      keysHint: !S.keys ? 'single-key shortcuts off' : S.view === 'detail' ? 'h/l prev/next place · s sort places · c copy · esc back · t default UI' : 'j/k move · enter open · / command · s sort · g grade · esc clear · t default UI',
       keysLabel: S.keys ? 'keys: on' : 'keys: off', keysOn: S.keys, toggleKeys: () => this.toggleKeys(),
       loading: false, failed: false, err: '', isList: false, isDetail: false, d: {},
+      // the command line exists on the list and on validator pages
+      cmd: S.cmd, onCmd: (e) => this.setState({ cmd: e.target.value }),
+      onCmdKey: (e) => { if (e.key === 'Enter') { e.preventDefault(); this.run(); } else if (e.key === 'Escape') { e.preventDefault(); this.setState({ cmd: '' }); e.target.blur(); } },
+      runCmd: () => this.run(), feedback: S.feedback, fbColor: S.fbOk ? '#8A978E' : '#FF6B5E',
     };
     if (S.view === 'detail') return Object.assign(base, { isDetail: true, d: this.detail(D) });
     if (!D) return Object.assign(base, S.err ? { failed: true, err: S.err } : { loading: true });
@@ -406,7 +434,7 @@ class Component extends DCLogic {
     this.rows = shown;
     const sel = shown[curI] || null;
 
-    const cols = [['grade', 'grade', 'start'], [null, 'validator', 'start'], ['earn', 'you earn 30d', 'end'], ['payout', 'payout vs best', 'start'], ['fee', 'fee', 'end'], ['stake', 'stake τ', 'end'], [null, alpha ? '7d vs 30d' : 'trend 30d', 'start']].map(([k, label, justify]) => {
+    const cols = [['grade', 'grade', 'start'], [null, 'validator', 'start'], ['earn', 'you earn 30d', 'end'], ['payout', 'payout vs best', 'start'], ['fee', 'fee', 'end'], ['stake', 'stake tao', 'end'], [null, alpha ? '7d vs 30d' : 'trend 30d', 'start']].map(([k, label, justify]) => {
       const on = !!k && S.sort === k;
       return {
         label, justify, sortable: !!k, plain: !k, on, fg: on ? '#4BE38A' : '#8A978E', uline: on ? '#4BE38A' : 'transparent', arrow: on ? (S.dir < 0 ? '▼' : '▲') : (k ? '↕' : ''),
@@ -456,9 +484,6 @@ class Component extends DCLogic {
     const gap = sel && bestApy != null && sel.a30 != null ? amt * (bestApy - sel.a30) / 100 : null;
 
     return {
-      cmd: S.cmd, onCmd: (e) => this.setState({ cmd: e.target.value }),
-      onCmdKey: (e) => { if (e.key === 'Enter') { e.preventDefault(); this.run(); } else if (e.key === 'Escape') { e.preventDefault(); this.setState({ cmd: '' }); e.target.blur(); } },
-      runCmd: () => this.run(), feedback: S.feedback, fbColor: S.fbOk ? '#8A978E' : '#FF6B5E',
       prompt: 'validators ' + flags.join(' '), benchTxt: D.root.bench == null ? 'no grade yet' : '~' + D.root.bench.toFixed(2) + '%', benchMed: D.root.bench == null ? '—' : D.root.bench.toFixed(2) + '%',
       rootOn: !alpha, alphaOn: alpha,
       rootBorder: !alpha ? '#4BE38A' : '#2C3A33', rootBg: !alpha ? '#0E1F15' : 'transparent', rootFg: !alpha ? '#4BE38A' : '#D4DDD6',
@@ -559,12 +584,24 @@ class Component extends DCLogic {
       calcYear: yr == null ? '—' : fmtInt(yr) + unit, calcMonth: yr == null ? '—' : fmtInt(yr / 12) + unit,
       calcVs: gap == null ? '' : gap > 0.5 ? '> best here pays +' + fmtInt(gap) + unit + '/yr on the same stake' : '> on par with the best here',
       calcNote: isRoot ? '30-day APY; rewards arrive as basket alpha.' : '30-day APY, paid in alpha; its τ value follows the subnet price.',
-      places: locs.map((l, i) => ({
+      pcols: [['grade', 'grade', 'start'], ['earn', 'apy 30d', 'end'], ['payout', 'payout', 'end'], ['fee', 'fee', 'end'], ['stake', 'stake tao', 'end']].map(([k, label, justify]) => {
+        const on = S.psort === k;
+        return {
+          label, justify, on, fg: on ? '#4BE38A' : '#8A978E', uline: on ? '#4BE38A' : 'transparent', arrow: on ? (S.pdir < 0 ? '▼' : '▲') : '↕',
+          ariaSort: on ? ((S.pdir < 0) === (k === 'grade' || k === 'fee') ? 'ascending' : 'descending') : 'none',
+          aria: 'Sort places by ' + label + (on ? (S.pdir < 0 ? ', best first' : ', worst first') : ''),
+          sort: () => this.setState({ psort: k, pdir: on ? -S.pdir : -1 }),
+        };
+      }),
+      psortOpts: [{ v: '', label: 'default' }].concat(...SORTS.map(([k, l]) => [{ v: k, label: l + ' ▼' }, { v: k + ':asc', label: l + ' ▲' }])),
+      psortVal: S.psort ? S.psort + (S.pdir > 0 ? ':asc' : '') : '',
+      pickPsort: (e) => { const [k, a] = String(e.target.value).split(':'); this.setState({ psort: k || null, pdir: a ? 1 : -1 }); },
+      places: this.sortIdx(locs.map((l, i) => i), (i) => locs[i], S.psort, S.pdir).map((i) => { const l = locs[i]; return ({
         label: l.label, sname: l.kind === 'root' ? 'root stake' : (l.sname || ''), grade: l.g || '-', gFg: l.g ? G[l.g] : '#8A978E',
         apy: l.g === 'F' ? '0%' : pct(l.a30, l.kind === 'root' ? 2 : 1), pr: l.g === 'F' ? '0%' : l.pr == null ? '—' : Math.round(l.pr) + '%',
         fee: pct(l.fee, 1), feeFg: l.fee >= 15 ? '#F2B544' : '#D4DDD6', stake: fmtInt(l.stake),
         on: i === li, bg: i === li ? '#0E1F15' : 'transparent', whereFg: i === li ? '#4BE38A' : '#A9B6AD', pick: () => this.pickLoc(i),
-      })),
+      }); }),
       placesNote: locs.length + (locs.length === 1 ? ' place, ' : ' places, ') + ngraded + ' graded · h/l to step',
     };
   }
