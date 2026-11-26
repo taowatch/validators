@@ -199,6 +199,8 @@ class Component extends DCLogic {
     const S = this.state, D = S.data;
     const base = {
       accent, tk: this.ticker(accent), home: (e) => this.home(e), back: (e) => this.back(e),
+      // the hash is the route, so the skip link moves focus instead of changing it
+      skip: (e) => { if (e) e.preventDefault(); const el = document.getElementById('validators'); if (el) { el.setAttribute('tabindex', '-1'); el.focus(); el.scrollIntoView({ block: 'start' }); } },
       loading: !D && !S.err, failed: !D && !!S.err, err: S.err, skel: [1, 2, 3, 4, 5, 6, 7, 8],
       blockTxt: D ? fmtInt(D.block) : '…', timeTxt: D && D.ts ? new Date(D.ts).toISOString().slice(0, 16).replace('T', ' ') + ' UTC' : '',
       isList: false, isDetail: false, d: {},
@@ -426,6 +428,11 @@ class Component extends DCLogic {
       calcNote: isRoot ? 'Based on the 30-day APY. Rewards arrive as basket alpha; their τ value moves with alpha prices.' : 'Based on the 30-day APY, paid in alpha. What that alpha is worth in τ depends on the subnet’s price.',
       places, placesMore: !S.allPlaces && placesAll.length > places.length, placesTotal: placesAll.length,
       showAllPlaces: () => this.setState({ allPlaces: true }),
+      // a button, not an #anchor: the hash is the route (#v/<hk>), so changing it would leave the page
+      goPlaces: () => {
+        this.setState({ allPlaces: true });
+        if (typeof window !== 'undefined') window.requestAnimationFrame(() => window.requestAnimationFrame(() => { const el = document.getElementById('places'); if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' }); }));
+      },
       placesNote: locs.length + (locs.length === 1 ? ' place' : ' places') + ', ' + ngraded + ' graded · pools of 10 τ or more',
     };
   }
