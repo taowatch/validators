@@ -341,7 +341,7 @@ button:focus-visible,input:focus-visible{outline:2px solid #3DDBB0;outline-offse
 <div style="background: #0E131A; border: 1px solid #1C232D; border-radius: 14px; overflow: hidden">
 <div style="padding: 14px 20px; display: flex; flex-wrap: wrap; justify-content: space-between; gap: 8px; border-bottom: 1px solid #1C232D">
 <h3 style="margin: 0; font-family: 'Space Grotesk', sans-serif; font-weight: 600; font-size: 15px">{{al.title}}</h3>
-<span style="font-size: 12px; color: #8B97A6">Efficiency = APY ÷ subnet reference APY</span>
+<span style="font-size: 12px; color: #8B97A6">APY = rewards valued in τ at today’s price · TAO return = actual gain in τ incl. price move · efficiency = APY ÷ subnet reference</span>
 </div>
 <div class="vr-scroll" style="overflow-x: auto">
 <div style="min-width: {{al.minW}}px">
@@ -488,6 +488,7 @@ button:focus-visible,input:focus-visible{outline:2px solid #3DDBB0;outline-offse
 </span>
 </sc-if>
 <span style="text-align: right; font-family: 'JetBrains Mono', monospace; font-size: 12px; color: #C9D1D9">{{r.a}}</span>
+<span style="text-align: right; font-family: 'JetBrains Mono', monospace; font-size: 12px; font-weight: 600; color: {{r.retColor}}">{{r.ret}}</span>
 <span style="text-align: right; font-family: 'JetBrains Mono', monospace; font-size: 12px; color: {{r.rootColor}}">{{r.root}}</span>
 </button>
 </sc-for>
@@ -845,7 +846,7 @@ button:focus-visible,input:focus-visible{outline:2px solid #3DDBB0;outline-offse
 </sc-if>
 </section>
 
-<footer style="font-size: 12px; color: #8B97A6">Computed at block #{{blockTxt}} ({{timeTxt}}). Alpha APY is the growth of alpha per pool share, net of validator and childkey take, annualized and counted in alpha: it does not include the alpha price change against TAO (see the Price column).</footer>
+<footer style="font-size: 12px; color: #8B97A6">Computed at block #{{blockTxt}} ({{timeTxt}}). APY = staking rewards valued in τ at today’s price, annualized, net of validator and childkey take (same basis for root and alpha). TAO return = what a staker actually gained or lost in τ over the window, including the alpha price move against τ; not annualized.</footer>
 </main>
 </sc-if>
 </div>
@@ -857,7 +858,7 @@ const ALPHA_URL = '/_blob/014a9d93677815beb1c1f07d54103b74';
 const PAUSE_TS = [Date.UTC(2026, 10, 7), Date.UTC(2026, 10, 12)];
 const RANGES = [30, 90, 180, 365];
 const ALPHA_MINS = [[0, 'All'], [1000, '≥ 1K τ'], [10000, '≥ 10K τ'], [100000, '≥ 100K τ']];
-const EFF_DIRS = { rank: -1, name: 1, tao: -1, ns: -1, t: 1, cfg: 1, et: 1, eff: -1, cons: -1, a: -1, root: -1 };
+const EFF_DIRS = { rank: -1, name: 1, tao: -1, ns: -1, t: 1, cfg: 1, et: 1, eff: -1, cons: -1, a: -1, r: -1, root: -1 };
 function effColor(e, accent) { return e == null ? '#8B97A6' : e >= 95 ? accent : e >= 80 ? '#E6EDF3' : '#F59E3B'; }
 function mono(hk) { const h = hue(hk); return { monoBg: 'hsl(' + h + ' 34% 20%)', monoFg: 'hsl(' + h + ' 70% 78%)' }; }
 function initials(name, hk) { return ((name || '').replace(/[^A-Za-z0-9]/g, '').slice(0, 2) || hk.slice(1, 3)).toUpperCase(); }
@@ -921,6 +922,9 @@ const DIRS = { rank: -1, name: 1, stake: -1, take: 1, sd: 1, flow: -1, nom: -1 }
 function dirOf(map, k) { return map[k] != null ? map[k] : -1; }
 function wl(w) { return w + 'D'; }
 // chart / flow ranges the data covers: the standard ones shorter than the history, plus all of it
+// τ return (not annualized): signed, 2 decimals
+function retTxt(x) { return x == null ? '—' : signed(x, (n) => n.toFixed(2) + '%'); }
+function retCol(x, accent) { return x == null ? MUTED : x >= 0 ? accent : ORANGE; }
 function rangeOpts(N) { const r = RANGES.filter((x) => x < N); r.push(N); return r; }
 function rangeLabel(r, N) { return r === N && !RANGES.includes(N) ? 'All' : r + 'D'; }
 // stake flow over the last r days, measured from the first stored point inside that range
@@ -1377,13 +1381,14 @@ class Component extends DCLogic {
       pick: () => this.setState({ sn: s.nu }),
     }));
     const hdr = { ref: 'Ref ' + L, dp: 'Price ' + dpk.slice(2) + 'D' };
-    const winCols = A.win.map((w) => ({ label: 'APY ' + wl(w), color: w === ew ? TEXT : MUTED }));
-    const grid = '44px minmax(180px, 2fr) 110px 56px ' + A.win.map((w) => (w === ew ? '74px' : '64px')).join(' ') + ' 140px 72px';
-    const minW = 860 + (A.win.length - 3) * 70;
+    const winCols = A.win.map((w) => ({ label: 'APY ' + wl(w), color: w === ew ? TEXT : MUTED })).concat([{ label: 'TAO return ' + L, color: TEXT }]);
+    const grid = '44px minmax(180px, 2fr) 110px 56px ' + A.win.map((w) => (w === ew ? '74px' : '64px')).join(' ') + ' 116px 140px 72px';
+    const minW = 988 + (A.win.length - 3) * 70;
     const empty = { snRows, hdr, winCols, grid, minW, noSn: list.length === 0, hasCur: false, noCur: true, cur: { sn: '', name: '', kpis: [] }, rows: [], title: '' };
     if (!cur) return Object.assign(empty, { noCurTxt: A.snList.length ? 'No subnet matches “' + S.q.trim() + '”.' : 'No subnet data yet: the collector has not stored alpha samples.' });
     const kpis = [
       { label: 'Reference APY ' + L, value: pct(cur['ref' + ew], 1), color: accent },
+      { label: 'TAO return ' + L, value: retTxt(cur['r' + ew]), color: retCol(cur['r' + ew], accent) },
       { label: 'Alpha price', value: cur.price == null ? '—' : cur.price.toFixed(5) + ' τ', color: TEXT },
     ].concat(A.win.filter((w) => w >= 7).map((w) => ({ label: 'Price ' + wl(w), value: dpTxt(cur['dp' + w]), color: dpCol(cur['dp' + w]) })))
       .concat([
@@ -1397,7 +1402,8 @@ class Component extends DCLogic {
         rank: r || '—', rankColor: r && r <= 3 ? accent : MUTED, name, ini: initials(name, p.v.hk),
         aria: name + ' on SN' + cur.nu + ', alpha APY ' + L + ' ' + pct(p[ak]),
         tao: fmtInt(p.tao), take: pct(p.v.t * 100, 0), takeBg: p.v.t >= 0.15 ? '#2A1D0E' : p.v.t === 0 ? '#12281F' : '#161C25', takeFg: p.v.t >= 0.15 ? ORANGE : p.v.t === 0 ? accent : '#C9D1D9',
-        apys: A.win.map((w) => ({ t: pct(p['a' + w], 1), color: w === ew ? (e == null ? MUTED : effColor(e, accent)) : '#C9D1D9', weight: w === ew ? 700 : 400 })),
+        apys: A.win.map((w) => ({ t: pct(p['a' + w], 1), color: w === ew ? (e == null ? MUTED : effColor(e, accent)) : '#C9D1D9', weight: w === ew ? 700 : 400 }))
+          .concat([{ t: retTxt(p['r' + ew]), color: retCol(p['r' + ew], accent), weight: 600 }]),
         eff: e == null ? '—' : Math.min(e, 100).toFixed(0) + '%', effW: e == null ? 0 : Math.min(100, e).toFixed(1), effColor: effColor(e, accent),
         ct: p.ct == null ? 'n/a' : pct(p.ct, 1), ctColor: p.ct != null && p.ct >= 5 ? ORANGE : '#A9B4C2',
         open: () => this.openAny(p.v.hk),
@@ -1416,7 +1422,7 @@ class Component extends DCLogic {
       return { v, name: this.vname(v.hk, v.n), root: r ? r[rootK] : null, et: Math.max(0, v[etk] ?? 100 - v[ek]), eff: v[ek] };
     }).filter((x) => !q || x.name.toLowerCase().includes(q) || x.v.hk.toLowerCase().includes(q));
     const rankOf = new Map(); items.slice().sort((a, b) => b.eff - a.eff).forEach((x, i) => rankOf.set(x.v.hk, i + 1));
-    const getters = { rank: (x) => x.eff, name: (x) => x.name.toLowerCase(), tao: (x) => x.v.tao, ns: (x) => x.v.ns, t: (x) => x.v.t, cfg: (x) => x.v.cfg, et: (x) => x.et, eff: (x) => x.eff, cons: (x) => x.v.cons, a: (x) => x.v[ak], root: (x) => x.root };
+    const getters = { rank: (x) => x.eff, name: (x) => x.name.toLowerCase(), tao: (x) => x.v.tao, ns: (x) => x.v.ns, t: (x) => x.v.t, cfg: (x) => x.v.cfg, et: (x) => x.et, eff: (x) => x.eff, cons: (x) => x.v.cons, a: (x) => x.v[ak], r: (x) => x.v['r' + ew], root: (x) => x.root };
     const sk = getters[S.effSort] && (S.effSort !== 'cons' || hasCons) ? S.effSort : 'eff';
     const get = getters[sk];
     const sorted = items.slice().sort((a, b) => { const va = get(a), vb = get(b); if (va == null && vb == null) return 0; if (va == null) return 1; if (vb == null) return -1; return (va < vb ? -1 : va > vb ? 1 : 0) * S.effDir; });
@@ -1428,20 +1434,20 @@ class Component extends DCLogic {
         et: pct(x.et, 1), etColor: x.et - v.t * 100 > 5 ? ORANGE : TEXT,
         eff: pct(Math.min(x.eff, 100), 1), effW: Math.min(100, x.eff).toFixed(1), effColor: effColor(x.eff, accent),
         hasCons, cons: consCell(v, A, accent, 4),
-        a: pct(v[ak], 1), root: pct(x.root), rootColor: x.root == null ? MUTED : apyColor(x.root, D.meds[rootK], accent),
+        a: pct(v[ak], 1), ret: retTxt(v['r' + ew]), retColor: retCol(v['r' + ew], accent), root: pct(x.root), rootColor: x.root == null ? MUTED : apyColor(x.root, D.meds[rootK], accent),
         open: () => this.openAny(v.hk),
       });
     });
     const defs = [['rank', '#', 'flex-start'], ['name', 'Validator', 'flex-start'], ['tao', 'Alpha stake', 'flex-end'], ['ns', 'Subnets', 'flex-end'],
       ['t', 'Listed take', 'flex-end'], ['cfg', 'Config. take', 'flex-end'], ['et', 'Eff. take ' + L, 'flex-end'], ['eff', 'Efficiency ' + L, 'flex-start']]
       .concat(hasCons ? [['cons', 'Consistency', 'flex-start']] : [])
-      .concat([['a', 'Alpha APY ' + L, 'flex-end'], ['root', 'Root APY ' + wl(+rootK.slice(1)), 'flex-end']]);
+      .concat([['a', 'Alpha APY ' + L, 'flex-end'], ['r', 'TAO return ' + L, 'flex-end'], ['root', 'Root APY ' + wl(+rootK.slice(1)), 'flex-end']]);
     const cols = defs.map(([key, label, justify]) => ({
       label, justify, color: sk === key ? accent : MUTED, arrow: sk === key ? (S.effDir < 0 ? '↓' : '↑') : '', aria: 'Sort by ' + label,
       title: key === 'cons' ? 'Share of ' + A.period + '-day periods in which the validator passed on at least 90% of the subnet reference APY' : '',
       sort: () => (sk === key ? this.setState({ effDir: -S.effDir }) : this.setState({ effSort: key, effDir: dirOf(EFF_DIRS, key) })),
     }));
-    const grid = '44px minmax(200px, 2fr) 120px 70px 84px 96px 104px 160px ' + (hasCons ? '150px ' : '') + '90px 96px';
+    const grid = '44px minmax(200px, 2fr) 120px 70px 84px 96px 104px 160px ' + (hasCons ? '150px ' : '') + '90px 116px 96px';
     // scatter: listed take vs effective take
     const ymax = Math.max(40, Math.ceil(Math.max(0, ...items.map((x) => x.et)) / 10) * 10);
     const maxT = Math.max(1, ...items.map((x) => x.v.tao));
@@ -1458,8 +1464,8 @@ class Component extends DCLogic {
     const gaps = items.map((x) => ({ x, gap: x.et - x.v.t * 100 })).filter((g) => g.gap > 3).sort((a, b) => b.gap - a.gap).slice(0, 6);
     const gmax = Math.max(1, ...gaps.map((g) => g.gap));
     return {
-      cols, rows, grid, minW: 1120 + (hasCons ? 162 : 0), empty: rows.length === 0, pts, L,
-      note: 'Efficiency = share of each subnet’s alpha yield a validator passes to its stakers over ' + L + ', weighted by alpha stake. Effective take = 100% − efficiency. Alpha APY is counted in the subnet’s alpha, so it excludes alpha price moves against TAO.' +
+      cols, rows, grid, minW: 1248 + (hasCons ? 162 : 0), empty: rows.length === 0, pts, L,
+      note: 'Efficiency = share of each subnet’s alpha yield a validator passes to its stakers over ' + L + ', weighted by alpha stake. Effective take = 100% − efficiency. APY = staking rewards valued in τ at today’s price; TAO return adds the alpha price move over ' + L + ', not annualized. Efficiency compares yields of pools on the same subnet, which share the same price move.' +
         (hasCons ? ' Consistency = share of ' + A.period + '-day periods at ≥ 90% of the subnet reference (bars: oldest → newest).' : ''),
       yTicks: ticks(0, ymax, 4).map((v) => ({ pos: yp(v).toFixed(2), label: v + '%' })),
       xTicks: [0, 5, 10, 15, 20].map((v) => ({ pos: v * 5, label: v + '%' })),
@@ -1518,6 +1524,7 @@ class Component extends DCLogic {
     ];
     if (A.np >= 2) kpis.push({ label: 'Consistency', value: v.cons == null ? '—' : pct(v.cons, 0), color: v.cons == null ? MUTED : v.cons >= 75 ? accent : v.cons >= 50 ? TEXT : ORANGE, sub: A.period + '-day periods at ≥ 90% of reference', subColor: MUTED });
     kpis.push({ label: 'Alpha APY ' + L, value: pct(v['a' + ew], 2), color: accent, sub: A.win.filter((w) => w !== ew).map((w) => wl(w) + ' ' + pct(v['a' + w], 1)).join(' · '), subColor: MUTED });
+    kpis.push({ label: 'TAO return ' + L, value: retTxt(v['r' + ew]), color: retCol(v['r' + ew], accent), sub: A.win.filter((w) => w !== ew).map((w) => wl(w) + ' ' + retTxt(v['r' + w])).join(' · ') || 'incl. alpha price move, not annualized', subColor: MUTED });
     kpis.push({ label: 'Childkey take', value: v.ct == null ? '—' : pct(v.ct, 1), color: v.ct != null && v.ct >= 5 ? ORANGE : TEXT, sub: 'paid to child hotkeys, weighted', subColor: MUTED });
 
     // efficiency per period, oldest → newest
@@ -1538,7 +1545,8 @@ class Component extends DCLogic {
       const s = A.sns.get(p.nu) || {}, pe = p[ek], r = p[rk];
       return {
         sn: 'SN' + p.nu, name: s.name || 'Subnet ' + p.nu, tao: fmtInt(p.tao),
-        apys: A.win.map((w) => ({ t: pct(p['a' + w], 1), color: w === ew ? (pe == null ? MUTED : effColor(pe, accent)) : '#C9D1D9', weight: w === ew ? 700 : 400 })),
+        apys: A.win.map((w) => ({ t: pct(p['a' + w], 1), color: w === ew ? (pe == null ? MUTED : effColor(pe, accent)) : '#C9D1D9', weight: w === ew ? 700 : 400 }))
+          .concat([{ t: retTxt(p['r' + ew]), color: retCol(p['r' + ew], accent), weight: 600 }]),
         ref: pct(s['ref' + ew], 1),
         eff: pe == null ? '—' : Math.min(100, pe).toFixed(0) + '%', effW: pe == null ? 0 : Math.min(100, pe).toFixed(1), effColor: effColor(pe, accent),
         rank: r ? '#' + r + ' / ' + (s['n' + ew] ?? '—') : '—', rankColor: r === 1 ? accent : '#C9D1D9',
@@ -1548,13 +1556,13 @@ class Component extends DCLogic {
         go: () => this.leaveTo({ tab: 'alpha', sn: p.nu, q: '' }),
       };
     });
-    const grid = 'minmax(220px, 2fr) 110px ' + A.win.map((w) => (w === ew ? '80px' : '70px')).join(' ') + ' 70px 150px 90px 74px 80px';
+    const grid = 'minmax(220px, 2fr) 110px ' + A.win.map((w) => (w === ew ? '80px' : '70px')).join(' ') + ' 116px 70px 150px 90px 74px 80px';
     return Object.assign({}, m, {
       name, hk: v.hk, ini: initials(name, v.hk), rankTxt, take: pct(take * 100, 0),
       takeBg: take >= 0.15 ? '#2A1D0E' : take === 0 ? '#12281F' : '#161C25', takeFg: take >= 0.15 ? ORANGE : take === 0 ? accent : '#C9D1D9',
       nsTxt: fmtInt(v.ns) + (v.ns === 1 ? ' subnet' : ' subnets') + ' ≥ 10 τ', kpis, rows, empty: rows.length === 0,
-      winCols: A.win.map((w) => ({ label: 'APY ' + wl(w), color: w === ew ? TEXT : MUTED })), grid, minW: 1100 + (A.win.length - 3) * 82,
-      hdrRef: 'Ref. ' + L, hdrDp: 'Price ' + dpk.slice(2) + 'D', poolNote: 'Efficiency = pool APY ' + L + ' ÷ subnet reference APY · click a subnet to see every validator on it',
+      winCols: A.win.map((w) => ({ label: 'APY ' + wl(w), color: w === ew ? TEXT : MUTED })).concat([{ label: 'TAO return ' + L, color: TEXT }]), grid, minW: 1228 + (A.win.length - 3) * 82,
+      hdrRef: 'Ref. ' + L, hdrDp: 'Price ' + dpk.slice(2) + 'D', poolNote: 'APY = rewards in τ at today’s price · TAO return incl. price move, not annualized · efficiency = pool APY ' + L + ' ÷ subnet reference · click a subnet to see every validator on it',
       hasPeriods: A.np >= 2, periods, cons: v.cons == null ? '—' : pct(v.cons, 0),
       perTitle: 'Efficiency by ' + A.period + '-day period', perNote: 'Each bar is one ' + A.period + '-day period, oldest on the left. Green = passed on at least 90% of the subnet reference APY.',
       more: !S.poolsAll && pools.length > shown.length, moreTxt: 'Show all ' + pools.length + ' subnets', showAll: () => this.setState({ poolsAll: true }),
@@ -1569,7 +1577,8 @@ class Component extends DCLogic {
     const dv = (v, m) => v == null || m == null ? { sub: 'not enough data', subColor: MUTED } : { sub: signed(v - m, (n) => n.toFixed(2)) + ' pp vs median', subColor: v >= m ? accent : ORANGE };
     const r = this.chartRng(D), f = x.fl[r];
     const order = [win].concat(D.keys.filter((k) => k !== win).reverse());
-    const kpis = order.map((k) => Object.assign({ label: 'APY ' + wl(+k.slice(1)), value: pct(x[k]), color: k === win ? accent : TEXT }, dv(x[k], D.meds[k]))).concat([
+    const rootRet = (k) => { const v = x['r' + k.slice(1)]; return v == null ? '' : signed(v, (n) => n.toFixed(2) + '%') + ' τ over ' + wl(+k.slice(1)) + ' · '; };
+    const kpis = order.map((k) => { const d = dv(x[k], D.meds[k]); return { label: 'APY ' + wl(+k.slice(1)), value: pct(x[k]), color: k === win ? accent : TEXT, sub: rootRet(k) + d.sub, subColor: rootRet(k) ? '#A9B4C2' : d.subColor }; }).concat([
       { label: 'Root stake', value: fmtK(x.s) + ' τ', color: TEXT, sub: f ? signed(f.pct, (n) => n.toFixed(1) + '%') + ' over ' + f.days + ' days' : 'no history yet', subColor: f && f.flow > 0 ? accent : f && f.flow < 0 ? ORANGE : MUTED },
       { label: 'Stability σ', value: x.sd == null ? '—' : x.sd.toFixed(2), color: TEXT, sub: 'std dev of 7D APY (lower = steadier)', subColor: MUTED },
     ]);

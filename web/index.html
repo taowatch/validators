@@ -342,7 +342,7 @@ button:focus-visible,input:focus-visible{outline:2px solid #3DDBB0;outline-offse
 <div style="background: #0E131A; border: 1px solid #1C232D; border-radius: 14px; overflow: hidden">
 <div style="padding: 14px 20px; display: flex; flex-wrap: wrap; justify-content: space-between; gap: 8px; border-bottom: 1px solid #1C232D">
 <h3 style="margin: 0; font-family: 'Space Grotesk', sans-serif; font-weight: 600; font-size: 15px">{{al.title}}</h3>
-<span style="font-size: 12px; color: #8B97A6">Efficiency = APY ÷ subnet reference APY</span>
+<span style="font-size: 12px; color: #8B97A6">APY = rewards valued in τ at today’s price · TAO return = actual gain in τ incl. price move · efficiency = APY ÷ subnet reference</span>
 </div>
 <div class="vr-scroll" style="overflow-x: auto">
 <div style="min-width: {{al.minW}}px">
@@ -489,6 +489,7 @@ button:focus-visible,input:focus-visible{outline:2px solid #3DDBB0;outline-offse
 </span>
 </sc-if>
 <span style="text-align: right; font-family: 'JetBrains Mono', monospace; font-size: 12px; color: #C9D1D9">{{r.a}}</span>
+<span style="text-align: right; font-family: 'JetBrains Mono', monospace; font-size: 12px; font-weight: 600; color: {{r.retColor}}">{{r.ret}}</span>
 <span style="text-align: right; font-family: 'JetBrains Mono', monospace; font-size: 12px; color: {{r.rootColor}}">{{r.root}}</span>
 </button>
 </sc-for>
@@ -846,13 +847,13 @@ button:focus-visible,input:focus-visible{outline:2px solid #3DDBB0;outline-offse
 </sc-if>
 </section>
 
-<footer style="font-size: 12px; color: #8B97A6">Computed at block #{{blockTxt}} ({{timeTxt}}). Alpha APY is the growth of alpha per pool share, net of validator and childkey take, annualized and counted in alpha: it does not include the alpha price change against TAO (see the Price column).</footer>
+<footer style="font-size: 12px; color: #8B97A6">Computed at block #{{blockTxt}} ({{timeTxt}}). APY = staking rewards valued in τ at today’s price, annualized, net of validator and childkey take (same basis for root and alpha). TAO return = what a staker actually gained or lost in τ over the window, including the alpha price move against τ; not annualized.</footer>
 </main>
 </sc-if>
 </div>
 </template>
 <script src="/dc-lite.js?v=afca437c4bda"></script>
-<script src="/app.js?v=ce2bbe39661b"></script>
+<script src="/app.js?v=b5be564e9e43"></script>
 <script>DCMount(Component, document.getElementById('tpl'), document.getElementById('app'), {});</script>
 </body>
 </html>

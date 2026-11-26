@@ -2,6 +2,12 @@
 //!
 //! root:  yield = ΔBasketRate.bits / 2^32 × NAV / shares       (current share price, net of take)
 //! alpha: yield = pps(t1) / pps(t0) − 1, pps = TotalHotkeyAlpha / TotalHotkeySharesV2
+//!
+//! Both APYs are reward yields valued in τ at the current price: root rewards are basket
+//! shares marked at today's NAV, alpha rewards are alpha marked at today's alpha price (so the
+//! yield equals the alpha growth). Price moves of the staked alpha itself are not annualized
+//! (that explodes: a +24% month annualizes to +2,000%); they are reported separately as the
+//! τ return `r{w}` = alpha growth × price(t1) / price(t0) − 1 over the window, not annualized.
 //! APY   = (1 + yield)^(365 / days) − 1, days from block timestamps.
 //!
 //! Undefined (null) when a sample is missing, a rate went down (fund reset) or the alpha
@@ -159,6 +165,13 @@ async fn root(db: &mut PgConnection, g: &Grid, head: i64, head_ts: f64, names: &
         }
         annualize((r1 - r0) / TWO_32 * price, (bts - ats) / DAY)
     };
+    // τ earned per τ staked over the window, in %, not annualized (root stake itself is τ, so
+    // there is no principal price move to add)
+    let ret_between = |hk: &str, a: Pt, b: Pt, price: f64| -> Option<f64> {
+        let r0 = *rate.get(&(a?.0, hk.to_string()))?;
+        let r1 = *rate.get(&(b?.0, hk.to_string()))?;
+        (r1 >= r0 && price > 0.0).then(|| (r1 - r0) / TWO_32 * price * 100.0)
+    };
     let series = |hk: &str, len: usize, price: f64| -> Vec<Option<f64>> {
         if n < len { vec![] } else { (0..=n - len).map(|i| apy_between(hk, g.pts[i], g.pts[i + len], price)).collect() }
     };
@@ -214,6 +227,7 @@ async fn root(db: &mut PgConnection, g: &Grid, head: i64, head_ts: f64, names: &
         });
         for &w in &g.win {
             o[format!("a{w}")] = ro(apy_between(hk, g.back(w), g.back(0), price), 2);
+            o[format!("r{w}")] = ro(ret_between(hk, g.back(w), g.back(0), price), 3);
         }
         rolling_all.push((s_now, rolling));
         out.push(o);
@@ -300,6 +314,19 @@ async fn alpha(db: &mut PgConnection, g: &Grid, head: i64, head_ts: f64, names: 
         }
         annualize(p1 / p0 - 1.0, (t1 - t0) / DAY)
     };
+    // τ return over the interval, in %, not annualized: alpha growth times the subnet's
+    // spot price change (SubnetTAO / SubnetAlphaIn at both ends).
+    let tao_return = |nu: i32, from: usize, to: usize, alpha_apy: Option<f64>| -> Option<f64> {
+        let (b0, t0) = *p.get(&from)?;
+        let (b1, t1) = *p.get(&to)?;
+        let (px0, px1) = (*prices.get(&(b0, nu))?, *prices.get(&(b1, nu))?);
+        let days = (t1 - t0) / DAY;
+        if px0 <= 0.0 || days <= 0.01 {
+            return None;
+        }
+        let growth = (1.0 + alpha_apy? / 100.0).powf(days / 365.0);
+        Some((growth * px1 / px0 - 1.0) * 100.0)
+    };
     let mut pairs: Vec<Pair> = Vec::new();
     for ((b, hk, nu), (alpha, _, _)) in &pool_at {
         if *b != head {
@@ -318,11 +345,15 @@ async fn alpha(db: &mut PgConnection, g: &Grid, head: i64, head_ts: f64, names: 
 
     /// Per-pool APY over one interval, the subnet reference (median of the top 3 pools worth
     /// ≥ 100 τ), efficiency vs that (capped at 120%) and rank among pools worth ≥ 10 τ.
+    /// Every pool on a subnet sees the same price move, so reference, efficiency and rank
+    /// compare the yields; `ret` / `sret` add the price move as a τ return.
     struct Interval {
         apy: Vec<Option<f64>>,
+        ret: Vec<Option<f64>>,
+        refv: HashMap<i32, Option<f64>>,
+        sret: HashMap<i32, Option<f64>>,
         eff: Vec<Option<f64>>,
         rk: Vec<Option<usize>>,
-        refv: HashMap<i32, Option<f64>>,
         ranked: HashMap<i32, usize>,
     }
     let interval = |from: usize, to: usize| -> Interval {
@@ -330,6 +361,7 @@ async fn alpha(db: &mut PgConnection, g: &Grid, head: i64, head_ts: f64, names: 
         let mut eff = vec![None; pairs.len()];
         let mut rk = vec![None; pairs.len()];
         let mut refv = HashMap::new();
+        let mut sret = HashMap::new();
         let mut ranked_n = HashMap::new();
         for (nu, idx) in &by_sn {
             let mut big: Vec<f64> = idx.iter().filter(|&&i| pairs[i].tao >= 100.0).filter_map(|&i| apy[i]).collect();
@@ -347,9 +379,11 @@ async fn alpha(db: &mut PgConnection, g: &Grid, head: i64, head_ts: f64, names: 
                 rk[i] = Some(k + 1);
             }
             refv.insert(*nu, rv);
+            sret.insert(*nu, tao_return(*nu, from, to, rv));
             ranked_n.insert(*nu, ranked.len());
         }
-        Interval { apy, eff, rk, refv, ranked: ranked_n }
+        let ret = pairs.iter().zip(&apy).map(|(x, a)| tao_return(x.nu, from, to, *a)).collect();
+        Interval { apy, ret, refv, sret, eff, rk, ranked: ranked_n }
     };
     let wins: Vec<(usize, Interval)> = g.win.iter().map(|&w| (w, interval(w, 0))).collect();
     let ewins: Vec<&(usize, Interval)> = wins.iter().filter(|(w, _)| ewin.contains(w)).collect();
@@ -370,6 +404,7 @@ async fn alpha(db: &mut PgConnection, g: &Grid, head: i64, head_ts: f64, names: 
         }
         for (w, iv) in &ewins {
             o[format!("ref{w}")] = ro(iv.refv.get(nu).copied().flatten(), 2);
+            o[format!("r{w}")] = ro(iv.sret.get(nu).copied().flatten(), 2);
             o[format!("n{w}")] = json!(iv.ranked.get(nu).copied().unwrap_or(0));
         }
         subnets.push((tao, o));
@@ -405,6 +440,7 @@ async fn alpha(db: &mut PgConnection, g: &Grid, head: i64, head_ts: f64, names: 
         });
         for (wd, iv) in &wins {
             o[format!("a{wd}")] = ro(w(&|i| iv.apy[i]), 2);
+            o[format!("r{wd}")] = ro(w(&|i| iv.ret[i]), 2);
         }
         for (wd, iv) in &ewins {
             let e = w(&|i| iv.eff[i]);
@@ -418,6 +454,7 @@ async fn alpha(db: &mut PgConnection, g: &Grid, head: i64, head_ts: f64, names: 
 
     let mut pf: Vec<String> = vec!["v".into(), "nu".into(), "tao".into()];
     pf.extend(g.win.iter().map(|w| format!("a{w}")));
+    pf.extend(g.win.iter().map(|w| format!("r{w}")));
     pf.extend(ewins.iter().map(|(w, _)| format!("eff{w}")));
     pf.extend(ewins.iter().map(|(w, _)| format!("rk{w}")));
     pf.push("ct".into());
@@ -428,6 +465,7 @@ async fn alpha(db: &mut PgConnection, g: &Grid, head: i64, head_ts: f64, names: 
         .filter_map(|(i, x)| {
             let mut row = vec![json!(*vi.get(x.hk.as_str())?), json!(x.nu), r(x.tao, 1)];
             row.extend(wins.iter().map(|(_, iv)| ro(iv.apy[i], 2)));
+            row.extend(wins.iter().map(|(_, iv)| ro(iv.ret[i], 2)));
             row.extend(ewins.iter().map(|(_, iv)| ro(iv.eff[i].map(|e| e * 100.0), 1)));
             row.extend(ewins.iter().map(|(_, iv)| json!(iv.rk[i])));
             row.push(r(x.ct * 100.0, 1));
