@@ -15,6 +15,7 @@ a{color:#3DDBB0}a:hover{color:#8CF2D6}
 button{font:inherit;cursor:pointer}
 button:focus-visible,input:focus-visible{outline:2px solid #3DDBB0;outline-offset:2px}
 .vr-row:hover{background:#111821 !important}
+.vr-home:hover span:first-of-type{opacity:.85}.vr-home:focus-visible{outline:2px solid #3DDBB0;outline-offset:4px}
 .vr-chip:hover{border-color:#3A4656 !important;color:#E6EDF3 !important}
 .vr-th:hover{color:#E6EDF3 !important}
 .vr-card-btn:hover{background:#151C26 !important}
@@ -30,13 +31,13 @@ button:focus-visible,input:focus-visible{outline:2px solid #3DDBB0;outline-offse
 
 <header style="border-bottom: 1px solid #1C232D; background: #0A0E13">
 <div style="max-width: 1360px; margin: 0 auto; padding: 18px 24px; display: flex; flex-wrap: wrap; align-items: center; gap: 16px 28px">
-<div style="display: flex; align-items: center; gap: 12px">
+<a href="/" onClick="{{home}}" aria-label="Validator Yield, back to the rankings" class="vr-home" style="display: flex; align-items: center; gap: 12px; color: inherit; text-decoration: none; border-radius: 10px">
 <div style="width: 34px; height: 34px; border-radius: 9px; background: {{accent}}; color: #0A0E13; display: flex; align-items: center; justify-content: center; font-family: 'Space Grotesk', sans-serif; font-weight: 700; font-size: 20px" aria-hidden="true">τ</div>
 <div style="display: flex; flex-direction: column">
 <span style="font-family: 'Space Grotesk', sans-serif; font-weight: 600; font-size: 17px; letter-spacing: -0.01em">Validator Yield</span>
 <span style="font-size: 12px; color: #8B97A6">Bittensor validators ranked by root and alpha yield</span>
 </div>
-</div>
+</a>
 <div style="flex: 1 1 auto"></div>
 <div title="{{tk.title}}" style="display: flex; align-items: center; gap: 10px; height: 40px; padding: 0 14px; border: 1px solid #1C232D; border-radius: 10px; background: #0E131A">
 <span style="font-family: 'Space Grotesk', sans-serif; font-weight: 600; font-size: 13px; color: #A9B4C2">TAO</span>
@@ -845,13 +846,13 @@ button:focus-visible,input:focus-visible{outline:2px solid #3DDBB0;outline-offse
 </sc-if>
 </section>
 
-<footer style="font-size: 12px; color: #8B97A6">Computed at block #{{blockTxt}} ({{timeTxt}}). Alpha APY is the growth of alpha per pool share, net of validator and childkey take.</footer>
+<footer style="font-size: 12px; color: #8B97A6">Computed at block #{{blockTxt}} ({{timeTxt}}). Alpha APY is the growth of alpha per pool share, net of validator and childkey take, annualized and counted in alpha: it does not include the alpha price change against TAO (see the Price column).</footer>
 </main>
 </sc-if>
 </div>
 </template>
 <script src="/dc-lite.js?v=afca437c4bda"></script>
-<script src="/app.js?v=3df68d075437"></script>
+<script src="/app.js?v=ce2bbe39661b"></script>
 <script>DCMount(Component, document.getElementById('tpl'), document.getElementById('app'), {});</script>
 </body>
 </html>

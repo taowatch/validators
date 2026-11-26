@@ -268,6 +268,16 @@ class Component extends DCLogic {
     this.closeDetail();
   }
 
+  // Brand link: back to the root rankings from anywhere (detail page or another tab).
+  home(e) {
+    if (e && (e.metaKey || e.ctrlKey || e.shiftKey || e.button === 1)) return; // let "open in new tab" work
+    if (e) e.preventDefault();
+    const patch = { tab: 'root', q: '', sn: null };
+    if (this.state.sel) { this.leaveTo(patch); return; }
+    this.setState(patch);
+    if (typeof window !== 'undefined') window.scrollTo(0, 0);
+  }
+
   // Leave the detail page for a tab of the list (e.g. a subnet), without a history entry.
   leaveTo(patch) {
     try { if (window.location.hash) window.history.replaceState(null, '', window.location.pathname + window.location.search); } catch (e) { /* ignore */ }
@@ -291,7 +301,7 @@ class Component extends DCLogic {
   renderVals() {
     const accent = this.props.accent ?? '#3DDBB0';
     const S = this.state, D = S.data, A = S.alpha;
-    const base = { accent, tk: this.ticker(accent), loading: !D && !S.err, failed: !!S.err, err: S.err, ready: !!D, skel: [1, 2, 3, 4, 5, 6, 7, 8] };
+    const base = { accent, home: (e) => this.home(e), tk: this.ticker(accent), loading: !D && !S.err, failed: !!S.err, err: S.err, ready: !!D, skel: [1, 2, 3, 4, 5, 6, 7, 8] };
     this.px = (S.px || PRICE_SNAPSHOT).c;
     // efficiency window chips, shared by the alpha tab, the efficiency tab and alpha pages
     if (A) {
@@ -573,7 +583,7 @@ class Component extends DCLogic {
     const defs = [['rank', '#', 'flex-start'], ['name', 'Validator', 'flex-start'], ['tao', 'Alpha stake', 'flex-end'], ['ns', 'Subnets', 'flex-end'],
       ['t', 'Listed take', 'flex-end'], ['cfg', 'Config. take', 'flex-end'], ['et', 'Eff. take ' + L, 'flex-end'], ['eff', 'Efficiency ' + L, 'flex-start']]
       .concat(hasCons ? [['cons', 'Consistency', 'flex-start']] : [])
-      .concat([['a', 'α APY ' + L, 'flex-end'], ['root', 'Root APY ' + wl(+rootK.slice(1)), 'flex-end']]);
+      .concat([['a', 'Alpha APY ' + L, 'flex-end'], ['root', 'Root APY ' + wl(+rootK.slice(1)), 'flex-end']]);
     const cols = defs.map(([key, label, justify]) => ({
       label, justify, color: sk === key ? accent : MUTED, arrow: sk === key ? (S.effDir < 0 ? '↓' : '↑') : '', aria: 'Sort by ' + label,
       title: key === 'cons' ? 'Share of ' + A.period + '-day periods in which the validator passed on at least 90% of the subnet reference APY' : '',
@@ -597,7 +607,7 @@ class Component extends DCLogic {
     const gmax = Math.max(1, ...gaps.map((g) => g.gap));
     return {
       cols, rows, grid, minW: 1120 + (hasCons ? 162 : 0), empty: rows.length === 0, pts, L,
-      note: 'Efficiency = share of each subnet’s alpha yield a validator passes to its stakers over ' + L + ', weighted by alpha stake. Effective take = 100% − efficiency.' +
+      note: 'Efficiency = share of each subnet’s alpha yield a validator passes to its stakers over ' + L + ', weighted by alpha stake. Effective take = 100% − efficiency. Alpha APY is counted in the subnet’s alpha, so it excludes alpha price moves against TAO.' +
         (hasCons ? ' Consistency = share of ' + A.period + '-day periods at ≥ 90% of the subnet reference (bars: oldest → newest).' : ''),
       yTicks: ticks(0, ymax, 4).map((v) => ({ pos: yp(v).toFixed(2), label: v + '%' })),
       xTicks: [0, 5, 10, 15, 20].map((v) => ({ pos: v * 5, label: v + '%' })),
@@ -618,13 +628,13 @@ class Component extends DCLogic {
     const dpCol = (x) => x == null ? MUTED : x >= 0 ? accent : ORANGE;
     const e = v[ek], et = v['et' + ew];
     return {
-      has: true, total: v.pairs.length, shown: shown.length, more: v.pairs.length > shown.length, hA: 'α APY ' + L, hP: 'Price ' + dpk.slice(2) + 'D',
+      has: true, total: v.pairs.length, shown: shown.length, more: v.pairs.length > shown.length, hA: 'Alpha APY ' + L, hP: 'Price ' + dpk.slice(2) + 'D',
       kpis: [
         { label: 'Alpha stake', value: fmtK(v.tao) + ' τ', color: TEXT },
         { label: 'Subnets', value: fmtInt(v.ns), color: TEXT },
         { label: 'Efficiency ' + L, value: e == null ? '—' : pct(Math.min(100, e), 1), color: effColor(e, accent) },
         { label: 'Effective take ' + L, value: et == null ? '—' : pct(Math.max(0, et), 1), color: et != null && et - v.t * 100 > 5 ? ORANGE : TEXT },
-        { label: 'α APY ' + L + ' (weighted)', value: pct(v[ak], 1), color: TEXT },
+        { label: 'Alpha APY ' + L + ' (weighted)', value: pct(v[ak], 1), color: TEXT },
       ].concat(A.np >= 2 ? [{ label: 'Consistency', value: v.cons == null ? '—' : pct(v.cons, 0), color: v.cons == null ? MUTED : v.cons >= 75 ? accent : v.cons >= 50 ? TEXT : ORANGE }] : []),
       rows: shown.map((p) => {
         const s = A.sns.get(p.nu) || {}, pe = p[ek], r = p[rk];
@@ -655,7 +665,7 @@ class Component extends DCLogic {
       { label: 'Effective take ' + L, value: et == null ? '—' : pct(et, 1), color: et != null && et - take * 100 > 5 ? ORANGE : TEXT, sub: 'listed ' + pct(take * 100, 0) + ' · configured ' + (v.cfg == null ? 'n/a' : pct(v.cfg, 1)), subColor: MUTED },
     ];
     if (A.np >= 2) kpis.push({ label: 'Consistency', value: v.cons == null ? '—' : pct(v.cons, 0), color: v.cons == null ? MUTED : v.cons >= 75 ? accent : v.cons >= 50 ? TEXT : ORANGE, sub: A.period + '-day periods at ≥ 90% of reference', subColor: MUTED });
-    kpis.push({ label: 'α APY ' + L, value: pct(v['a' + ew], 2), color: accent, sub: A.win.filter((w) => w !== ew).map((w) => wl(w) + ' ' + pct(v['a' + w], 1)).join(' · '), subColor: MUTED });
+    kpis.push({ label: 'Alpha APY ' + L, value: pct(v['a' + ew], 2), color: accent, sub: A.win.filter((w) => w !== ew).map((w) => wl(w) + ' ' + pct(v['a' + w], 1)).join(' · '), subColor: MUTED });
     kpis.push({ label: 'Childkey take', value: v.ct == null ? '—' : pct(v.ct, 1), color: v.ct != null && v.ct >= 5 ? ORANGE : TEXT, sub: 'paid to child hotkeys, weighted', subColor: MUTED });
 
     // efficiency per period, oldest → newest
