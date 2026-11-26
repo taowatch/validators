@@ -27,12 +27,12 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
-      - name: web/ is generated from design/Main.dc.html
+      - name: web/ is generated from design/*.dc.html
         run: |
           python3 tools/dc2web.py
-          git diff --exit-code -- web/ || { echo "::error::web/ is out of date: run python3 tools/dc2web.py and commit"; exit 1; }
+          if [ -n "$(git status --porcelain -- web/)" ]; then git status --short -- web/; echo "::error::web/ is out of date: run python3 tools/dc2web.py and commit"; exit 1; fi
       - name: frontend syntax
-        run: node --check web/app.js && node --check web/dc-lite.js
+        run: for f in web/*.js; do node --check "$f" || exit 1; done
       # Same toolchain as the Dockerfile, so new lints don't break CI unannounced.
       - uses: dtolnay/rust-toolchain@1.99
         with:

@@ -155,11 +155,12 @@
           });
         }
       }
+      // children first: a <select>'s value can only match once its <option>s exist
+      patch(el, v.children);
       if (v.hasValue) {
         const s = v.value == null ? '' : String(v.value);
         if (el.value !== s) el.value = s;
       }
-      patch(el, v.children);
     }
     while (kids.length > vnodes.length) parent.removeChild(parent.lastChild);
   }

@@ -24,19 +24,33 @@ button:focus-visible,input:focus-visible{outline:2px solid #3DDBB0;outline-offse
 .vr-scroll{scrollbar-width:thin;scrollbar-color:#2A3340 transparent}
 @keyframes vrpulse{0%,100%{opacity:.45}50%{opacity:.9}}
 .vr-skel{animation:vrpulse 1.4s ease-in-out infinite}
+.vr-skip{position:absolute;left:-9999px;top:8px;z-index:20;padding:10px 16px;border-radius:8px;background:#3DDBB0;color:#0A0E13 !important;font-weight:600;text-decoration:none}
+.vr-skip:focus{left:16px}
+.vr-kpis{background:#0E131A !important}
+.vr-kpis>div{box-shadow:1px 0 0 #1C232D,0 1px 0 #1C232D}
+.vr-tag{font-family:'JetBrains Mono',monospace;font-size:10px;padding:1px 6px;border-radius:999px;background:#161C25;color:#A9B4C2;white-space:nowrap}
+.vr-dd summary::-webkit-details-marker{display:none}
+.vr-dd summary:focus-visible{outline:2px solid #3DDBB0;outline-offset:2px}
+@media (max-width:900px){.vr-wide{display:none !important}.vr-analysis{order:5}.vr-rank{order:4}.vr-foot{order:6}}
+@media (min-width:901px){.vr-narrow{display:none !important}}
+@media (max-width:600px){.vr-kpis{grid-template-columns:repeat(2,minmax(0,1fr)) !important}.vr-kpis>div:last-child:nth-child(odd){grid-column:1/-1}.vr-kpis>div span:last-child{font-size:11px !important}.vr-mini{grid-template-columns:repeat(2,minmax(0,1fr)) !important}.vr-tabs{flex-wrap:nowrap !important;overflow-x:auto;align-self:stretch !important}.vr-tabs button{height:40px !important;padding:0 12px !important;font-size:13px !important;white-space:nowrap;flex:none}.vr-hdr{align-items:flex-start !important}.vr-kpis>div{padding:12px 14px !important}.vr-kv{font-size:20px !important}.vr-avatar{width:44px !important;height:44px !important;font-size:17px !important;border-radius:12px !important}.vr-h1{font-size:26px !important}.vr-hdr{gap:14px !important}}
 </style>
 </helmet>
 <div style="min-height: 100vh; background: #0A0E13; color: #E6EDF3; font-family: Inter, system-ui, sans-serif; font-size: 14px; line-height: 1.45; -webkit-font-smoothing: antialiased">
 
 <header style="border-bottom: 1px solid #1C232D; background: #0A0E13">
 <div style="max-width: 1360px; margin: 0 auto; padding: 18px 24px; display: flex; flex-wrap: wrap; align-items: center; gap: 16px 28px">
-<a href="/" onClick="{{home}}" aria-label="Validator Yield, back to the rankings" class="vr-home" style="display: flex; align-items: center; gap: 12px; color: inherit; text-decoration: none; border-radius: 10px">
+<a href="/" aria-label="Validator Yield, back to choosing a validator" class="vr-home" style="display: flex; align-items: center; gap: 12px; color: inherit; text-decoration: none; border-radius: 10px">
 <div style="width: 34px; height: 34px; border-radius: 9px; background: {{accent}}; color: #0A0E13; display: flex; align-items: center; justify-content: center; font-family: 'Space Grotesk', sans-serif; font-weight: 700; font-size: 20px" aria-hidden="true">τ</div>
 <div style="display: flex; flex-direction: column">
 <span style="font-family: 'Space Grotesk', sans-serif; font-weight: 600; font-size: 17px; letter-spacing: -0.01em">Validator Yield</span>
-<span style="font-size: 12px; color: #8B97A6">Bittensor validators ranked by root and alpha yield</span>
+<span style="font-size: 12px; color: #8B97A6">Analytics · root and alpha yield in depth</span>
 </div>
 </a>
+<nav aria-label="Sections" style="display: flex; gap: 6px; flex-wrap: wrap">
+<a href="/" style="height: 36px; padding: 0 14px; border-radius: 9px; color: #A9B4C2; text-decoration: none; display: flex; align-items: center">‹ Choose a validator</a>
+<a href="/analytics" aria-current="page" style="height: 36px; padding: 0 14px; border-radius: 9px; background: #151C26; color: #E6EDF3; text-decoration: none; display: flex; align-items: center; font-weight: 500">Analytics</a>
+</nav>
 <div style="flex: 1 1 auto"></div>
 <div title="{{tk.title}}" style="display: flex; align-items: center; gap: 10px; height: 40px; padding: 0 14px; border: 1px solid #1C232D; border-radius: 10px; background: #0E131A">
 <span style="font-family: 'Space Grotesk', sans-serif; font-weight: 600; font-size: 13px; color: #A9B4C2">TAO</span>
@@ -69,19 +83,20 @@ button:focus-visible,input:focus-visible{outline:2px solid #3DDBB0;outline-offse
 </sc-if>
 
 <sc-if value="{{listView}}" hint-placeholder-val="{{ true }}">
+<a href="#rankings" class="vr-skip">Skip to rankings</a>
 <main style="max-width: 1360px; margin: 0 auto; padding: 28px 24px 64px; display: flex; flex-direction: column; gap: 24px">
 
-<section aria-label="Network overview" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1px; background: #1C232D; border: 1px solid #1C232D; border-radius: 14px; overflow: hidden">
+<section aria-label="Network overview" class="vr-kpis" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 0; background: #1C232D; border: 1px solid #1C232D; border-radius: 14px; overflow: hidden">
 <sc-for list="{{stats}}" as="st" hint-placeholder-count="5">
-<div style="background: #0E131A; padding: 18px 20px; display: flex; flex-direction: column; gap: 6px">
+<div style="background: #0E131A; padding: 16px 20px; display: flex; flex-direction: column; gap: 4px">
 <span style="font-size: 12px; color: #8B97A6; text-transform: uppercase; letter-spacing: 0.06em">{{st.label}}</span>
-<span style="font-family: 'Space Grotesk', sans-serif; font-weight: 600; font-size: 28px; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; color: {{st.color}}">{{st.value}}</span>
+<span class="vr-kv" style="font-family: 'Space Grotesk', sans-serif; font-weight: 600; font-size: 28px; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; color: {{st.color}}">{{st.value}}</span>
 <span style="font-size: 12px; color: #8B97A6">{{st.sub}}</span>
 </div>
 </sc-for>
 </section>
 
-<div role="tablist" aria-label="Ranking type" style="display: flex; flex-wrap: wrap; gap: 4px; padding: 4px; background: #0E131A; border: 1px solid #1C232D; border-radius: 12px; align-self: flex-start; max-width: 100%; box-sizing: border-box">
+<div role="tablist" aria-label="Ranking type" class="vr-tabs" style="display: flex; flex-wrap: wrap; gap: 4px; padding: 4px; background: #0E131A; border: 1px solid #1C232D; border-radius: 12px; align-self: flex-start; max-width: 100%; box-sizing: border-box">
 <sc-for list="{{tabs}}" as="tb" hint-placeholder-count="3">
 <button type="button" role="tab" aria-selected="{{tb.on}}" onClick="{{tb.pick}}" style="height: 44px; padding: 0 18px; border: 0; border-radius: 9px; background: {{tb.bg}}; color: {{tb.fg}}; font-weight: 600; font-size: 14px; display: flex; align-items: center; gap: 8px">{{tb.label}}<span style="font-family: 'JetBrains Mono', monospace; font-size: 11px; font-weight: 500; padding: 2px 7px; border-radius: 999px; background: {{tb.countBg}}">{{tb.count}}</span></button>
 </sc-for>
@@ -95,14 +110,14 @@ button:focus-visible,input:focus-visible{outline:2px solid #3DDBB0;outline-offse
 </sc-if>
 
 <sc-if value="{{isRoot}}" hint-placeholder-val="{{ true }}">
-<section aria-label="Analysis" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(340px, 1fr)); gap: 16px">
+<section aria-label="Analysis" class="vr-analysis" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(340px, 1fr)); gap: 16px; align-items: start">
 
 <div style="background: #0E131A; border: 1px solid #1C232D; border-radius: 14px; padding: 18px 20px 16px; display: flex; flex-direction: column; gap: 12px">
 <div style="display: flex; justify-content: space-between; align-items: baseline; gap: 12px">
 <h2 style="margin: 0; font-family: 'Space Grotesk', sans-serif; font-weight: 600; font-size: 15px">Commission eats into yield</h2>
 <span style="font-family: 'JetBrains Mono', monospace; font-size: 11px; color: #8B97A6">APY {{winLabel}} × take</span>
 </div>
-<div style="position: relative; height: 220px; margin: 0 0 18px 34px; border-left: 1px solid #222B36; border-bottom: 1px solid #222B36">
+<div style="position: relative; height: 190px; margin: 0 0 18px 34px; border-left: 1px solid #222B36; border-bottom: 1px solid #222B36">
 <sc-for list="{{sc.yTicks}}" as="tk" hint-placeholder-count="4">
 <div style="position: absolute; left: 0; right: 0; bottom: {{tk.pos}}%; border-top: 1px dashed #1A212B">
 <span style="position: absolute; left: -36px; top: -8px; width: 30px; text-align: right; font-family: 'JetBrains Mono', monospace; font-size: 10px; color: #8B97A6">{{tk.label}}</span>
@@ -115,7 +130,7 @@ button:focus-visible,input:focus-visible{outline:2px solid #3DDBB0;outline-offse
 <path d="{{sc.trend}}" fill="none" stroke="#F59E3B" stroke-width="1.5" stroke-dasharray="4 4" vector-effect="non-scaling-stroke"></path>
 </svg>
 <sc-for list="{{sc.pts}}" as="p" hint-placeholder-count="20">
-<button type="button" aria-label="{{p.aria}}" onClick="{{p.open}}" onMouseEnter="{{p.enter}}" onMouseLeave="{{p.leave}}" style="position: absolute; left: calc({{p.x}}% - {{p.half}}px); bottom: calc({{p.y}}% - {{p.half}}px); width: {{p.size}}px; height: {{p.size}}px; border-radius: 50%; padding: 0; border: 1px solid {{p.stroke}}; background: {{p.fill}}"></button>
+<button type="button" tabindex="-1" aria-label="{{p.aria}}" onClick="{{p.open}}" onMouseEnter="{{p.enter}}" onMouseLeave="{{p.leave}}" style="position: absolute; left: calc({{p.x}}% - {{p.half}}px); bottom: calc({{p.y}}% - {{p.half}}px); width: {{p.size}}px; height: {{p.size}}px; border-radius: 50%; padding: 0; border: 1px solid {{p.stroke}}; background: {{p.fill}}"></button>
 </sc-for>
 <sc-if value="{{sc.hasTip}}" hint-placeholder-val="{{ false }}">
 <div style="position: absolute; left: {{sc.tip.x}}%; bottom: calc({{sc.tip.y}}% + 14px); transform: translateX({{sc.tip.shift}}); background: #1A222D; border: 1px solid #2A3442; border-radius: 8px; padding: 8px 10px; pointer-events: none; white-space: nowrap; z-index: 2">
@@ -132,7 +147,7 @@ button:focus-visible,input:focus-visible{outline:2px solid #3DDBB0;outline-offse
 <h2 style="margin: 0; font-family: 'Space Grotesk', sans-serif; font-weight: 600; font-size: 15px">APY {{winLabel}} distribution</h2>
 <span style="font-family: 'JetBrains Mono', monospace; font-size: 11px; color: #8B97A6">{{hist.n}} validators</span>
 </div>
-<div style="position: relative; height: 220px; margin-bottom: 18px; display: flex; align-items: flex-end; gap: 4px; border-bottom: 1px solid #222B36">
+<div style="position: relative; height: 190px; margin-bottom: 18px; display: flex; align-items: flex-end; gap: 4px; border-bottom: 1px solid #222B36">
 <sc-for list="{{hist.bins}}" as="b" hint-placeholder-count="14">
 <div title="{{b.title}}" style="flex: 1 1 0; height: {{b.h}}%; min-height: 2px; background: {{b.fill}}; border-radius: 4px 4px 0 0; position: relative">
 <span style="position: absolute; top: -18px; left: 0; right: 0; text-align: center; font-family: 'JetBrains Mono', monospace; font-size: 10px; color: #A9B4C2">{{b.count}}</span>
@@ -171,12 +186,12 @@ button:focus-visible,input:focus-visible{outline:2px solid #3DDBB0;outline-offse
 
 </section>
 
-<section aria-label="Rankings" style="background: #0E131A; border: 1px solid #1C232D; border-radius: 14px; overflow: hidden">
+<section aria-label="Rankings" id="rankings" class="vr-rank" style="background: #0E131A; border: 1px solid #1C232D; border-radius: 14px; overflow: hidden">
 <div style="padding: 16px 20px; display: flex; flex-wrap: wrap; gap: 12px 16px; align-items: center; border-bottom: 1px solid #1C232D">
 <label style="flex: 1 1 280px; position: relative; display: flex; align-items: center">
 <span style="position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0)">Search validators</span>
 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#8B97A6" stroke-width="2" stroke-linecap="round" style="position: absolute; left: 12px" aria-hidden="true"><circle cx="11" cy="11" r="7"></circle><path d="M20 20l-3.5-3.5"></path></svg>
-<input type="search" value="{{q}}" onChange="{{onQ}}" placeholder="Search by name, hotkey or coldkey…" style="width: 100%; height: 44px; box-sizing: border-box; padding: 0 14px 0 38px; background: #0A0E13; border: 1px solid #232C38; border-radius: 10px; color: #E6EDF3; font: inherit; font-size: 14px">
+<input type="search" aria-label="Search validators by name, hotkey or coldkey" value="{{q}}" onChange="{{onQ}}" placeholder="Search by name, hotkey or coldkey…" style="width: 100%; height: 44px; box-sizing: border-box; padding: 0 14px 0 38px; background: #0A0E13; border: 1px solid #232C38; border-radius: 10px; color: #E6EDF3; font: inherit; font-size: 14px">
 </label>
 <div style="display: flex; align-items: center; gap: 8px"><span style="font-size: 12px; color: #8B97A6">Rank by</span>
 <div role="group" aria-label="APY window used for ranking" style="display: flex; gap: 4px; padding: 4px; background: #0A0E13; border: 1px solid #232C38; border-radius: 10px">
@@ -203,10 +218,30 @@ button:focus-visible,input:focus-visible{outline:2px solid #3DDBB0;outline-offse
 
 <div style="padding: 10px 20px; display: flex; flex-wrap: wrap; gap: 8px 16px; justify-content: space-between; font-size: 12px; color: #8B97A6; border-bottom: 1px solid #1C232D">
 <span><b style="color: #E6EDF3">{{countTxt}}</b> validators match · median APY {{winLabel}} <b style="color: #7AA2F7">{{medTxt}}</b></span>
-<span>APY net of commission · marked at current share price</span>
+<span>Root APY: τ rewards, net of take, valued at today's basket price · 24h τ = earned over the last day, not annualized</span>
 </div>
 
-<div class="vr-scroll" style="overflow-x: auto">
+<div class="vr-narrow">
+<sc-for list="{{rows}}" as="r" hint-placeholder-count="8">
+<button type="button" class="vr-row" onClick="{{r.open}}" aria-label="{{r.aria}}" style="width: 100%; display: flex; align-items: center; gap: 12px; padding: 12px 16px; background: transparent; border: 0; border-bottom: 1px solid #161C25; color: inherit; text-align: left">
+<span style="flex: none; width: 24px; font-family: 'JetBrains Mono', monospace; font-size: 12px; font-weight: 600; color: {{r.rankColor}}">{{r.rank}}</span>
+<span style="flex: none; width: 32px; height: 32px; border-radius: 8px; background: {{r.monoBg}}; color: {{r.monoFg}}; display: flex; align-items: center; justify-content: center; font-family: 'Space Grotesk', sans-serif; font-weight: 600; font-size: 12px" aria-hidden="true">{{r.ini}}</span>
+<span style="flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 2px">
+<span style="font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: {{r.nameColor}}">{{r.name}}</span>
+<span style="font-family: 'JetBrains Mono', monospace; font-size: 11px; color: #8B97A6; overflow: hidden; text-overflow: ellipsis; white-space: nowrap">{{r.card.sub}}</span>
+</span>
+<span style="flex: none; display: flex; flex-direction: column; align-items: flex-end; gap: 2px">
+<span style="font-family: 'JetBrains Mono', monospace; font-size: 16px; font-weight: 700; color: {{r.card.valColor}}">{{r.card.val}}</span>
+<span style="font-size: 11px; color: #8B97A6">{{r.card.vsub}}</span>
+</span>
+</button>
+</sc-for>
+<sc-if value="{{empty}}" hint-placeholder-val="{{ false }}">
+<div style="padding: 40px 16px; text-align: center; color: #8B97A6">No validators match. Try loosening the filters.</div>
+</sc-if>
+</div>
+
+<div class="vr-scroll vr-wide" style="overflow-x: auto">
 <div style="min-width: {{minW}}px">
 <div style="display: grid; grid-template-columns: {{grid}}; gap: 12px; align-items: center; padding: 0 20px; height: 40px; background: #0B1016; border-bottom: 1px solid #1C232D">
 <sc-for list="{{cols}}" as="c" hint-placeholder-count="11">
@@ -264,7 +299,7 @@ button:focus-visible,input:focus-visible{outline:2px solid #3DDBB0;outline-offse
 </sc-if>
 </section>
 
-<footer style="font-size: 12px; color: #8B97A6; display: flex; flex-wrap: wrap; gap: 6px 20px">
+<footer class="vr-foot" style="font-size: 12px; color: #8B97A6; display: flex; flex-wrap: wrap; gap: 6px 20px">
 <span>Source: BasketRate, TotalHotkeyAlpha, Delegates, IdentitiesV2 and BetaBasketRuntimeApi on finney.</span>
 <span>APY = (ΔBasketRate / 2³²) × NAV/shares, annualized.</span>
 <span>Trend = rolling 7-day APY over the selected range; dotted line is the network median.</span>
@@ -284,13 +319,30 @@ button:focus-visible,input:focus-visible{outline:2px solid #3DDBB0;outline-offse
 <label style="position: relative; display: flex; align-items: center">
 <span style="position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0)">Search subnets</span>
 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#8B97A6" stroke-width="2" stroke-linecap="round" style="position: absolute; left: 12px" aria-hidden="true"><circle cx="11" cy="11" r="7"></circle><path d="M20 20l-3.5-3.5"></path></svg>
-<input type="search" value="{{q}}" onChange="{{onQ}}" placeholder="Subnet name, number or validator…" style="width: 100%; height: 44px; box-sizing: border-box; padding: 0 12px 0 36px; background: #0A0E13; border: 1px solid #232C38; border-radius: 10px; color: #E6EDF3; font: inherit; font-size: 13px">
+<input type="search" aria-label="Search subnets by name, number or validator" value="{{q}}" onChange="{{onQ}}" placeholder="Subnet name, number or validator…" style="width: 100%; height: 44px; box-sizing: border-box; padding: 0 12px 0 36px; background: #0A0E13; border: 1px solid #232C38; border-radius: 10px; color: #E6EDF3; font: inherit; font-size: 13px">
 </label>
-<div style="display: grid; grid-template-columns: minmax(0, 1fr) 70px 70px; gap: 8px; font-size: 11px; color: #8B97A6; text-transform: uppercase; letter-spacing: 0.06em">
-<span>Subnet</span><span style="text-align: right">{{al.hdr.ref}}</span><span style="text-align: right">{{al.hdr.dp}}</span>
+<sc-if value="{{al.hasCur}}" hint-placeholder-val="{{ true }}">
+<details class="vr-narrow vr-dd" style="position: relative">
+<summary aria-label="Choose a subnet" style="list-style: none; display: flex; align-items: center; justify-content: space-between; gap: 8px; height: 44px; box-sizing: border-box; padding: 0 12px; background: #0A0E13; border: 1px solid #232C38; border-radius: 10px; cursor: pointer; font-size: 14px">
+<span style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap">{{al.curLabel}}</span>
+<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#8B97A6" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"></path></svg>
+</summary>
+<div class="vr-scroll" style="max-height: 340px; overflow-y: auto; margin-top: 6px; padding: 4px; background: #0A0E13; border: 1px solid #232C38; border-radius: 10px">
+<sc-for list="{{al.snRows}}" as="s" hint-placeholder-count="8">
+<button type="button" class="vr-card-btn" onClick="{{s.pickDd}}" aria-pressed="{{s.on}}" style="width: 100%; display: grid; grid-template-columns: minmax(0, 1fr) 64px 64px; gap: 8px; align-items: center; padding: 10px 8px; border: 0; border-radius: 8px; background: {{s.bg}}; color: inherit; text-align: left">
+<span style="display: flex; gap: 8px; align-items: baseline; min-width: 0"><span style="font-family: 'JetBrains Mono', monospace; font-size: 11px; color: #8B97A6; flex: none">{{s.sn}}</span><span style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 13px">{{s.name}}</span></span>
+<span style="text-align: right; font-family: 'JetBrains Mono', monospace; font-size: 12px; color: {{accent}}">{{s.ref}}</span>
+<span style="text-align: right; font-family: 'JetBrains Mono', monospace; font-size: 12px; color: #A9B4C2">{{s.dp}}</span>
+</button>
+</sc-for>
+</div>
+</details>
+</sc-if>
+<div class="vr-wide" style="display: grid; grid-template-columns: minmax(0, 1fr) 70px 70px; gap: 8px; font-size: 11px; color: #8B97A6; text-transform: uppercase; letter-spacing: 0.06em">
+<span>Subnet</span><span style="text-align: right">{{al.hdr.ref}}</span><span style="text-align: right" title="Alpha price change against τ">{{al.hdr.dp}}</span>
 </div>
 </div>
-<div class="vr-scroll" style="max-height: 760px; overflow-y: auto; padding: 6px">
+<div class="vr-scroll vr-wide" style="max-height: 760px; overflow-y: auto; padding: 6px">
 <sc-for list="{{al.snRows}}" as="s" hint-placeholder-count="12">
 <button type="button" class="vr-card-btn" onClick="{{s.pick}}" aria-pressed="{{s.on}}" style="width: 100%; display: grid; grid-template-columns: minmax(0, 1fr) 70px 70px; gap: 8px; align-items: center; padding: 9px 8px; border: 0; border-radius: 8px; background: {{s.bg}}; color: inherit; text-align: left; box-shadow: inset 3px 0 0 {{s.mark}}">
 <span style="display: flex; gap: 8px; align-items: baseline; min-width: 0">
@@ -298,7 +350,7 @@ button:focus-visible,input:focus-visible{outline:2px solid #3DDBB0;outline-offse
 <span style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 500; font-size: 13px">{{s.name}}</span>
 </span>
 <span style="text-align: right; font-family: 'JetBrains Mono', monospace; font-size: 12px; color: {{accent}}">{{s.ref}}</span>
-<span style="text-align: right; font-family: 'JetBrains Mono', monospace; font-size: 12px; color: {{s.dpColor}}">{{s.dp}}</span>
+<span style="text-align: right; font-family: 'JetBrains Mono', monospace; font-size: 12px; color: #A9B4C2">{{s.dp}}</span>
 </button>
 </sc-for>
 <sc-if value="{{al.noSn}}" hint-placeholder-val="{{ false }}">
@@ -327,26 +379,42 @@ button:focus-visible,input:focus-visible{outline:2px solid #3DDBB0;outline-offse
 </div></div>
 </sc-if>
 </div>
-<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 10px">
+<div class="vr-mini" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 10px">
 <sc-for list="{{al.cur.kpis}}" as="k" hint-placeholder-count="6">
 <div style="background: #0A0E13; border: 1px solid #1C232D; border-radius: 10px; padding: 10px 12px">
 <div style="font-size: 11px; color: #8B97A6; text-transform: uppercase; letter-spacing: 0.05em">{{k.label}}</div>
 <div style="font-family: 'JetBrains Mono', monospace; font-size: 18px; font-weight: 600; color: {{k.color}}">{{k.value}}</div>
+<div style="font-size: 11px; color: #8B97A6">{{k.sub}}</div>
 </div>
 </sc-for>
 </div>
-<p style="margin: 0; font-size: 12px; color: #8B97A6">APY is earned in this subnet&#39;s alpha and is net of validator take and childkey take. Alpha price change versus TAO is market risk of the subnet, shown separately and not annualized.</p>
+<p style="margin: 0; padding: 10px 12px; border-radius: 10px; background: #0A0E13; border: 1px solid #1C232D; font-size: 13px; color: #A9B4C2">{{al.cur.line}}</p>
 </div>
 
-<div style="background: #0E131A; border: 1px solid #1C232D; border-radius: 14px; overflow: hidden">
+<div id="rankings" style="background: #0E131A; border: 1px solid #1C232D; border-radius: 14px; overflow: hidden">
 <div style="padding: 14px 20px; display: flex; flex-wrap: wrap; justify-content: space-between; gap: 8px; border-bottom: 1px solid #1C232D">
 <h3 style="margin: 0; font-family: 'Space Grotesk', sans-serif; font-weight: 600; font-size: 15px">{{al.title}}</h3>
-<span style="font-size: 12px; color: #8B97A6">APY = rewards valued in τ at today’s price · TAO return = actual gain in τ incl. price move · efficiency = APY ÷ subnet reference</span>
+<span style="font-size: 12px; color: #8B97A6">APY = alpha rewards, annualized, net of take · yield vs best = APY ÷ the subnet's best pools</span>
 </div>
-<div class="vr-scroll" style="overflow-x: auto">
+<div class="vr-narrow">
+<sc-for list="{{al.rows}}" as="r" hint-placeholder-count="6">
+<button type="button" class="vr-row" onClick="{{r.open}}" aria-label="{{r.aria}}" style="width: 100%; display: flex; align-items: center; gap: 12px; padding: 12px 16px; background: transparent; border: 0; border-bottom: 1px solid #161C25; color: inherit; text-align: left">
+<span style="flex: none; width: 30px; height: 30px; border-radius: 8px; background: {{r.monoBg}}; color: {{r.monoFg}}; display: flex; align-items: center; justify-content: center; font-family: 'Space Grotesk', sans-serif; font-weight: 600; font-size: 12px" aria-hidden="true">{{r.ini}}</span>
+<span style="flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 2px">
+<span style="font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap">{{r.name}}</span>
+<span style="font-family: 'JetBrains Mono', monospace; font-size: 11px; color: #8B97A6; overflow: hidden; text-overflow: ellipsis; white-space: nowrap">{{r.card.sub}}</span>
+</span>
+<span style="flex: none; display: flex; flex-direction: column; align-items: flex-end; gap: 2px">
+<span style="font-family: 'JetBrains Mono', monospace; font-size: 16px; font-weight: 700; color: {{r.card.valColor}}">{{r.card.val}}</span>
+<span style="font-size: 11px; color: #8B97A6">{{r.card.vsub}}</span>
+</span>
+</button>
+</sc-for>
+</div>
+<div class="vr-scroll vr-wide" style="overflow-x: auto">
 <div style="min-width: {{al.minW}}px">
 <div style="display: grid; grid-template-columns: {{al.grid}}; gap: 12px; align-items: center; padding: 0 20px; height: 38px; background: #0B1016; border-bottom: 1px solid #1C232D; font-size: 11px; font-weight: 600; color: #8B97A6; text-transform: uppercase; letter-spacing: 0.06em">
-<span>#</span><span>Validator</span><span style="text-align: right">Alpha stake</span><span style="text-align: right">Take</span><sc-for list="{{al.winCols}}" as="wc" hint-placeholder-count="3"><span style="text-align: right; color: {{wc.color}}">{{wc.label}}</span></sc-for><span>Efficiency</span><span style="text-align: right">Child take</span>
+<span title="Rank by alpha APY on this subnet">#</span><span>Validator</span><span style="text-align: right">Alpha stake</span><span style="text-align: right">Take</span><sc-for list="{{al.winCols}}" as="wc" hint-placeholder-count="3"><span style="text-align: right; color: {{wc.color}}">{{wc.label}}</span></sc-for><span title="{{al.effTip}}">Yield vs best</span><span style="text-align: right">Child take</span>
 </div>
 <sc-for list="{{al.rows}}" as="r" hint-placeholder-count="8">
 <button type="button" class="vr-row" onClick="{{r.open}}" aria-label="{{r.aria}}" style="width: 100%; display: grid; grid-template-columns: {{al.grid}}; gap: 12px; align-items: center; padding: 0 20px; height: 56px; background: transparent; border: 0; border-bottom: 1px solid #161C25; color: inherit; text-align: left">
@@ -376,13 +444,13 @@ button:focus-visible,input:focus-visible{outline:2px solid #3DDBB0;outline-offse
 </sc-if>
 
 <sc-if value="{{isEff}}" hint-placeholder-val="{{ false }}">
-<section style="display: grid; grid-template-columns: repeat(auto-fit, minmax(380px, 1fr)); gap: 16px">
+<section class="vr-analysis" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(min(380px, 100%), 1fr)); gap: 16px; align-items: start">
 <div style="background: #0E131A; border: 1px solid #1C232D; border-radius: 14px; padding: 18px 20px 16px; display: flex; flex-direction: column; gap: 12px">
 <div style="display: flex; justify-content: space-between; align-items: baseline; gap: 12px">
-<h2 style="margin: 0; font-family: 'Space Grotesk', sans-serif; font-weight: 600; font-size: 15px">Listed take vs effective take</h2>
+<h2 style="margin: 0; font-family: 'Space Grotesk', sans-serif; font-weight: 600; font-size: 15px">Listed take vs gap to the best pools</h2>
 <span style="font-family: 'JetBrains Mono', monospace; font-size: 11px; color: #8B97A6">alpha side</span>
 </div>
-<div style="position: relative; height: 240px; margin: 0 0 18px 34px; border-left: 1px solid #222B36; border-bottom: 1px solid #222B36">
+<div style="position: relative; height: 210px; margin: 0 0 18px 34px; border-left: 1px solid #222B36; border-bottom: 1px solid #222B36">
 <sc-for list="{{ef.yTicks}}" as="tk" hint-placeholder-count="4">
 <div style="position: absolute; left: 0; right: 0; bottom: {{tk.pos}}%; border-top: 1px dashed #1A212B">
 <span style="position: absolute; left: -36px; top: -8px; width: 30px; text-align: right; font-family: 'JetBrains Mono', monospace; font-size: 10px; color: #8B97A6">{{tk.label}}</span>
@@ -394,47 +462,46 @@ button:focus-visible,input:focus-visible{outline:2px solid #3DDBB0;outline-offse
 <svg viewBox="0 0 100 100" preserveAspectRatio="none" style="position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible" aria-hidden="true">
 <path d="{{ef.diag}}" fill="none" stroke="#7AA2F7" stroke-width="1.5" stroke-dasharray="4 4" vector-effect="non-scaling-stroke"></path>
 </svg>
-<span style="position: absolute; right: 6px; bottom: {{ef.diagLabelPos}}%; font-size: 10px; color: #7AA2F7">effective = listed</span>
 <sc-for list="{{ef.pts}}" as="p" hint-placeholder-count="8">
-<button type="button" aria-label="{{p.aria}}" onClick="{{p.open}}" onMouseEnter="{{p.enter}}" onMouseLeave="{{p.leave}}" style="position: absolute; left: calc({{p.x}}% - {{p.half}}px); bottom: calc({{p.y}}% - {{p.half}}px); width: {{p.size}}px; height: {{p.size}}px; border-radius: 50%; padding: 0; border: 1px solid {{p.stroke}}; background: {{p.fill}}"></button>
+<button type="button" tabindex="-1" aria-label="{{p.aria}}" onClick="{{p.open}}" onMouseEnter="{{p.enter}}" onMouseLeave="{{p.leave}}" style="position: absolute; left: calc({{p.x}}% - {{p.half}}px); bottom: calc({{p.y}}% - {{p.half}}px); width: {{p.size}}px; height: {{p.size}}px; border-radius: 50%; padding: 0; border: 1px solid {{p.stroke}}; background: {{p.fill}}"></button>
 </sc-for>
 <sc-if value="{{ef.hasTip}}" hint-placeholder-val="{{ false }}">
 <div style="position: absolute; left: {{ef.tip.x}}%; bottom: calc({{ef.tip.y}}% + 14px); transform: translateX({{ef.tip.shift}}); background: #1A222D; border: 1px solid #2A3442; border-radius: 8px; padding: 8px 10px; pointer-events: none; white-space: nowrap; z-index: 2">
 <div style="font-weight: 600; font-size: 13px">{{ef.tip.name}}</div>
-<div style="font-family: 'JetBrains Mono', monospace; font-size: 11px; color: #A9B4C2">listed {{ef.tip.t}} · effective {{ef.tip.et}}</div>
+<div style="font-family: 'JetBrains Mono', monospace; font-size: 11px; color: #A9B4C2">listed take {{ef.tip.t}} · gap vs best {{ef.tip.et}}</div>
 </div>
 </sc-if>
 </div>
-<p style="margin: 0; font-size: 12px; color: #A9B4C2">Dots above the dashed line keep more of stakers&#39; alpha yield than their listed take says, usually through childkey take on the hotkeys that validate for them. Dot size = alpha stake.</p>
+<p style="margin: 0; font-size: 12px; color: #A9B4C2">Gap vs best = how far a validator&#39;s alpha rewards trail the best pools on the same subnets. <span style="color: #7AA2F7">Dashed line</span>: gap equal to the listed take. Dots well above it pass on less than their take explains, often through childkey take or missed rewards. Validators that earned nothing are left out. Dot size = alpha stake.</p>
 </div>
 
 <div style="background: #0E131A; border: 1px solid #1C232D; border-radius: 14px; padding: 18px 20px 16px; display: flex; flex-direction: column; gap: 10px">
 <div style="display: flex; justify-content: space-between; align-items: baseline; gap: 12px">
-<h2 style="margin: 0; font-family: 'Space Grotesk', sans-serif; font-weight: 600; font-size: 15px">Biggest hidden take</h2>
-<span style="font-family: 'JetBrains Mono', monospace; font-size: 11px; color: #8B97A6">effective − listed</span>
+<h2 style="margin: 0; font-family: 'Space Grotesk', sans-serif; font-weight: 600; font-size: 15px">Biggest gap to peers</h2>
+<span style="font-family: 'JetBrains Mono', monospace; font-size: 11px; color: #8B97A6" title="Gap vs the best pools on the same subnets, minus the listed take">gap − listed take</span>
 </div>
 <sc-for list="{{ef.hidden}}" as="h" hint-placeholder-count="5">
 <button type="button" class="vr-card-btn" onClick="{{h.open}}" style="display: grid; grid-template-columns: minmax(0, 1fr) 110px 70px; align-items: center; gap: 10px; padding: 9px 8px; margin: 0 -8px; background: transparent; border: 0; border-radius: 8px; color: inherit; text-align: left">
 <span style="display: flex; flex-direction: column; min-width: 0">
 <span style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 500">{{h.name}}</span>
-<span style="font-family: 'JetBrains Mono', monospace; font-size: 11px; color: #8B97A6">listed {{h.t}} → effective {{h.et}}</span>
+<span style="font-family: 'JetBrains Mono', monospace; font-size: 11px; color: #8B97A6">listed take {{h.t}} → gap vs best {{h.et}}</span>
 </span>
 <span style="height: 6px; border-radius: 3px; background: #18202A; overflow: hidden"><span style="display: block; height: 100%; width: {{h.w}}%; background: #F59E3B; border-radius: 3px"></span></span>
 <span style="text-align: right; font-family: 'JetBrains Mono', monospace; font-size: 12px; color: #F59E3B">{{h.gap}}</span>
 </button>
 </sc-for>
 <sc-if value="{{ef.noHidden}}" hint-placeholder-val="{{ false }}">
-<p style="margin: 0; font-size: 13px; color: #8B97A6">No validator in this filter keeps noticeably more than its listed take.</p>
+<p style="margin: 0; font-size: 13px; color: #8B97A6">No validator in this filter trails the best pools by noticeably more than its listed take.</p>
 </sc-if>
 </div>
 </section>
 
-<section aria-label="Validator efficiency" style="background: #0E131A; border: 1px solid #1C232D; border-radius: 14px; overflow: hidden">
+<section aria-label="Validator yield vs best pools" id="rankings" class="vr-rank" style="background: #0E131A; border: 1px solid #1C232D; border-radius: 14px; overflow: hidden">
 <div style="padding: 16px 20px; display: flex; flex-wrap: wrap; gap: 12px 16px; align-items: center; border-bottom: 1px solid #1C232D">
 <label style="flex: 1 1 280px; position: relative; display: flex; align-items: center">
 <span style="position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0)">Search validators</span>
 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#8B97A6" stroke-width="2" stroke-linecap="round" style="position: absolute; left: 12px" aria-hidden="true"><circle cx="11" cy="11" r="7"></circle><path d="M20 20l-3.5-3.5"></path></svg>
-<input type="search" value="{{q}}" onChange="{{onQ}}" placeholder="Search by name or hotkey…" style="width: 100%; height: 44px; box-sizing: border-box; padding: 0 14px 0 38px; background: #0A0E13; border: 1px solid #232C38; border-radius: 10px; color: #E6EDF3; font: inherit; font-size: 14px">
+<input type="search" aria-label="Search validators by name or hotkey" value="{{q}}" onChange="{{onQ}}" placeholder="Search by name or hotkey…" style="width: 100%; height: 44px; box-sizing: border-box; padding: 0 14px 0 38px; background: #0A0E13; border: 1px solid #232C38; border-radius: 10px; color: #E6EDF3; font: inherit; font-size: 14px">
 </label>
 <sc-if value="{{hasEw}}" hint-placeholder-val="{{ true }}">
 <div style="display: flex; align-items: center; gap: 8px"><span style="font-size: 12px; color: #8B97A6">Window</span>
@@ -451,7 +518,30 @@ button:focus-visible,input:focus-visible{outline:2px solid #3DDBB0;outline-offse
 </div>
 </div>
 <div style="padding: 10px 20px; font-size: 12px; color: #8B97A6; border-bottom: 1px solid #1C232D">{{ef.note}}</div>
-<div class="vr-scroll" style="overflow-x: auto">
+<sc-if value="{{ef.hasNe}}" hint-placeholder-val="{{ false }}">
+<div style="padding: 8px 20px; font-size: 12px; color: #A9B4C2; border-bottom: 1px solid #1C232D; display: flex; align-items: center; gap: 8px"><span class="vr-tag">Not earning</span>{{ef.neNote}}</div>
+</sc-if>
+<div class="vr-narrow">
+<sc-for list="{{ef.rows}}" as="r" hint-placeholder-count="6">
+<button type="button" class="vr-row" onClick="{{r.open}}" aria-label="{{r.aria}}" style="width: 100%; display: flex; align-items: center; gap: 12px; padding: 12px 16px; background: transparent; border: 0; border-bottom: 1px solid #161C25; color: inherit; text-align: left">
+<span style="flex: none; width: 26px; font-family: 'JetBrains Mono', monospace; font-size: 12px; font-weight: 600; color: {{r.rankColor}}">{{r.rank}}</span>
+<span style="flex: none; width: 32px; height: 32px; border-radius: 8px; background: {{r.monoBg}}; color: {{r.monoFg}}; display: flex; align-items: center; justify-content: center; font-family: 'Space Grotesk', sans-serif; font-weight: 600; font-size: 12px" aria-hidden="true">{{r.ini}}</span>
+<span style="flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 2px">
+<span style="font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap">{{r.name}}</span>
+<span style="font-family: 'JetBrains Mono', monospace; font-size: 11px; color: #8B97A6; overflow: hidden; text-overflow: ellipsis; white-space: nowrap">{{r.card.sub}}</span>
+<span style="display: flex; flex-wrap: wrap; gap: 4px"><sc-for list="{{r.tags}}" as="tg" hint-placeholder-count="0"><span class="vr-tag" title="{{tg.title}}">{{tg.t}}</span></sc-for></span>
+</span>
+<span style="flex: none; display: flex; flex-direction: column; align-items: flex-end; gap: 2px">
+<span style="font-family: 'JetBrains Mono', monospace; font-size: 16px; font-weight: 700; color: {{r.card.valColor}}">{{r.card.val}}</span>
+<span style="font-size: 11px; color: #8B97A6">{{r.card.vsub}}</span>
+</span>
+</button>
+</sc-for>
+<sc-if value="{{ef.empty}}" hint-placeholder-val="{{ false }}">
+<div style="padding: 40px 16px; text-align: center; color: #8B97A6">No validators match. Try a lower minimum alpha stake.</div>
+</sc-if>
+</div>
+<div class="vr-scroll vr-wide" style="overflow-x: auto">
 <div style="min-width: {{ef.minW}}px">
 <div style="display: grid; grid-template-columns: {{ef.grid}}; gap: 12px; align-items: center; padding: 0 20px; height: 40px; background: #0B1016; border-bottom: 1px solid #1C232D">
 <sc-for list="{{ef.cols}}" as="c" hint-placeholder-count="10">
@@ -467,7 +557,7 @@ button:focus-visible,input:focus-visible{outline:2px solid #3DDBB0;outline-offse
 <span style="flex: none; width: 32px; height: 32px; border-radius: 8px; background: {{r.monoBg}}; color: {{r.monoFg}}; display: flex; align-items: center; justify-content: center; font-family: 'Space Grotesk', sans-serif; font-weight: 600; font-size: 12px" aria-hidden="true">{{r.ini}}</span>
 <span style="display: flex; flex-direction: column; min-width: 0">
 <span style="font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap">{{r.name}}</span>
-<span style="font-family: 'JetBrains Mono', monospace; font-size: 11px; color: #8B97A6">{{r.short}}</span>
+<span style="display: flex; align-items: center; gap: 6px; min-width: 0; overflow: hidden"><span style="font-family: 'JetBrains Mono', monospace; font-size: 11px; color: #8B97A6; white-space: nowrap">{{r.short}}</span><sc-for list="{{r.tags}}" as="tg" hint-placeholder-count="0"><span class="vr-tag" title="{{tg.title}}">{{tg.t}}</span></sc-for></span>
 </span>
 </span>
 <span style="text-align: right; font-family: 'JetBrains Mono', monospace; font-size: 12px">{{r.tao}} <span style="color: #8B97A6">τ</span></span>
@@ -488,8 +578,7 @@ button:focus-visible,input:focus-visible{outline:2px solid #3DDBB0;outline-offse
 </span>
 </sc-if>
 <span style="text-align: right; font-family: 'JetBrains Mono', monospace; font-size: 12px; color: #C9D1D9">{{r.a}}</span>
-<span style="text-align: right; font-family: 'JetBrains Mono', monospace; font-size: 12px; font-weight: 600; color: {{r.retColor}}">{{r.ret}}</span>
-<span style="text-align: right; font-family: 'JetBrains Mono', monospace; font-size: 12px; color: {{r.rootColor}}">{{r.root}}</span>
+<span style="text-align: right; font-family: 'JetBrains Mono', monospace; font-size: 12px; color: #8B97A6">{{r.px}}</span>
 </button>
 </sc-for>
 <sc-if value="{{ef.empty}}" hint-placeholder-val="{{ false }}">
@@ -509,11 +598,11 @@ button:focus-visible,input:focus-visible{outline:2px solid #3DDBB0;outline-offse
 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 18l-6-6 6-6"></path></svg>Rankings</button>
 </div>
 
-<section style="display: flex; flex-wrap: wrap; gap: 20px; align-items: center">
-<div style="width: 64px; height: 64px; border-radius: 16px; background: {{d.monoBg}}; color: {{d.monoFg}}; display: flex; align-items: center; justify-content: center; font-family: 'Space Grotesk', sans-serif; font-weight: 700; font-size: 24px" aria-hidden="true">{{d.ini}}</div>
-<div style="flex: 1 1 420px; min-width: 0; display: flex; flex-direction: column; gap: 8px">
+<section class="vr-hdr" style="display: flex; flex-wrap: wrap; gap: 20px; align-items: center">
+<div class="vr-avatar" style="width: 64px; height: 64px; border-radius: 16px; background: {{d.monoBg}}; color: {{d.monoFg}}; display: flex; align-items: center; justify-content: center; font-family: 'Space Grotesk', sans-serif; font-weight: 700; font-size: 24px" aria-hidden="true">{{d.ini}}</div>
+<div style="flex: 1 1 260px; min-width: 0; display: flex; flex-direction: column; gap: 8px">
 <div style="display: flex; flex-wrap: wrap; align-items: center; gap: 10px">
-<h1 style="margin: 0; font-family: 'Space Grotesk', sans-serif; font-weight: 600; font-size: 34px; letter-spacing: -0.02em">{{d.name}}</h1>
+<h1 class="vr-h1" style="margin: 0; font-family: 'Space Grotesk', sans-serif; font-weight: 600; font-size: 34px; letter-spacing: -0.02em; overflow-wrap: anywhere">{{d.name}}</h1>
 <span style="font-family: 'JetBrains Mono', monospace; font-size: 12px; padding: 4px 10px; border-radius: 999px; background: #12281F; color: {{accent}}">{{d.rankTxt}}</span>
 <span style="font-family: 'JetBrains Mono', monospace; font-size: 12px; padding: 4px 10px; border-radius: 999px; background: {{d.takeBg}}; color: {{d.takeFg}}">take {{d.take}}</span>
 <span style="font-family: 'JetBrains Mono', monospace; font-size: 12px; padding: 4px 10px; border-radius: 999px; background: #161C25; color: #A9B4C2">{{d.nom}} nominators</span>
@@ -526,11 +615,11 @@ button:focus-visible,input:focus-visible{outline:2px solid #3DDBB0;outline-offse
 </div>
 </section>
 
-<section style="display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 1px; background: #1C232D; border: 1px solid #1C232D; border-radius: 14px; overflow: hidden">
+<section class="vr-kpis" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 0; background: #1C232D; border: 1px solid #1C232D; border-radius: 14px; overflow: hidden">
 <sc-for list="{{d.kpis}}" as="k" hint-placeholder-count="5">
 <div style="background: #0E131A; padding: 16px 18px; display: flex; flex-direction: column; gap: 4px">
 <span style="font-size: 12px; color: #8B97A6; text-transform: uppercase; letter-spacing: 0.06em">{{k.label}}</span>
-<span style="font-family: 'Space Grotesk', sans-serif; font-weight: 600; font-size: 26px; letter-spacing: -0.02em; color: {{k.color}}">{{k.value}}</span>
+<span class="vr-kv" style="font-family: 'Space Grotesk', sans-serif; font-weight: 600; font-size: 26px; letter-spacing: -0.02em; color: {{k.color}}">{{k.value}}</span>
 <span style="font-size: 12px; color: {{k.subColor}}">{{k.sub}}</span>
 </div>
 </sc-for>
@@ -633,7 +722,7 @@ button:focus-visible,input:focus-visible{outline:2px solid #3DDBB0;outline-offse
 </div>
 </section>
 
-<section style="display: grid; grid-template-columns: repeat(auto-fit, minmax(380px, 1fr)); gap: 16px">
+<section style="display: grid; grid-template-columns: repeat(auto-fit, minmax(min(380px, 100%), 1fr)); gap: 16px">
 <div style="background: #0E131A; border: 1px solid #1C232D; border-radius: 14px; padding: 18px 20px; display: flex; flex-direction: column; gap: 14px">
 <div style="display: flex; justify-content: space-between; align-items: baseline; gap: 12px">
 <h2 style="margin: 0; font-family: 'Space Grotesk', sans-serif; font-weight: 600; font-size: 16px">{{d.st.title}}</h2>
@@ -692,10 +781,11 @@ button:focus-visible,input:focus-visible{outline:2px solid #3DDBB0;outline-offse
 <section style="background: #0E131A; border: 1px solid #1C232D; border-radius: 14px; overflow: hidden">
 <div style="padding: 18px 20px 14px; display: flex; flex-direction: column; gap: 14px; border-bottom: 1px solid #1C232D">
 <div style="display: flex; flex-wrap: wrap; justify-content: space-between; align-items: baseline; gap: 8px">
-<h2 style="margin: 0; font-family: 'Space Grotesk', sans-serif; font-weight: 600; font-size: 16px">Alpha stake by subnet</h2>
+<h2 style="margin: 0; font-family: 'Space Grotesk', sans-serif; font-weight: 600; font-size: 16px">Alpha stake (separate from root)</h2>
 <span style="font-size: 12px; color: #8B97A6">click a subnet to see every validator on it</span>
 </div>
-<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px">
+<p style="margin: 0; font-size: 12px; color: #A9B4C2">Root stake above stays in τ. Alpha stake is paid in each subnet&#39;s alpha, so its APY is not comparable with the root APY: the alpha price moves against τ (grey) for every validator on that subnet.</p>
+<div class="vr-mini" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px">
 <sc-for list="{{d.alpha.kpis}}" as="k" hint-placeholder-count="5">
 <div style="background: #0A0E13; border: 1px solid #1C232D; border-radius: 10px; padding: 10px 12px">
 <div style="font-size: 11px; color: #8B97A6; text-transform: uppercase; letter-spacing: 0.05em">{{k.label}}</div>
@@ -704,10 +794,25 @@ button:focus-visible,input:focus-visible{outline:2px solid #3DDBB0;outline-offse
 </sc-for>
 </div>
 </div>
-<div class="vr-scroll" style="overflow-x: auto">
+<div class="vr-narrow">
+<sc-for list="{{d.alpha.rows}}" as="r" hint-placeholder-count="6">
+<button type="button" class="vr-row" onClick="{{r.go}}" style="width: 100%; display: flex; align-items: center; gap: 12px; padding: 12px 16px; background: transparent; border: 0; border-bottom: 1px solid #161C25; color: inherit; text-align: left">
+<span style="flex: none; width: 44px; font-family: 'JetBrains Mono', monospace; font-size: 11px; color: #8B97A6">{{r.sn}}</span>
+<span style="flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 2px">
+<span style="font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap">{{r.name}}</span>
+<span style="font-family: 'JetBrains Mono', monospace; font-size: 11px; color: #8B97A6; overflow: hidden; text-overflow: ellipsis; white-space: nowrap">{{r.card.sub}}</span>
+</span>
+<span style="flex: none; display: flex; flex-direction: column; align-items: flex-end; gap: 2px">
+<span style="font-family: 'JetBrains Mono', monospace; font-size: 15px; font-weight: 700; color: {{r.card.valColor}}">{{r.card.val}}</span>
+<span style="font-size: 11px; color: #8B97A6">{{r.card.vsub}}</span>
+</span>
+</button>
+</sc-for>
+</div>
+<div class="vr-scroll vr-wide" style="overflow-x: auto">
 <div style="min-width: 820px">
 <div style="display: grid; grid-template-columns: minmax(200px, 2fr) 120px 90px 90px 160px 90px; gap: 12px; align-items: center; padding: 0 20px; height: 38px; background: #0B1016; border-bottom: 1px solid #1C232D; font-size: 11px; font-weight: 600; color: #8B97A6; text-transform: uppercase; letter-spacing: 0.06em">
-<span>Subnet</span><span style="text-align: right">Alpha stake</span><span style="text-align: right">{{d.alpha.hA}}</span><span style="text-align: right">Rank</span><span>Efficiency</span><span style="text-align: right">{{d.alpha.hP}}</span>
+<span>Subnet</span><span style="text-align: right">Alpha stake</span><span style="text-align: right">{{d.alpha.hA}}</span><span style="text-align: right">Rank</span><span title="{{d.alpha.effTip}}">Yield vs best</span><span style="text-align: right" title="Alpha price change against τ, the same for every validator on that subnet">{{d.alpha.hP}}</span>
 </div>
 <sc-for list="{{d.alpha.rows}}" as="r" hint-placeholder-count="8">
 <button type="button" class="vr-row" onClick="{{r.go}}" style="width: 100%; display: grid; grid-template-columns: minmax(200px, 2fr) 120px 90px 90px 160px 90px; gap: 12px; align-items: center; padding: 0 20px; height: 48px; background: transparent; border: 0; border-bottom: 1px solid #161C25; color: inherit; text-align: left">
@@ -722,7 +827,7 @@ button:focus-visible,input:focus-visible{outline:2px solid #3DDBB0;outline-offse
 <span style="flex: 1; height: 6px; border-radius: 3px; background: #18202A; overflow: hidden"><span style="display: block; height: 100%; width: {{r.effW}}%; background: {{r.effColor}}; border-radius: 3px"></span></span>
 <span style="width: 46px; text-align: right; font-family: 'JetBrains Mono', monospace; font-size: 12px; color: {{r.effColor}}">{{r.eff}}</span>
 </span>
-<span style="text-align: right; font-family: 'JetBrains Mono', monospace; font-size: 12px; color: {{r.dpColor}}">{{r.dp}}</span>
+<span style="text-align: right; font-family: 'JetBrains Mono', monospace; font-size: 12px; color: #A9B4C2">{{r.dp}}</span>
 </button>
 </sc-for>
 </div>
@@ -733,7 +838,7 @@ button:focus-visible,input:focus-visible{outline:2px solid #3DDBB0;outline-offse
 </section>
 </sc-if>
 
-<footer style="font-size: 12px; color: #8B97A6">Computed at block #{{blockTxt}} ({{timeTxt}}). APY is net of commission; older samples are marked at the current share price.</footer>
+<footer style="font-size: 12px; color: #8B97A6">Computed at block #{{blockTxt}} ({{timeTxt}}). Root APY is τ rewards net of commission; older samples are marked at the current share price. Rewards are paid as basket alpha, so their τ value moves with basket prices.</footer>
 </main>
 </sc-if>
 
@@ -745,14 +850,17 @@ button:focus-visible,input:focus-visible{outline:2px solid #3DDBB0;outline-offse
 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 18l-6-6 6-6"></path></svg>Rankings</button>
 </div>
 
-<section style="display: flex; flex-wrap: wrap; gap: 20px; align-items: center">
-<div style="width: 64px; height: 64px; border-radius: 16px; background: {{ad.monoBg}}; color: {{ad.monoFg}}; display: flex; align-items: center; justify-content: center; font-family: 'Space Grotesk', sans-serif; font-weight: 700; font-size: 24px" aria-hidden="true">{{ad.ini}}</div>
-<div style="flex: 1 1 420px; min-width: 0; display: flex; flex-direction: column; gap: 8px">
+<section class="vr-hdr" style="display: flex; flex-wrap: wrap; gap: 20px; align-items: center">
+<div class="vr-avatar" style="width: 64px; height: 64px; border-radius: 16px; background: {{ad.monoBg}}; color: {{ad.monoFg}}; display: flex; align-items: center; justify-content: center; font-family: 'Space Grotesk', sans-serif; font-weight: 700; font-size: 24px" aria-hidden="true">{{ad.ini}}</div>
+<div style="flex: 1 1 260px; min-width: 0; display: flex; flex-direction: column; gap: 8px">
 <div style="display: flex; flex-wrap: wrap; align-items: center; gap: 10px">
-<h1 style="margin: 0; font-family: 'Space Grotesk', sans-serif; font-weight: 600; font-size: 34px; letter-spacing: -0.02em; overflow-wrap: anywhere">{{ad.name}}</h1>
+<h1 class="vr-h1" style="margin: 0; font-family: 'Space Grotesk', sans-serif; font-weight: 600; font-size: 34px; letter-spacing: -0.02em; overflow-wrap: anywhere">{{ad.name}}</h1>
 <span style="font-family: 'JetBrains Mono', monospace; font-size: 12px; padding: 4px 10px; border-radius: 999px; background: #12281F; color: {{accent}}">{{ad.rankTxt}}</span>
 <span style="font-family: 'JetBrains Mono', monospace; font-size: 12px; padding: 4px 10px; border-radius: 999px; background: {{ad.takeBg}}; color: {{ad.takeFg}}">take {{ad.take}}</span>
 <span style="font-family: 'JetBrains Mono', monospace; font-size: 12px; padding: 4px 10px; border-radius: 999px; background: #161C25; color: #A9B4C2">{{ad.nsTxt}}</span>
+<sc-if value="{{ad.hasSelf}}" hint-placeholder-val="{{ false }}">
+<span title="{{ad.selfTitle}}" style="font-family: 'JetBrains Mono', monospace; font-size: 12px; padding: 4px 10px; border-radius: 999px; background: #161C25; color: #A9B4C2">sets reference</span>
+</sc-if>
 </div>
 <div style="display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px; font-family: 'JetBrains Mono', monospace; font-size: 12px; color: #8B97A6">
 <span>hotkey <span style="color: #C9D1D9; word-break: break-all">{{ad.hk}}</span></span>
@@ -770,11 +878,11 @@ button:focus-visible,input:focus-visible{outline:2px solid #3DDBB0;outline-offse
 </div>
 </section>
 
-<section style="display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 1px; background: #1C232D; border: 1px solid #1C232D; border-radius: 14px; overflow: hidden">
+<section class="vr-kpis" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 0; background: #1C232D; border: 1px solid #1C232D; border-radius: 14px; overflow: hidden">
 <sc-for list="{{ad.kpis}}" as="k" hint-placeholder-count="6">
 <div style="background: #0E131A; padding: 16px 18px; display: flex; flex-direction: column; gap: 4px">
 <span style="font-size: 12px; color: #8B97A6; text-transform: uppercase; letter-spacing: 0.06em">{{k.label}}</span>
-<span style="font-family: 'Space Grotesk', sans-serif; font-weight: 600; font-size: 26px; letter-spacing: -0.02em; color: {{k.color}}">{{k.value}}</span>
+<span class="vr-kv" style="font-family: 'Space Grotesk', sans-serif; font-weight: 600; font-size: 26px; letter-spacing: -0.02em; color: {{k.color}}">{{k.value}}</span>
 <span style="font-size: 12px; color: {{k.subColor}}">{{k.sub}}</span>
 </div>
 </sc-for>
@@ -811,10 +919,25 @@ button:focus-visible,input:focus-visible{outline:2px solid #3DDBB0;outline-offse
 <h2 style="margin: 0; font-family: 'Space Grotesk', sans-serif; font-weight: 600; font-size: 16px">Alpha pools by subnet</h2>
 <span style="font-size: 12px; color: #8B97A6">{{ad.poolNote}}</span>
 </div>
-<div class="vr-scroll" style="overflow-x: auto">
+<div class="vr-narrow">
+<sc-for list="{{ad.rows}}" as="r" hint-placeholder-count="6">
+<button type="button" class="vr-row" onClick="{{r.go}}" aria-label="{{r.aria}}" style="width: 100%; display: flex; align-items: center; gap: 12px; padding: 12px 16px; background: transparent; border: 0; border-bottom: 1px solid #161C25; color: inherit; text-align: left">
+<span style="flex: none; width: 44px; font-family: 'JetBrains Mono', monospace; font-size: 11px; color: #8B97A6">{{r.sn}}</span>
+<span style="flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 2px">
+<span style="font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap">{{r.name}}</span>
+<span style="font-family: 'JetBrains Mono', monospace; font-size: 11px; color: #8B97A6; overflow: hidden; text-overflow: ellipsis; white-space: nowrap">{{r.card.sub}}</span>
+</span>
+<span style="flex: none; display: flex; flex-direction: column; align-items: flex-end; gap: 2px">
+<span style="font-family: 'JetBrains Mono', monospace; font-size: 15px; font-weight: 700; color: {{r.card.valColor}}">{{r.card.val}}</span>
+<span style="font-size: 11px; color: #8B97A6">{{r.card.vsub}}</span>
+</span>
+</button>
+</sc-for>
+</div>
+<div class="vr-scroll vr-wide" style="overflow-x: auto">
 <div style="min-width: {{ad.minW}}px">
 <div style="display: grid; grid-template-columns: {{ad.grid}}; gap: 12px; align-items: center; padding: 0 20px; height: 38px; background: #0B1016; border-bottom: 1px solid #1C232D; font-size: 11px; font-weight: 600; color: #8B97A6; text-transform: uppercase; letter-spacing: 0.06em">
-<span>Subnet</span><span style="text-align: right">Alpha stake</span><sc-for list="{{ad.winCols}}" as="wc" hint-placeholder-count="3"><span style="text-align: right; color: {{wc.color}}">{{wc.label}}</span></sc-for><span style="text-align: right">{{ad.hdrRef}}</span><span>Efficiency</span><span style="text-align: right">Rank</span><span style="text-align: right">Child take</span><span style="text-align: right">{{ad.hdrDp}}</span>
+<span>Subnet</span><span style="text-align: right">Alpha stake</span><sc-for list="{{ad.winCols}}" as="wc" hint-placeholder-count="3"><span style="text-align: right; color: {{wc.color}}">{{wc.label}}</span></sc-for><span style="text-align: right">{{ad.hdrRef}}</span><span title="{{ad.effTip}}">Yield vs best</span><span style="text-align: right">Rank</span><span style="text-align: right">Child take</span><span style="text-align: right" title="{{ad.pxTip}}">{{ad.hdrDp}}</span>
 </div>
 <sc-for list="{{ad.rows}}" as="r" hint-placeholder-count="8">
 <button type="button" class="vr-row" onClick="{{r.go}}" aria-label="{{r.aria}}" style="width: 100%; display: grid; grid-template-columns: {{ad.grid}}; gap: 12px; align-items: center; padding: 0 20px; height: 48px; background: transparent; border: 0; border-bottom: 1px solid #161C25; color: inherit; text-align: left">
@@ -826,14 +949,14 @@ button:focus-visible,input:focus-visible{outline:2px solid #3DDBB0;outline-offse
 <sc-for list="{{r.apys}}" as="c" hint-placeholder-count="3">
 <span style="text-align: right; font-family: 'JetBrains Mono', monospace; font-size: 12px; color: {{c.color}}; font-weight: {{c.weight}}">{{c.t}}</span>
 </sc-for>
-<span style="text-align: right; font-family: 'JetBrains Mono', monospace; font-size: 12px; color: #8B97A6">{{r.ref}}</span>
+<span title="{{r.refTitle}}" style="text-align: right; font-family: 'JetBrains Mono', monospace; font-size: 12px; color: #8B97A6; white-space: nowrap">{{r.ref}}</span>
 <span style="display: flex; align-items: center; gap: 8px">
 <span style="flex: 1; height: 6px; border-radius: 3px; background: #18202A; overflow: hidden"><span style="display: block; height: 100%; width: {{r.effW}}%; background: {{r.effColor}}; border-radius: 3px"></span></span>
 <span style="width: 40px; text-align: right; font-family: 'JetBrains Mono', monospace; font-size: 12px; color: {{r.effColor}}">{{r.eff}}</span>
 </span>
 <span style="text-align: right; font-family: 'JetBrains Mono', monospace; font-size: 12px; color: {{r.rankColor}}">{{r.rank}}</span>
 <span style="text-align: right; font-family: 'JetBrains Mono', monospace; font-size: 12px; color: {{r.ctColor}}">{{r.ct}}</span>
-<span style="text-align: right; font-family: 'JetBrains Mono', monospace; font-size: 12px; color: {{r.dpColor}}">{{r.dp}}</span>
+<span style="text-align: right; font-family: 'JetBrains Mono', monospace; font-size: 12px; color: #A9B4C2">{{r.dp}}</span>
 </button>
 </sc-for>
 </div>
@@ -846,7 +969,7 @@ button:focus-visible,input:focus-visible{outline:2px solid #3DDBB0;outline-offse
 </sc-if>
 </section>
 
-<footer style="font-size: 12px; color: #8B97A6">Computed at block #{{blockTxt}} ({{timeTxt}}). APY = staking rewards valued in τ at today’s price, annualized, net of validator and childkey take (same basis for root and alpha). TAO return = what a staker actually gained or lost in τ over the window, including the alpha price move against τ; not annualized.</footer>
+<footer style="font-size: 12px; color: #8B97A6">Computed at block #{{blockTxt}} ({{timeTxt}}). Alpha APY = rewards paid in alpha, annualized, net of validator and childkey take. Rewards = the same over the window, not annualized. Price = the alpha price move against τ of the subnets this validator stakes on, the same for every validator there. Net in τ = rewards and price together.</footer>
 </main>
 </sc-if>
 </div>
@@ -858,7 +981,7 @@ const ALPHA_URL = '/_blob/014a9d93677815beb1c1f07d54103b74';
 const PAUSE_TS = [Date.UTC(2026, 10, 7), Date.UTC(2026, 10, 12)];
 const RANGES = [30, 90, 180, 365];
 const ALPHA_MINS = [[0, 'All'], [1000, '≥ 1K τ'], [10000, '≥ 10K τ'], [100000, '≥ 100K τ']];
-const EFF_DIRS = { rank: -1, name: 1, tao: -1, ns: -1, t: 1, cfg: 1, et: 1, eff: -1, cons: -1, a: -1, r: -1, root: -1 };
+const EFF_DIRS = { rank: -1, name: 1, tao: -1, ns: -1, t: 1, cfg: 1, et: 1, eff: -1, cons: -1, a: -1, px: -1 };
 function effColor(e, accent) { return e == null ? '#8B97A6' : e >= 95 ? accent : e >= 80 ? '#E6EDF3' : '#F59E3B'; }
 function mono(hk) { const h = hue(hk); return { monoBg: 'hsl(' + h + ' 34% 20%)', monoFg: 'hsl(' + h + ' 70% 78%)' }; }
 function initials(name, hk) { return ((name || '').replace(/[^A-Za-z0-9]/g, '').slice(0, 2) || hk.slice(1, 3)).toUpperCase(); }
@@ -925,6 +1048,20 @@ function wl(w) { return w + 'D'; }
 // τ return (not annualized): signed, 2 decimals
 function retTxt(x) { return x == null ? '—' : signed(x, (n) => n.toFixed(2) + '%'); }
 function retCol(x, accent) { return x == null ? MUTED : x >= 0 ? accent : ORANGE; }
+// a window's yield, not annualized: (1 + APY)^(w/365) − 1, in %
+function yieldOver(a, w) { return a == null ? null : (Math.pow(1 + a / 100, w / 365) - 1) * 100; }
+function ret3(x) { return x == null ? '—' : signed(x, (n) => n.toFixed(3) + '%'); }
+function pxTxt(x) { return x == null ? '—' : Math.abs(x) < 0.05 ? '0.0%' : signed(x, (n) => n.toFixed(1) + '%'); }
+// a pool (or validator) whose rewards round to nothing over the window earned nothing
+function idle(a) { return a != null && a < 0.01; }
+const GREY = '#A9B4C2';
+const EFF_TIP = '100% = earns what the top pools on this subnet earn. It is a comparison with peers, not the fee charged.';
+const PX_TIP = 'Alpha price change against τ over the window. Set by the subnet(s), the same for every validator there.';
+// "yield vs best pools" cell for a pool or validator: a zero yield means it earned nothing
+function effCell(e, a, accent) {
+  if (idle(a)) return { eff: 'Not earning', effW: 0, effColor: MUTED };
+  return { eff: e == null ? '—' : Math.min(e, 100).toFixed(0) + '%', effW: e == null ? 0 : Math.min(100, e).toFixed(1), effColor: effColor(e, accent) };
+}
 function rangeOpts(N) { const r = RANGES.filter((x) => x < N); r.push(N); return r; }
 function rangeLabel(r, N) { return r === N && !RANGES.includes(N) ? 'All' : r + 'D'; }
 // stake flow over the last r days, measured from the first stored point inside that range
@@ -963,7 +1100,7 @@ const MINS = [[0, 'All'], [1000, '≥ 1K τ'], [10000, '≥ 10K τ'], [100000, '
 class Component extends DCLogic {
   constructor(props) {
     super(props);
-    this.state = { data: null, err: null, q: '', win: null, rng: 30, crng: null, ew: null, min: 1000, sortKey: 'rank', dir: -1, hideTake: false, sel: null, hov: null, hovIdx: null, amt: '1,000', showAll: false, copied: false, px: null, pxLive: false, pxDir: 0, tab: 'root', sn: null, effMin: 1000, effSort: 'eff', effDir: -1, ehov: null, alpha: null, alphaErr: null };
+    this.state = { data: null, err: null, q: '', win: null, rng: 30, crng: null, ew: null, min: 1000, sortKey: 'rank', dir: -1, hideTake: false, sel: null, hov: null, hovIdx: null, amt: '1,000', showAll: false, copied: false, px: null, pxLive: false, pxDir: 0, tab: 'root', sn: null, effMin: 1000, effSort: 'tao', effDir: -1, ehov: null, alpha: null, alphaErr: null };
   }
 
   connectPrice() {
@@ -1020,7 +1157,7 @@ class Component extends DCLogic {
     const t = new Date(p.E);
     return {
       price: '$' + p.c.toFixed(2),
-      chg: signed(p.P, (n) => n.toFixed(2) + '%'), chgColor: p.P >= 0 ? accent : ORANGE,
+      chg: signed(p.P, (n) => n.toFixed(2) + '%') + ' 24h', chgColor: p.P >= 0 ? accent : ORANGE,
       flash: !live || S.pxDir === 0 ? TEXT : S.pxDir > 0 ? accent : ORANGE,
       dot: live ? accent : '#5B6675', status: live ? 'live' : S.px ? 'reconnecting' : 'snapshot',
       title: 'Binance TAO/USDT · 24h high $' + p.h.toFixed(2) + ' · low $' + p.l.toFixed(2) + ' · vol ' + usd(p.q) + ' · ' + t.toISOString().slice(11, 19) + ' UTC',
@@ -1076,16 +1213,18 @@ class Component extends DCLogic {
     });
     const flowSpan = {};
     ranges.forEach((r) => { flowSpan[r] = Math.max(0, ...v.map((x) => (x.fl[r] ? x.fl[r].days : 0))) || r; });
+    // 1D is shown as a raw 24h return, never annualized or used for ranking
+    const rkeys = keys.filter((k) => k !== 'a1');
     return Object.assign({}, d, {
       // default window: 30D, or the longest one with data while history is still syncing
-      dflt: st.a30 && st.a30.best ? 'a30' : keys.slice().reverse().find((k) => st[k].best) || keys[keys.length - 1],
-      N, win, keys, ranges, st, meds, flowSpan, med: d.med || [], byHk: new Map(v.map((x) => [x.hk, x])), v,
+      dflt: st.a30 && st.a30.best ? 'a30' : rkeys.slice().reverse().find((k) => st[k].best) || rkeys[rkeys.length - 1],
+      N, win, keys, rkeys, ranges, st, meds, flowSpan, med: d.med || [], byHk: new Map(v.map((x) => [x.hk, x])), v,
       totalStake: v.reduce((a, x) => a + x.s, 0), bigCount: big.length, maxS: Math.max(1, ...v.map((x) => x.s)),
     });
   }
 
   // selected APY window key (e.g. 'a30') and range (days) for the root views
-  winKey(D) { const k = this.state.win; return D.keys.includes(k) ? k : D.dflt; }
+  winKey(D) { const k = this.state.win; return D.rkeys.includes(k) ? k : D.dflt; }
   rngOf(D) { const r = this.state.rng; return D.ranges.includes(r) ? r : D.ranges[0]; }
   chartRng(D) { const r = this.state.crng; return D.ranges.includes(r) ? r : D.ranges.includes(90) ? 90 : D.ranges[D.ranges.length - 1]; }
   ewOf(A) { const w = this.state.ew; return A.ewin.includes(w) ? w : A.dflt; }
@@ -1103,9 +1242,9 @@ class Component extends DCLogic {
     if (typeof window !== 'undefined' && window.scrollTo) window.scrollTo(0, 0);
   }
 
+  // Validator pages live on the main page ("/#v/<hotkey>"); analytics links there.
   open(hk) {
-    this.show(hk);
-    try { if (window.location.hash !== '#v/' + hk) window.history.pushState({ vr: 1 }, '', '#v/' + hk); } catch (e) { /* no history API */ }
+    try { window.location.assign('/#v/' + hk); } catch (e) { /* ignore */ }
   }
 
   closeDetail(patch) {
@@ -1190,13 +1329,13 @@ class Component extends DCLogic {
     list.filter((x) => x[win] != null).sort((a, b) => b[win] - a[win]).forEach((x, i) => rankOf.set(x.hk, i + 1));
     const fo = (x) => x.fl[rng];
     const named = { rank: (x) => x[win], name: (x) => x.name.toLowerCase(), stake: (x) => x.s, take: (x) => x.t, sd: (x) => x.sd, flow: (x) => (fo(x) ? fo(x).flow : null), nom: (x) => x.nom };
-    const sk = named[S.sortKey] || D.keys.includes(S.sortKey) ? S.sortKey : 'rank';
+    const sk = named[S.sortKey] || D.rkeys.includes(S.sortKey) || S.sortKey === 'r1' ? S.sortKey : 'rank';
     const get = named[sk] || ((x) => x[sk]);
     const sorted = list.slice().sort((a, b) => { const va = get(a), vb = get(b); if (va == null && vb == null) return 0; if (va == null) return 1; if (vb == null) return -1; return (va < vb ? -1 : va > vb ? 1 : 0) * S.dir; });
     const shown = S.showAll ? sorted : sorted.slice(0, 50);
     const medY = (28 - Math.max(0, Math.min(10, m || 0)) / 10 * 28).toFixed(1);
     const logMax = Math.log10(D.maxS);
-    const cell = (x, k) => ({ t: pct(x[k]), color: apyColor(x[k], D.meds[k], accent), weight: k === win ? 700 : 400 });
+    const cell = (x, k) => (k === 'a1' ? { t: ret3(x.r1), color: GREY, weight: 400 } : { t: pct(x[k]), color: apyColor(x[k], D.meds[k], accent), weight: k === win ? 700 : 400 });
     const span = D.flowSpan[rng];
 
     const rows = shown.map((x) => {
@@ -1211,14 +1350,15 @@ class Component extends DCLogic {
         spark: x.sp[rng], medY, sparkColor: x[win] != null && m != null && x[win] < m - 1 ? ORANGE : accent,
         flow: f ? signed(f.flow, fmtK) + ' τ' : '—', flowPct: f ? signed(f.pct, (n) => n.toFixed(1) + '%') + (f.days < span ? ' · ' + f.days + 'D' : '') : '',
         flowColor: !f || Math.abs(f.flow) < 0.5 ? MUTED : f.flow > 0 ? accent : ORANGE,
-        sd: x.sd == null ? '—' : x.sd.toFixed(2), sdColor: x.sd == null ? MUTED : x.sd > 3 ? ORANGE : '#C9D1D9',
+        sd: x.sd == null ? '—' : x.sd.toFixed(2) + ' pp', sdColor: x.sd == null ? MUTED : x.sd > 3 ? ORANGE : '#C9D1D9',
         nom: fmtInt(x.nom),
+        card: { sub: pct(x.t * 100, 0) + ' take · ' + fmtK(x.s) + ' τ', val: pct(x[win]), valColor: apyColor(x[win], m, accent), vsub: 'APY ' + winLabel },
         open: () => this.open(x.hk),
       };
     });
 
     const defs = [['rank', '#', 'flex-start'], ['name', 'Validator', 'flex-start'], ['stake', 'Root stake', 'flex-end'], ['take', 'Take', 'flex-end']]
-      .concat(D.keys.map((k) => [k, 'APY ' + wl(+k.slice(1)), 'flex-end']))
+      .concat(D.keys.map((k) => (k === 'a1' ? ['r1', '24h τ', 'flex-end'] : [k, 'APY ' + wl(+k.slice(1)), 'flex-end'])))
       .concat([[null, 'Trend ' + rangeLabel(rng, D.N), 'flex-start'], ['flow', 'Flow ' + span + 'D', 'flex-end'], ['sd', 'Stability σ', 'flex-end'], ['nom', 'Nominator', 'flex-end']]);
     const cols = defs.map(([key, label, justify]) => {
       const active = key && sk === key;
@@ -1235,11 +1375,11 @@ class Component extends DCLogic {
 
     const sw = D.st[win], best = sw.best;
     const stats = [
-      { label: 'Validators', value: fmtInt(D.v.length), sub: sw.ranked.length + ' with ≥ 1K τ and ' + winLabel + ' of data', color: TEXT },
+      { label: 'Root validators', value: fmtInt(D.v.length), sub: sw.ranked.length + ' with ≥ 1K τ and ' + winLabel + ' of data', color: TEXT },
       { label: 'Total root stake', value: fmtK(D.totalStake) + ' τ', sub: '≈ ' + usd(D.totalStake * this.px) + ' at TAO ' + usd(this.px), color: TEXT },
-      { label: 'Median APY ' + winLabel, value: pct(m), sub: 'validators ≥ 1K τ', color: BLUE },
-      { label: 'Stake-weighted APY ' + winLabel, value: pct(sw.wApy), sub: 'weighted by root stake', color: TEXT },
-      { label: 'Best APY ' + winLabel, value: best ? pct(best[win]) : '—', sub: best ? best.name + ' · take ' + pct(best.t * 100, 0) : 'needs ' + winLabel + ' of samples', color: accent },
+      { label: 'Root median APY ' + winLabel, value: pct(m), sub: 'validators ≥ 1K τ', color: BLUE },
+      { label: 'Root stake-weighted APY ' + winLabel, value: pct(sw.wApy), sub: 'weighted by root stake', color: TEXT },
+      { label: 'Root best APY ' + winLabel, value: best ? pct(best[win]) : '—', sub: best ? best.name + ' · take ' + pct(best.t * 100, 0) : 'needs ' + winLabel + ' of samples', color: accent },
     ];
 
     // scatter
@@ -1308,7 +1448,7 @@ class Component extends DCLogic {
       winLabel, medTxt: pct(m), countTxt: fmtInt(sorted.length), empty: sorted.length === 0,
       hasMore: !S.showAll && sorted.length > 50, showAll: () => this.setState({ showAll: true }),
       q: S.q, onQ: (e) => this.setState({ q: e.target.value, showAll: false }),
-      wins: segChips(D.win, +win.slice(1), wl, accent, (w) => this.setState({ win: 'a' + w })),
+      wins: segChips(D.win.filter((w) => w >= 7), +win.slice(1), wl, accent, (w) => this.setState({ win: 'a' + w })),
       hasRngs: D.ranges.length > 1, rngs: segChips(D.ranges, rng, (r) => rangeLabel(r, D.N), accent, (r) => this.setState({ rng: r })),
       mins: MINS.map(([v, l]) => ({ label: l, on: S.min === v, bg: S.min === v ? '#16231F' : 'transparent', border: S.min === v ? accent : '#232C38', fg: S.min === v ? accent : '#A9B4C2', pick: () => this.setState({ min: v, showAll: false }) })),
       hideTake: S.hideTake, toggleTake: () => this.setState({ hideTake: !S.hideTake }),
@@ -1336,6 +1476,23 @@ class Component extends DCLogic {
       const s = sns.get(p.nu); if (s) s.pairs.push(p);
     });
     vs.forEach((v) => v.pairs.sort((x, y) => y.tao - x.tao));
+    // Pools that earned (next to) nothing get no score instead of "0% of best", and the
+    // validator score is re-weighted over the pools that did earn (pools ≥ 10 τ).
+    ewin.forEach((w) => {
+      const ek = 'eff' + w, ak = 'a' + w;
+      vs.forEach((v) => {
+        const big = v.pairs.filter((p) => p.tao >= 10);
+        const tot = big.reduce((s, p) => s + p.tao, 0);
+        const dead = big.filter((p) => idle(p[ak])).reduce((s, p) => s + p.tao, 0);
+        v.pairs.forEach((p) => { if (idle(p[ak])) p[ek] = null; });
+        if (tot > 0) v['ne' + w] = dead / tot * 100;
+        if (dead > 0) {
+          const live = big.filter((p) => p[ek] != null), lw = live.reduce((s, p) => s + p.tao, 0);
+          v[ek] = lw > 0 ? live.reduce((s, p) => s + p[ek] * p.tao, 0) / lw : null;
+          v['et' + w] = v[ek] == null ? null : 100 - v[ek];
+        }
+      });
+    });
     const np = a.np || 0;
     const hasEff = (w) => vs.some((v) => v['eff' + w] != null);
     const dflt = hasEff(30) ? 30 : ewin.slice().reverse().find(hasEff) || ewin[ewin.length - 1];
@@ -1358,97 +1515,139 @@ class Component extends DCLogic {
     if (S.tab === 'root') return out;
     if (!A) return Object.assign(out, { alWait: true, alWaitTxt: S.alphaErr ? 'Couldn’t load alpha data (' + S.alphaErr + ').' : 'Loading alpha data…' });
     Object.assign(out, { showSample: A.sample, alSnCount: fmtInt(A.snList.length), alBlock: fmtInt(A.block) });
+    out.stats = this.alphaStats(A, accent);
     if (S.tab === 'alpha') return Object.assign(out, { isAlpha: true, al: this.alphaTab(A, accent) });
     return Object.assign(out, { isEff: true, ef: this.effTab(D, A, accent) });
+  }
+
+  // KPI strip for the alpha tabs (the root tab has its own)
+  alphaStats(A, accent) {
+    const ew = this.ewOf(A), L = wl(ew), dpk = A.win.includes(ew) ? 'dp' + ew : 'dp30';
+    const elig = A.vs.filter((v) => v['eff' + ew] != null);
+    const tot = elig.reduce((a, v) => a + v.tao, 0), good = elig.filter((v) => v['eff' + ew] >= 90).reduce((a, v) => a + v.tao, 0);
+    const ne = A.vs.filter((v) => v.tao >= 1000 && v['eff' + ew] == null && idle(v['a' + ew])).length;
+    const medPx = median(A.snList.map((s) => s[dpk]));
+    return [
+      { label: 'Alpha staked', value: fmtK(A.vs.reduce((a, v) => a + v.tao, 0)) + ' τ', sub: fmtInt(A.vs.length) + ' validators with ≥ 10 τ', color: TEXT },
+      { label: 'Median reference APY ' + L, value: pct(median(A.snList.map((s) => s['ref' + ew]))), sub: 'best pools of each subnet, paid in alpha', color: BLUE },
+      { label: 'Stake at ≥ 90% of best ' + L, value: tot > 0 ? pct(good / tot * 100, 0) : '—', sub: 'share of alpha stake, yield vs best pools', color: accent },
+      { label: 'Median alpha price ' + dpk.slice(2) + 'D', value: pxTxt(medPx), sub: 'vs τ across subnets · not set by validators', color: GREY },
+      { label: 'Not earning ' + L, value: fmtInt(ne), sub: 'validators ≥ 1K τ that earned no alpha', color: TEXT },
+    ];
   }
 
   alphaTab(A, accent) {
     const S = this.state, q = S.q.trim().toLowerCase(), ew = this.ewOf(A), L = wl(ew);
     const ak = 'a' + ew, ek = 'eff' + ew, rk = 'rk' + ew;
     // price change for the window; the 1D/7D price stands in when the window has none
-    const dpk = A.win.includes(ew) ? 'dp' + ew : 'dp30';
+    const dpk = A.win.includes(ew) ? 'dp' + ew : 'dp30', PL = dpk.slice(2) + 'D';
     const match = (s) => !q || ('sn' + s.nu) === q.replace(/\s/g, '') || String(s.nu) === q || (s.name || '').toLowerCase().includes(q) ||
       s.pairs.some((p) => this.vname(p.v.hk, p.v.n).toLowerCase().includes(q));
     const list = A.snList.filter(match);
     // the right panel follows the filtered list: keep the pick while it matches, else the first match
     const cur = list.find((s) => s.nu === S.sn) || list[0] || null;
     const curNu = cur ? cur.nu : null;
-    const dpTxt = (x) => x == null ? '—' : signed(x, (n) => n.toFixed(1) + '%');
-    const dpCol = (x) => x == null ? MUTED : x >= 0 ? accent : ORANGE;
     const snRows = list.map((s) => ({
-      sn: 'SN' + s.nu, name: s.name || 'Subnet ' + s.nu, ref: pct(s['ref' + ew], 1), dp: dpTxt(s[dpk]), dpColor: dpCol(s[dpk]),
+      sn: 'SN' + s.nu, name: s.name || 'Subnet ' + s.nu, ref: pct(s['ref' + ew], 1), dp: pxTxt(s[dpk]),
       on: s.nu === curNu, bg: s.nu === curNu ? '#151C26' : 'transparent', mark: s.nu === curNu ? accent : 'transparent',
       pick: () => this.setState({ sn: s.nu }),
+      // phone dropdown: pick and close
+      pickDd: (e) => { const d = e && e.currentTarget && e.currentTarget.closest ? e.currentTarget.closest('details') : null; if (d) d.open = false; this.setState({ sn: s.nu }); },
     }));
-    const hdr = { ref: 'Ref ' + L, dp: 'Price ' + dpk.slice(2) + 'D' };
-    const winCols = A.win.map((w) => ({ label: 'APY ' + wl(w), color: w === ew ? TEXT : MUTED })).concat([{ label: 'TAO return ' + L, color: TEXT }]);
-    const grid = '44px minmax(180px, 2fr) 110px 56px ' + A.win.map((w) => (w === ew ? '74px' : '64px')).join(' ') + ' 116px 140px 72px';
-    const minW = 988 + (A.win.length - 3) * 70;
-    const empty = { snRows, hdr, winCols, grid, minW, noSn: list.length === 0, hasCur: false, noCur: true, cur: { sn: '', name: '', kpis: [] }, rows: [], title: '' };
+    const hdr = { ref: 'Ref ' + L, dp: 'Price ' + PL };
+    const wlab = (w) => (w === 1 ? 'Yield 24h' : 'APY ' + wl(w));
+    const winCols = A.win.map((w) => ({ label: wlab(w), color: w === ew ? TEXT : MUTED }));
+    const wcol = (w) => (w === ew ? 74 : 64);
+    const grid = '44px minmax(180px, 2fr) 104px 56px ' + A.win.map((w) => wcol(w) + 'px').join(' ') + ' 124px 72px';
+    const minW = 44 + 180 + 104 + 56 + 124 + 72 + A.win.reduce((a, w) => a + wcol(w), 0) + 12 * (5 + A.win.length) + 40;
+    const empty = { snRows, curLabel: cur ? 'SN' + cur.nu + ' · ' + (cur.name || 'Subnet ' + cur.nu) : 'No subnet', hdr, winCols, grid, minW, effTip: EFF_TIP, noSn: list.length === 0, hasCur: false, noCur: true, cur: { sn: '', name: '', kpis: [], line: '' }, rows: [], title: '' };
     if (!cur) return Object.assign(empty, { noCurTxt: A.snList.length ? 'No subnet matches “' + S.q.trim() + '”.' : 'No subnet data yet: the collector has not stored alpha samples.' });
+    const nref = cur['nref' + ew];
     const kpis = [
-      { label: 'Reference APY ' + L, value: pct(cur['ref' + ew], 1), color: accent },
-      { label: 'TAO return ' + L, value: retTxt(cur['r' + ew]), color: retCol(cur['r' + ew], accent) },
-      { label: 'Alpha price', value: cur.price == null ? '—' : cur.price.toFixed(5) + ' τ', color: TEXT },
-    ].concat(A.win.filter((w) => w >= 7).map((w) => ({ label: 'Price ' + wl(w), value: dpTxt(cur['dp' + w]), color: dpCol(cur['dp' + w]) })))
+      { label: 'Reference APY ' + L, value: pct(cur['ref' + ew], 1), color: accent, sub: nref == null ? 'median of the 3 best pools ≥ 100 τ' : nref >= 3 ? 'median of the 3 best pools ≥ 100 τ' : nref === 0 ? 'no pool ≥ 100 τ earned' : 'thin reference: ' + nref + ' pool' + (nref === 1 ? '' : 's') + ' ≥ 100 τ' },
+      { label: 'Alpha price', value: cur.price == null ? '—' : cur.price.toFixed(5) + ' τ', color: TEXT, sub: '' },
+    ].concat(A.win.filter((w) => w >= 7).map((w) => ({ label: 'Price ' + wl(w), value: pxTxt(cur['dp' + w]), color: GREY, sub: 'vs τ, all validators' })))
       .concat([
-        { label: 'Validators', value: fmtInt(cur['n' + ew]), color: TEXT },
-        { label: 'Alpha staked', value: fmtK(cur.tao) + ' τ', color: TEXT },
+        { label: 'Validators', value: fmtInt(cur['n' + ew]), color: TEXT, sub: 'pools ≥ 10 τ with ' + L + ' data' },
+        { label: 'Alpha staked', value: fmtK(cur.tao) + ' τ', color: TEXT, sub: '' },
       ]);
+    // one line for what every staker on this subnet shares: the price move, plus the best pools' rewards
+    const px = cur[dpk], yRef = yieldOver(cur['ref' + ew], ew), net = cur['r' + ew];
+    const line = px == null ? 'Price history for ' + PL + ' is not available yet.' :
+      (Math.abs(px) < 0.05 ? 'The SN' + cur.nu + ' alpha price was flat against τ over ' + PL : 'Everyone staking on SN' + cur.nu + ' ' + (px >= 0 ? 'gained ' : 'lost ') + Math.abs(px).toFixed(1) + '% to the alpha price over ' + PL) +
+      (yRef == null ? '.' : '; rewards in the best pools added ' + signed(yRef, (n) => n.toFixed(1) + '%') + (net == null ? '' : ' → net ' + signed(net, (n) => n.toFixed(1) + '%') + ' in τ') + '. The price part is the same for every validator below; the columns compare rewards only.');
     const pairs = cur.pairs.filter((p) => p.tao >= 1).sort((x, y) => (y[ak] ?? -1e9) - (x[ak] ?? -1e9));
     const rows = pairs.map((p) => {
-      const name = this.vname(p.v.hk, p.v.n), m = mono(p.v.hk), e = p[ek], r = p[rk];
-      return Object.assign({}, m, {
+      const name = this.vname(p.v.hk, p.v.n), m = mono(p.v.hk), e = p[ek], r = p[rk], ec = effCell(e, p[ak], accent);
+      return Object.assign({}, m, ec, {
         rank: r || '—', rankColor: r && r <= 3 ? accent : MUTED, name, ini: initials(name, p.v.hk),
         aria: name + ' on SN' + cur.nu + ', alpha APY ' + L + ' ' + pct(p[ak]),
         tao: fmtInt(p.tao), take: pct(p.v.t * 100, 0), takeBg: p.v.t >= 0.15 ? '#2A1D0E' : p.v.t === 0 ? '#12281F' : '#161C25', takeFg: p.v.t >= 0.15 ? ORANGE : p.v.t === 0 ? accent : '#C9D1D9',
-        apys: A.win.map((w) => ({ t: pct(p['a' + w], 1), color: w === ew ? (e == null ? MUTED : effColor(e, accent)) : '#C9D1D9', weight: w === ew ? 700 : 400 }))
-          .concat([{ t: retTxt(p['r' + ew]), color: retCol(p['r' + ew], accent), weight: 600 }]),
-        eff: e == null ? '—' : Math.min(e, 100).toFixed(0) + '%', effW: e == null ? 0 : Math.min(100, e).toFixed(1), effColor: effColor(e, accent),
+        apys: A.win.map((w) => (w === 1 ? { t: ret3(yieldOver(p.a1, 1)), color: GREY, weight: 400 } : { t: pct(p['a' + w], 1), color: w === ew ? (e == null ? MUTED : effColor(e, accent)) : '#C9D1D9', weight: w === ew ? 700 : 400 })),
         ct: p.ct == null ? 'n/a' : pct(p.ct, 1), ctColor: p.ct != null && p.ct >= 5 ? ORANGE : '#A9B4C2',
+        card: { sub: '#' + (r || '—') + ' · ' + fmtInt(p.tao) + ' τ · take ' + pct(p.v.t * 100, 0), val: pct(p[ak], 1), valColor: e == null ? MUTED : effColor(e, accent), vsub: ec.eff === 'Not earning' ? 'Not earning' : ec.eff === '—' ? 'APY ' + L : ec.eff + ' of best' },
         open: () => this.openAny(p.v.hk),
       });
     });
-    return Object.assign(empty, { noSn: false, hasCur: true, noCur: false, noCurTxt: '', cur: { sn: 'SN' + cur.nu, name: cur.name || 'Subnet ' + cur.nu, kpis }, rows, title: 'Validators on SN' + cur.nu + ', ranked by alpha APY ' + L });
+    return Object.assign(empty, { noSn: false, hasCur: true, noCur: false, noCurTxt: '', cur: { sn: 'SN' + cur.nu, name: cur.name || 'Subnet ' + cur.nu, kpis, line }, rows, title: 'Validators on SN' + cur.nu + ', ranked by alpha APY ' + L });
+  }
+
+  // stake-weighted alpha price change of a validator's subnets (pools ≥ 10 τ), cached per window
+  pxExposure(v, A, ew) {
+    const dpk = A.win.includes(ew) ? 'dp' + ew : 'dp30', key = '_px' + dpk;
+    if (v[key] !== undefined) return v[key];
+    let w = 0, acc = 0;
+    v.pairs.forEach((p) => { const s = A.sns.get(p.nu), d = s && s[dpk]; if (p.tao >= 10 && d != null) { w += p.tao; acc += p.tao * d; } });
+    return (v[key] = w > 0 ? acc / w : null);
   }
 
   effTab(D, A, accent) {
     const S = this.state, q = S.q.trim().toLowerCase(), ew = this.ewOf(A), L = wl(ew);
     const ek = 'eff' + ew, etk = 'et' + ew, ak = 'a' + ew;
-    const rootK = D.keys.includes('a' + ew) ? 'a' + ew : 'a30';
+    const PL = (A.win.includes(ew) ? ew : 30) + 'D';
     const hasCons = A.np >= 2;
     const items = A.vs.filter((v) => v[ek] != null && v.tao >= S.effMin).map((v) => {
-      const r = D.byHk.get(v.hk);
-      return { v, name: this.vname(v.hk, v.n), root: r ? r[rootK] : null, et: Math.max(0, v[etk] ?? 100 - v[ek]), eff: v[ek] };
+      return { v, name: this.vname(v.hk, v.n), et: Math.max(0, v[etk] ?? 100 - v[ek]), eff: v[ek], px: this.pxExposure(v, A, ew) };
     }).filter((x) => !q || x.name.toLowerCase().includes(q) || x.v.hk.toLowerCase().includes(q));
+    const notEarning = A.vs.filter((v) => v.tao >= S.effMin && v[ek] == null && idle(v[ak])).length;
     const rankOf = new Map(); items.slice().sort((a, b) => b.eff - a.eff).forEach((x, i) => rankOf.set(x.v.hk, i + 1));
-    const getters = { rank: (x) => x.eff, name: (x) => x.name.toLowerCase(), tao: (x) => x.v.tao, ns: (x) => x.v.ns, t: (x) => x.v.t, cfg: (x) => x.v.cfg, et: (x) => x.et, eff: (x) => x.eff, cons: (x) => x.v.cons, a: (x) => x.v[ak], r: (x) => x.v['r' + ew], root: (x) => x.root };
-    const sk = getters[S.effSort] && (S.effSort !== 'cons' || hasCons) ? S.effSort : 'eff';
+    const getters = { rank: (x) => x.eff, name: (x) => x.name.toLowerCase(), tao: (x) => x.v.tao, ns: (x) => x.v.ns, t: (x) => x.v.t, cfg: (x) => x.v.cfg, et: (x) => x.et, eff: (x) => x.eff, cons: (x) => x.v.cons, a: (x) => x.v[ak], px: (x) => x.px };
+    const sk = getters[S.effSort] && (S.effSort !== 'cons' || hasCons) ? S.effSort : 'tao';
     const get = getters[sk];
     const sorted = items.slice().sort((a, b) => { const va = get(a), vb = get(b); if (va == null && vb == null) return 0; if (va == null) return 1; if (vb == null) return -1; return (va < vb ? -1 : va > vb ? 1 : 0) * S.effDir; });
     const rows = sorted.map((x) => {
-      const v = x.v, rk = rankOf.get(v.hk);
+      const v = x.v, rk = rankOf.get(v.hk), ne = v['ne' + ew], self = v['self' + ew];
+      const tags = [];
+      if (self != null && self >= 50) tags.push({ t: 'sets reference', title: 'Its own pool is one of the best pools that define the subnet reference, so it is partly measured against itself.' });
+      if (ne != null && ne >= 0.5) tags.push({ t: Math.round(ne) + '% not earning', title: Math.round(ne) + '% of its alpha stake sits in pools that earned nothing over ' + L + '; those pools are left out of the score.' });
       return Object.assign({}, mono(v.hk), {
-        rank: rk || '—', rankColor: rk && rk <= 3 ? accent : MUTED, name: x.name, ini: initials(x.name, v.hk), short: v.hk.slice(0, 8) + '…' + v.hk.slice(-6),
-        aria: x.name + ', efficiency ' + L + ' ' + pct(x.eff, 1), tao: fmtInt(v.tao), ns: v.ns, t: pct(v.t * 100, 0), cfg: v.cfg == null ? 'n/a' : pct(v.cfg, 1),
+        rank: rk || '—', rankColor: rk && rk <= 3 ? accent : MUTED, name: x.name, ini: initials(x.name, v.hk), short: v.hk.slice(0, 8) + '…' + v.hk.slice(-6), tags,
+        aria: x.name + ', yield vs best pools ' + L + ' ' + pct(x.eff, 1), tao: fmtInt(v.tao), ns: v.ns, t: pct(v.t * 100, 0), cfg: v.cfg == null ? 'n/a' : pct(v.cfg, 1),
         et: pct(x.et, 1), etColor: x.et - v.t * 100 > 5 ? ORANGE : TEXT,
         eff: pct(Math.min(x.eff, 100), 1), effW: Math.min(100, x.eff).toFixed(1), effColor: effColor(x.eff, accent),
         hasCons, cons: consCell(v, A, accent, 4),
-        a: pct(v[ak], 1), ret: retTxt(v['r' + ew]), retColor: retCol(v['r' + ew], accent), root: pct(x.root), rootColor: x.root == null ? MUTED : apyColor(x.root, D.meds[rootK], accent),
+        a: pct(v[ak], 1), px: pxTxt(x.px),
+        card: { sub: fmtK(v.tao) + ' τ · ' + v.ns + (v.ns === 1 ? ' subnet' : ' subnets') + ' · take ' + pct(v.t * 100, 0), val: pct(Math.min(x.eff, 100), 0), valColor: effColor(x.eff, accent), vsub: 'yield vs best ' + L },
         open: () => this.openAny(v.hk),
       });
     });
-    const defs = [['rank', '#', 'flex-start'], ['name', 'Validator', 'flex-start'], ['tao', 'Alpha stake', 'flex-end'], ['ns', 'Subnets', 'flex-end'],
-      ['t', 'Listed take', 'flex-end'], ['cfg', 'Config. take', 'flex-end'], ['et', 'Eff. take ' + L, 'flex-end'], ['eff', 'Efficiency ' + L, 'flex-start']]
+    const defs = [['rank', 'Rank', 'flex-start'], ['name', 'Validator', 'flex-start'], ['tao', 'Alpha stake', 'flex-end'], ['ns', 'Subnets', 'flex-end'],
+      ['t', 'Listed take', 'flex-end'], ['cfg', 'Config. take', 'flex-end'], ['et', 'Gap vs best ' + L, 'flex-end'], ['eff', 'Yield vs best ' + L, 'flex-start']]
       .concat(hasCons ? [['cons', 'Consistency', 'flex-start']] : [])
-      .concat([['a', 'Alpha APY ' + L, 'flex-end'], ['r', 'TAO return ' + L, 'flex-end'], ['root', 'Root APY ' + wl(+rootK.slice(1)), 'flex-end']]);
+      .concat([['a', 'Alpha APY ' + L, 'flex-end'], ['px', 'Price ' + PL, 'flex-end']]);
+    const titles = {
+      rank: 'Rank by yield vs best pools', eff: EFF_TIP, et: '100% − yield vs best pools. ' + EFF_TIP,
+      cons: 'Share of ' + A.period + '-day periods in which the validator earned at least 90% of what the best pools on its subnets earned',
+      a: 'Rewards paid in alpha, annualized. Depends on which subnets the validator is on; excludes the alpha price move.',
+      px: 'Stake-weighted alpha price change of the subnets this validator stakes on. ' + PX_TIP,
+    };
     const cols = defs.map(([key, label, justify]) => ({
       label, justify, color: sk === key ? accent : MUTED, arrow: sk === key ? (S.effDir < 0 ? '↓' : '↑') : '', aria: 'Sort by ' + label,
-      title: key === 'cons' ? 'Share of ' + A.period + '-day periods in which the validator passed on at least 90% of the subnet reference APY' : '',
+      title: titles[key] || '',
       sort: () => (sk === key ? this.setState({ effDir: -S.effDir }) : this.setState({ effSort: key, effDir: dirOf(EFF_DIRS, key) })),
     }));
-    const grid = '44px minmax(200px, 2fr) 120px 70px 84px 96px 104px 160px ' + (hasCons ? '150px ' : '') + '90px 116px 96px';
-    // scatter: listed take vs effective take
+    const grid = '52px minmax(200px, 2fr) 104px 66px 80px 92px 104px 160px ' + (hasCons ? '150px ' : '') + '90px 84px';
+    // scatter: listed take vs gap to the best pools
     const ymax = Math.max(40, Math.ceil(Math.max(0, ...items.map((x) => x.et)) / 10) * 10);
     const maxT = Math.max(1, ...items.map((x) => x.v.tao));
     const hov = S.ehov ? items.find((x) => x.v.hk === S.ehov) : null;
@@ -1456,7 +1655,7 @@ class Component extends DCLogic {
     const pts = items.slice().sort((a, b) => b.v.tao - a.v.tao).map((x) => {
       const size = Math.round(8 + Math.sqrt(x.v.tao / maxT) * 26), on = S.ehov === x.v.hk, hidden = x.et - x.v.t * 100 > 5;
       return {
-        x: xp(x.v.t).toFixed(2), y: yp(x.et).toFixed(2), size, half: size / 2, aria: x.name + ': listed ' + pct(x.v.t * 100, 0) + ', effective ' + pct(x.et, 1),
+        x: xp(x.v.t).toFixed(2), y: yp(x.et).toFixed(2), size, half: size / 2, aria: x.name + ': listed take ' + pct(x.v.t * 100, 0) + ', gap vs best pools ' + pct(x.et, 1),
         fill: on ? accent : hidden ? 'rgba(245,158,59,0.30)' : 'rgba(61,219,176,0.22)', stroke: on ? TEXT : hidden ? ORANGE : accent,
         open: () => this.openAny(x.v.hk), enter: () => this.setState({ ehov: x.v.hk }), leave: () => this.setState({ ehov: null }),
       };
@@ -1464,12 +1663,14 @@ class Component extends DCLogic {
     const gaps = items.map((x) => ({ x, gap: x.et - x.v.t * 100 })).filter((g) => g.gap > 3).sort((a, b) => b.gap - a.gap).slice(0, 6);
     const gmax = Math.max(1, ...gaps.map((g) => g.gap));
     return {
-      cols, rows, grid, minW: 1248 + (hasCons ? 162 : 0), empty: rows.length === 0, pts, L,
-      note: 'Efficiency = share of each subnet’s alpha yield a validator passes to its stakers over ' + L + ', weighted by alpha stake. Effective take = 100% − efficiency. APY = staking rewards valued in τ at today’s price; TAO return adds the alpha price move over ' + L + ', not annualized. Efficiency compares yields of pools on the same subnet, which share the same price move.' +
-        (hasCons ? ' Consistency = share of ' + A.period + '-day periods at ≥ 90% of the subnet reference (bars: oldest → newest).' : ''),
+      cols, rows, grid, minW: 52 + 200 + 104 + 66 + 80 + 92 + 104 + 160 + 90 + 84 + 12 * 9 + 40 + (hasCons ? 162 : 0), empty: rows.length === 0, pts, L,
+      note: 'Yield vs best pools = how much of the rewards that the best pools on the same subnet earned this validator passed on over ' + L + ' (100% = as much as the best; it is a comparison with peers, not the fee charged), weighted by alpha stake. Alpha APY is paid in alpha; the Price column is the alpha price move of its subnets, shared by every validator there.' +
+        (hasCons ? ' Consistency = share of ' + A.period + '-day periods at ≥ 90% of the best pools (bars: oldest → newest).' : ''),
+      neNote: notEarning ? notEarning + ' validator' + (notEarning === 1 ? '' : 's') + ' in this filter earned no alpha over ' + L + ' and are not ranked.' : '',
+      hasNe: notEarning > 0,
       yTicks: ticks(0, ymax, 4).map((v) => ({ pos: yp(v).toFixed(2), label: v + '%' })),
       xTicks: [0, 5, 10, 15, 20].map((v) => ({ pos: v * 5, label: v + '%' })),
-      diag: 'M0 100 L100 ' + (100 - yp(20)).toFixed(2), diagLabelPos: (yp(20) + 2).toFixed(2),
+      diag: 'M0 100 L100 ' + (100 - yp(20)).toFixed(2),
       hasTip: !!hov, tip: hov ? { x: xp(hov.v.t).toFixed(2), y: yp(hov.et).toFixed(2), shift: xp(hov.v.t) > 70 ? '-90%' : xp(hov.v.t) < 20 ? '-10%' : '-50%', name: hov.name, t: pct(hov.v.t * 100, 0), et: pct(hov.et, 1) } : {},
       hidden: gaps.map((g) => ({ name: g.x.name, t: pct(g.x.v.t * 100, 0), et: pct(g.x.et, 1), gap: '+' + g.gap.toFixed(1) + ' pp', w: (g.gap / gmax * 100).toFixed(1), open: () => this.openAny(g.x.v.hk) })),
       noHidden: gaps.length === 0,
@@ -1477,32 +1678,36 @@ class Component extends DCLogic {
     };
   }
 
+  // Alpha block on a root validator's page. Kept apart from the root APY: alpha rewards are
+  // paid in alpha and the stake carries each subnet's price move.
   detailAlpha(hk, accent) {
     const A = this.state.alpha, v = A && A.byHk.get(hk);
     if (!v || !v.pairs.length) return { has: false };
     const ew = this.ewOf(A), L = wl(ew), ak = 'a' + ew, ek = 'eff' + ew, rk = 'rk' + ew;
-    const dpk = A.win.includes(ew) ? 'dp' + ew : 'dp30';
+    const dpk = A.win.includes(ew) ? 'dp' + ew : 'dp30', PL = dpk.slice(2) + 'D';
     const shown = v.pairs.filter((p) => p.tao >= 1).slice(0, 20);
-    const dpCol = (x) => x == null ? MUTED : x >= 0 ? accent : ORANGE;
-    const e = v[ek], et = v['et' + ew];
+    const e = v[ek], et = v['et' + ew], ec = effCell(e, v[ak], accent);
+    const yv = yieldOver(v[ak], ew), px = this.pxExposure(v, A, ew), net = v['r' + ew];
     return {
-      has: true, total: v.pairs.length, shown: shown.length, more: v.pairs.length > shown.length, hA: 'Alpha APY ' + L, hP: 'Price ' + dpk.slice(2) + 'D',
+      has: true, total: v.pairs.length, shown: shown.length, more: v.pairs.length > shown.length, hA: 'APY ' + L, hP: 'Price ' + PL, effTip: EFF_TIP,
       kpis: [
         { label: 'Alpha stake', value: fmtK(v.tao) + ' τ', color: TEXT },
-        { label: 'Subnets', value: fmtInt(v.ns), color: TEXT },
-        { label: 'Efficiency ' + L, value: e == null ? '—' : pct(Math.min(100, e), 1), color: effColor(e, accent) },
-        { label: 'Effective take ' + L, value: et == null ? '—' : pct(Math.max(0, et), 1), color: et != null && et - v.t * 100 > 5 ? ORANGE : TEXT },
-        { label: 'Alpha APY ' + L + ' (weighted)', value: pct(v[ak], 1), color: TEXT },
-      ].concat(A.np >= 2 ? [{ label: 'Consistency', value: v.cons == null ? '—' : pct(v.cons, 0), color: v.cons == null ? MUTED : v.cons >= 75 ? accent : v.cons >= 50 ? TEXT : ORANGE }] : []),
+        { label: 'Yield vs best ' + L, value: e == null ? ec.eff : pct(Math.min(100, e), 1), color: ec.effColor },
+        { label: 'Gap vs best ' + L, value: et == null ? '—' : pct(Math.max(0, et), 1), color: et != null && et - v.t * 100 > 5 ? ORANGE : TEXT },
+        { label: 'Alpha APY ' + L, value: pct(v[ak], 1), color: accent },
+        { label: 'Rewards ' + L, value: yv == null ? '—' : signed(yv, (n) => n.toFixed(2) + '%'), color: accent },
+        { label: 'Price ' + PL + ' (subnet mix)', value: pxTxt(px), color: GREY },
+        { label: 'Net in TAO ' + L, value: retTxt(net), color: GREY },
+      ],
       rows: shown.map((p) => {
-        const s = A.sns.get(p.nu) || {}, pe = p[ek], r = p[rk];
-        return {
+        const s = A.sns.get(p.nu) || {}, pe = p[ek], r = p[rk], pc = effCell(pe, p[ak], accent);
+        return Object.assign({}, pc, {
           sn: 'SN' + p.nu, name: s.name || 'Subnet ' + p.nu, tao: fmtInt(p.tao), a30: pct(p[ak], 1),
           rank: r ? '#' + r + ' / ' + (s['n' + ew] ?? '—') : '—', rankColor: r === 1 ? accent : '#C9D1D9',
-          eff: pe == null ? '—' : Math.min(100, pe).toFixed(0) + '%', effW: pe == null ? 0 : Math.min(100, pe).toFixed(1), effColor: effColor(pe, accent),
-          dp: s[dpk] == null ? '—' : signed(s[dpk], (n) => n.toFixed(1) + '%'), dpColor: dpCol(s[dpk]),
+          dp: pxTxt(s[dpk]),
+          card: { sub: fmtInt(p.tao) + ' τ · rank ' + (r ? '#' + r : '—') + ' · price ' + pxTxt(s[dpk]), val: pct(p[ak], 1), valColor: pe == null ? MUTED : effColor(pe, accent), vsub: pc.eff === 'Not earning' ? pc.eff : pc.eff === '—' ? 'APY ' + L : pc.eff + ' of best' },
           go: () => this.leaveTo({ tab: 'alpha', sn: p.nu, q: '' }),
-        };
+        });
       }),
     };
   }
@@ -1515,16 +1720,19 @@ class Component extends DCLogic {
     const name = this.vname(v.hk, v.n), m = mono(v.hk);
     const ranked = A.vs.filter((x) => x[ek] != null && x.tao >= 1000).sort((a, b) => b[ek] - a[ek]);
     const rkn = ranked.findIndex((x) => x.hk === v.hk) + 1;
-    const rankTxt = rkn ? '#' + rkn + ' / ' + ranked.length + ' by efficiency ' + L : 'unranked (needs ≥ 1K τ and ' + L + ' data)';
-    const take = v.t || 0, e = v[ek], et = v['et' + ew] == null ? null : Math.max(0, v['et' + ew]);
+    const rankTxt = rkn ? '#' + rkn + ' / ' + ranked.length + ' by yield vs best pools ' + L : 'unranked (needs ≥ 1K τ and ' + L + ' data)';
+    const take = v.t || 0, e = v[ek], et = v['et' + ew] == null ? null : Math.max(0, v['et' + ew]), ec = effCell(e, v['a' + ew], accent);
+    const PL = dpk.slice(2) + 'D', yv = yieldOver(v['a' + ew], ew), px = this.pxExposure(v, A, ew), net = v['r' + ew], ne = v['ne' + ew];
     const kpis = [
       { label: 'Alpha stake', value: fmtK(v.tao) + ' τ', color: TEXT, sub: '≈ ' + usd(v.tao * this.px), subColor: MUTED },
-      { label: 'Efficiency ' + L, value: e == null ? '—' : pct(Math.min(100, e), 1), color: effColor(e, accent), sub: 'APY ÷ subnet reference, stake-weighted', subColor: MUTED },
-      { label: 'Effective take ' + L, value: et == null ? '—' : pct(et, 1), color: et != null && et - take * 100 > 5 ? ORANGE : TEXT, sub: 'listed ' + pct(take * 100, 0) + ' · configured ' + (v.cfg == null ? 'n/a' : pct(v.cfg, 1)), subColor: MUTED },
+      { label: 'Yield vs best ' + L, value: e == null ? ec.eff : pct(Math.min(100, e), 1), color: ec.effColor, sub: ne >= 0.5 ? Math.round(ne) + '% of stake not earning' : 'vs the best pools on the same subnets', subColor: ne >= 0.5 ? ORANGE : MUTED },
+      { label: 'Gap vs best ' + L, value: et == null ? '—' : pct(et, 1), color: et != null && et - take * 100 > 5 ? ORANGE : TEXT, sub: 'listed take ' + pct(take * 100, 0) + ' · configured ' + (v.cfg == null ? 'n/a' : pct(v.cfg, 1)), subColor: MUTED },
     ];
-    if (A.np >= 2) kpis.push({ label: 'Consistency', value: v.cons == null ? '—' : pct(v.cons, 0), color: v.cons == null ? MUTED : v.cons >= 75 ? accent : v.cons >= 50 ? TEXT : ORANGE, sub: A.period + '-day periods at ≥ 90% of reference', subColor: MUTED });
-    kpis.push({ label: 'Alpha APY ' + L, value: pct(v['a' + ew], 2), color: accent, sub: A.win.filter((w) => w !== ew).map((w) => wl(w) + ' ' + pct(v['a' + w], 1)).join(' · '), subColor: MUTED });
-    kpis.push({ label: 'TAO return ' + L, value: retTxt(v['r' + ew]), color: retCol(v['r' + ew], accent), sub: A.win.filter((w) => w !== ew).map((w) => wl(w) + ' ' + retTxt(v['r' + w])).join(' · ') || 'incl. alpha price move, not annualized', subColor: MUTED });
+    if (A.np >= 2) kpis.push({ label: 'Consistency', value: v.cons == null ? '—' : pct(v.cons, 0), color: v.cons == null ? MUTED : v.cons >= 75 ? accent : v.cons >= 50 ? TEXT : ORANGE, sub: A.period + '-day periods at ≥ 90% of the best pools', subColor: MUTED });
+    kpis.push({ label: 'Alpha APY ' + L, value: pct(v['a' + ew], 2), color: accent, sub: 'paid in alpha · ' + A.win.filter((w) => w !== ew && w !== 1).map((w) => wl(w) + ' ' + pct(v['a' + w], 1)).concat(v.a1 != null ? ['24h ' + ret3(yieldOver(v.a1, 1))] : []).join(' · '), subColor: MUTED });
+    kpis.push({ label: 'Rewards ' + L, value: yv == null ? '—' : signed(yv, (n) => n.toFixed(2) + '%'), color: accent, sub: 'alpha earned over ' + L + ', not annualized', subColor: MUTED });
+    kpis.push({ label: 'Price ' + PL + ' (subnet mix)', value: pxTxt(px), color: GREY, sub: 'alpha vs τ, same for every validator there', subColor: MUTED });
+    kpis.push({ label: 'Net in TAO ' + L, value: retTxt(net), color: GREY, sub: 'rewards and price together', subColor: MUTED });
     kpis.push({ label: 'Childkey take', value: v.ct == null ? '—' : pct(v.ct, 1), color: v.ct != null && v.ct >= 5 ? ORANGE : TEXT, sub: 'paid to child hotkeys, weighted', subColor: MUTED });
 
     // efficiency per period, oldest → newest
@@ -1534,37 +1742,38 @@ class Component extends DCLogic {
       return {
         h: x == null ? 2 : Math.max(2, Math.min(120, x) / 120 * 100).toFixed(1), fill: x == null ? '#232C38' : x >= 90 ? accent : x >= 70 ? '#C9D1D9' : ORANGE,
         val: x == null ? '—' : Math.min(x, 120).toFixed(0) + '%', label: dstr(start) + '–' + dstr(end),
-        title: dstr(start) + '–' + dstr(end) + ': ' + (x == null ? 'no data' : 'efficiency ' + x.toFixed(1) + '%'),
+        title: dstr(start) + '–' + dstr(end) + ': ' + (x == null ? 'no data' : 'yield vs best pools ' + x.toFixed(1) + '%'),
       };
     });
 
     const pools = v.pairs.filter((p) => p.tao >= 1);
     const shown = S.poolsAll ? pools : pools.slice(0, 30);
-    const dpCol = (x) => x == null ? MUTED : x >= 0 ? accent : ORANGE;
     const rows = shown.map((p) => {
-      const s = A.sns.get(p.nu) || {}, pe = p[ek], r = p[rk];
-      return {
+      const s = A.sns.get(p.nu) || {}, pe = p[ek], r = p[rk], pc = effCell(pe, p['a' + ew], accent), nref = s['nref' + ew];
+      return Object.assign({}, pc, {
         sn: 'SN' + p.nu, name: s.name || 'Subnet ' + p.nu, tao: fmtInt(p.tao),
-        apys: A.win.map((w) => ({ t: pct(p['a' + w], 1), color: w === ew ? (pe == null ? MUTED : effColor(pe, accent)) : '#C9D1D9', weight: w === ew ? 700 : 400 }))
-          .concat([{ t: retTxt(p['r' + ew]), color: retCol(p['r' + ew], accent), weight: 600 }]),
-        ref: pct(s['ref' + ew], 1),
-        eff: pe == null ? '—' : Math.min(100, pe).toFixed(0) + '%', effW: pe == null ? 0 : Math.min(100, pe).toFixed(1), effColor: effColor(pe, accent),
+        apys: A.win.map((w) => (w === 1 ? { t: ret3(yieldOver(p.a1, 1)), color: GREY, weight: 400 } : { t: pct(p['a' + w], 1), color: w === ew ? (pe == null ? MUTED : effColor(pe, accent)) : '#C9D1D9', weight: w === ew ? 700 : 400 })),
+        ref: pct(s['ref' + ew], 1) + (nref != null && nref < 3 ? ' ·thin' : ''), refTitle: nref != null && nref < 3 ? 'Thin reference: only ' + nref + ' pool(s) ≥ 100 τ earned on this subnet' : 'Median of the 3 best pools ≥ 100 τ',
         rank: r ? '#' + r + ' / ' + (s['n' + ew] ?? '—') : '—', rankColor: r === 1 ? accent : '#C9D1D9',
         ct: p.ct == null ? 'n/a' : pct(p.ct, 1), ctColor: p.ct != null && p.ct >= 5 ? ORANGE : '#A9B4C2',
-        dp: s[dpk] == null ? '—' : signed(s[dpk], (n) => n.toFixed(1) + '%'), dpColor: dpCol(s[dpk]),
+        dp: pxTxt(s[dpk]),
+        card: { sub: fmtInt(p.tao) + ' τ · rank ' + (r ? '#' + r : '—') + ' · price ' + pxTxt(s[dpk]), val: pct(p['a' + ew], 1), valColor: pe == null ? MUTED : effColor(pe, accent), vsub: pc.eff === 'Not earning' ? pc.eff : pc.eff === '—' ? 'APY ' + L : pc.eff + ' of best' },
         aria: 'SN' + p.nu + ' ' + (s.name || '') + ', alpha APY ' + L + ' ' + pct(p['a' + ew]) + ', open subnet',
         go: () => this.leaveTo({ tab: 'alpha', sn: p.nu, q: '' }),
-      };
+      });
     });
-    const grid = 'minmax(220px, 2fr) 110px ' + A.win.map((w) => (w === ew ? '80px' : '70px')).join(' ') + ' 116px 70px 150px 90px 74px 80px';
+    const wcol = (w) => (w === ew ? 80 : 70);
+    const grid = 'minmax(220px, 2fr) 104px ' + A.win.map((w) => wcol(w) + 'px').join(' ') + ' 84px 130px 84px 74px 76px';
     return Object.assign({}, m, {
       name, hk: v.hk, ini: initials(name, v.hk), rankTxt, take: pct(take * 100, 0),
       takeBg: take >= 0.15 ? '#2A1D0E' : take === 0 ? '#12281F' : '#161C25', takeFg: take >= 0.15 ? ORANGE : take === 0 ? accent : '#C9D1D9',
       nsTxt: fmtInt(v.ns) + (v.ns === 1 ? ' subnet' : ' subnets') + ' ≥ 10 τ', kpis, rows, empty: rows.length === 0,
-      winCols: A.win.map((w) => ({ label: 'APY ' + wl(w), color: w === ew ? TEXT : MUTED })).concat([{ label: 'TAO return ' + L, color: TEXT }]), grid, minW: 1228 + (A.win.length - 3) * 82,
-      hdrRef: 'Ref. ' + L, hdrDp: 'Price ' + dpk.slice(2) + 'D', poolNote: 'APY = rewards in τ at today’s price · TAO return incl. price move, not annualized · efficiency = pool APY ' + L + ' ÷ subnet reference · click a subnet to see every validator on it',
+      winCols: A.win.map((w) => ({ label: w === 1 ? 'Yield 24h' : 'APY ' + wl(w), color: w === ew ? TEXT : MUTED })), grid,
+      minW: 220 + 104 + 84 + 130 + 84 + 74 + 76 + A.win.reduce((a, w) => a + wcol(w), 0) + 12 * (6 + A.win.length) + 40, effTip: EFF_TIP, pxTip: PX_TIP,
+      hdrRef: 'Ref. ' + L, hdrDp: 'Price ' + dpk.slice(2) + 'D', poolNote: 'APY = alpha rewards, annualized · yield vs best = APY ÷ the best pools on that subnet · price = that subnet’s alpha move, shared by every validator there · click a subnet to open it',
+      hasSelf: v['self' + ew] != null && v['self' + ew] >= 50, selfTitle: 'Its own pool is one of the best pools that set the subnet reference, so it is partly measured against itself.',
       hasPeriods: A.np >= 2, periods, cons: v.cons == null ? '—' : pct(v.cons, 0),
-      perTitle: 'Efficiency by ' + A.period + '-day period', perNote: 'Each bar is one ' + A.period + '-day period, oldest on the left. Green = passed on at least 90% of the subnet reference APY.',
+      perTitle: 'Yield vs best pools by ' + A.period + '-day period', perNote: 'Each bar is one ' + A.period + '-day period, oldest on the left. Green = earned at least 90% of what the best pools on the same subnets earned.',
       more: !S.poolsAll && pools.length > shown.length, moreTxt: 'Show all ' + pools.length + ' subnets', showAll: () => this.setState({ poolsAll: true }),
       copyTxt: this.copyTxt(), copy: () => this.copyHk(v.hk),
     });
@@ -1573,15 +1782,16 @@ class Component extends DCLogic {
   detail(x, D, accent) {
     const S = this.state, win = this.winKey(D), L = wl(+win.slice(1)), N = D.N;
     const sw = D.st[win], rk = x.rk[win];
-    const rankTxt = rk ? '#' + rk + ' / ' + sw.ranked.length + ' by APY ' + L + ' · top ' + Math.max(1, Math.ceil(rk / sw.ranked.length * 100)) + '%' : 'unranked (' + L + ')';
+    const rankTxt = rk ? 'Root rank #' + rk + ' / ' + sw.ranked.length + ' by APY ' + L + ' · top ' + Math.max(1, Math.ceil(rk / sw.ranked.length * 100)) + '%' : 'root: unranked (' + L + ')';
     const dv = (v, m) => v == null || m == null ? { sub: 'not enough data', subColor: MUTED } : { sub: signed(v - m, (n) => n.toFixed(2)) + ' pp vs median', subColor: v >= m ? accent : ORANGE };
     const r = this.chartRng(D), f = x.fl[r];
-    const order = [win].concat(D.keys.filter((k) => k !== win).reverse());
+    const order = [win].concat(D.rkeys.filter((k) => k !== win).reverse());
     const rootRet = (k) => { const v = x['r' + k.slice(1)]; return v == null ? '' : signed(v, (n) => n.toFixed(2) + '%') + ' τ over ' + wl(+k.slice(1)) + ' · '; };
     const kpis = order.map((k) => { const d = dv(x[k], D.meds[k]); return { label: 'APY ' + wl(+k.slice(1)), value: pct(x[k]), color: k === win ? accent : TEXT, sub: rootRet(k) + d.sub, subColor: rootRet(k) ? '#A9B4C2' : d.subColor }; }).concat([
       { label: 'Root stake', value: fmtK(x.s) + ' τ', color: TEXT, sub: f ? signed(f.pct, (n) => n.toFixed(1) + '%') + ' over ' + f.days + ' days' : 'no history yet', subColor: f && f.flow > 0 ? accent : f && f.flow < 0 ? ORANGE : MUTED },
-      { label: 'Stability σ', value: x.sd == null ? '—' : x.sd.toFixed(2), color: TEXT, sub: 'std dev of 7D APY (lower = steadier)', subColor: MUTED },
+      { label: 'Stability σ', value: x.sd == null ? '—' : x.sd.toFixed(2) + ' pp', color: TEXT, sub: 'std dev of 7D APY (lower = steadier)', subColor: MUTED },
     ]);
+    if (D.keys.includes('a1')) kpis.splice(order.length, 0, { label: 'Last 24h', value: ret3(x.r1) + ' τ', color: TEXT, sub: 'τ earned per τ staked, not annualized', subColor: MUTED });
 
     // APY chart over the selected range; x = end day of each rolling window
     const s0 = Math.max(0, N - r);

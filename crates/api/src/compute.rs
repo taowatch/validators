@@ -64,6 +64,8 @@ const BASE_WINDOWS: usize = 3;
 const PERIOD: usize = 30;
 /// Longest history served (days).
 const MAX_SPAN: usize = 400;
+/// Alpha APY (%) below which a pool counts as not earning (dust from rounding, no dividends).
+const MIN_EARNING: f64 = 0.01;
 
 /// Daily grid: `pts[i]` stands for `n − i` days before head (`pts[n]` = head).
 struct Grid {
@@ -354,6 +356,10 @@ async fn alpha(db: &mut PgConnection, g: &Grid, head: i64, head_ts: f64, names: 
         sret: HashMap<i32, Option<f64>>,
         eff: Vec<Option<f64>>,
         rk: Vec<Option<usize>>,
+        /// pool is one of the (up to 3) pools that set its subnet's reference
+        top: Vec<bool>,
+        /// how many pools set the reference (fewer than 3 = less reliable)
+        nref: HashMap<i32, usize>,
         ranked: HashMap<i32, usize>,
     }
     let interval = |from: usize, to: usize| -> Interval {
@@ -362,14 +368,24 @@ async fn alpha(db: &mut PgConnection, g: &Grid, head: i64, head_ts: f64, names: 
         let mut rk = vec![None; pairs.len()];
         let mut refv = HashMap::new();
         let mut sret = HashMap::new();
+        let mut top = vec![false; pairs.len()];
+        let mut nref = HashMap::new();
         let mut ranked_n = HashMap::new();
         for (nu, idx) in &by_sn {
-            let mut big: Vec<f64> = idx.iter().filter(|&&i| pairs[i].tao >= 100.0).filter_map(|&i| apy[i]).collect();
-            big.sort_by(|a, b| b.total_cmp(a));
-            let rv = if big.len() >= 3 { median(big[..3].to_vec()) } else { big.first().copied() };
+            // Pools with a zero yield earned nothing (validator not earning dividends): they get
+            // no efficiency instead of "100% effective take", and never set the reference.
+            let mut big: Vec<usize> = idx.iter().copied().filter(|&i| pairs[i].tao >= 100.0 && apy[i].is_some_and(|a| a >= MIN_EARNING)).collect();
+            big.sort_by(|&a, &b| apy[b].unwrap().total_cmp(&apy[a].unwrap()));
+            big.truncate(3);
+            for &i in &big {
+                top[i] = true;
+            }
+            let vals: Vec<f64> = big.iter().map(|&i| apy[i].unwrap()).collect();
+            let rv = if vals.len() >= 3 { median(vals.clone()) } else { vals.first().copied() };
+            nref.insert(*nu, vals.len());
             for &i in idx {
                 eff[i] = match (rv, apy[i]) {
-                    (Some(rv), Some(a)) if rv > 0.0 => Some((a / rv).min(1.2)),
+                    (Some(rv), Some(a)) if rv > 0.0 && a >= MIN_EARNING => Some((a / rv).min(1.2)),
                     _ => None,
                 };
             }
@@ -383,7 +399,7 @@ async fn alpha(db: &mut PgConnection, g: &Grid, head: i64, head_ts: f64, names: 
             ranked_n.insert(*nu, ranked.len());
         }
         let ret = pairs.iter().zip(&apy).map(|(x, a)| tao_return(x.nu, from, to, *a)).collect();
-        Interval { apy, ret, refv, sret, eff, rk, ranked: ranked_n }
+        Interval { apy, ret, refv, sret, eff, rk, top, nref, ranked: ranked_n }
     };
     let wins: Vec<(usize, Interval)> = g.win.iter().map(|&w| (w, interval(w, 0))).collect();
     let ewins: Vec<&(usize, Interval)> = wins.iter().filter(|(w, _)| ewin.contains(w)).collect();
@@ -406,6 +422,7 @@ async fn alpha(db: &mut PgConnection, g: &Grid, head: i64, head_ts: f64, names: 
             o[format!("ref{w}")] = ro(iv.refv.get(nu).copied().flatten(), 2);
             o[format!("r{w}")] = ro(iv.sret.get(nu).copied().flatten(), 2);
             o[format!("n{w}")] = json!(iv.ranked.get(nu).copied().unwrap_or(0));
+            o[format!("nref{w}")] = json!(iv.nref.get(nu).copied().unwrap_or(0));
         }
         subnets.push((tao, o));
     }
@@ -446,6 +463,14 @@ async fn alpha(db: &mut PgConnection, g: &Grid, head: i64, head_ts: f64, names: 
             let e = w(&|i| iv.eff[i]);
             o[format!("eff{wd}")] = ro(e.map(|e| e * 100.0), 2);
             o[format!("et{wd}")] = ro(e.map(|e| (1.0 - e) * 100.0), 2);
+            // share of the validator's stake (pools ≥ 10 τ) that earned nothing, and that sits in
+            // pools setting their own subnet's reference
+            let big: f64 = idx.iter().filter(|&&i| pairs[i].tao >= 10.0).map(|&i| pairs[i].tao).sum();
+            let share = |f: &dyn Fn(usize) -> bool| -> Value {
+                if big > 0.0 { r(idx.iter().copied().filter(|&i| pairs[i].tao >= 10.0 && f(i)).map(|i| pairs[i].tao).sum::<f64>() / big * 100.0, 1) } else { Value::Null }
+            };
+            o[format!("ne{wd}")] = share(&|i| iv.apy[i].is_some_and(|a| a < MIN_EARNING));
+            o[format!("self{wd}")] = share(&|i| iv.top[i]);
         }
         vlist.push((hk.to_string(), o));
     }
@@ -457,6 +482,7 @@ async fn alpha(db: &mut PgConnection, g: &Grid, head: i64, head_ts: f64, names: 
     pf.extend(g.win.iter().map(|w| format!("r{w}")));
     pf.extend(ewins.iter().map(|(w, _)| format!("eff{w}")));
     pf.extend(ewins.iter().map(|(w, _)| format!("rk{w}")));
+    pf.extend(ewins.iter().map(|(w, _)| format!("top{w}")));
     pf.push("ct".into());
     let prow: Vec<Value> = pairs
         .iter()
@@ -468,6 +494,7 @@ async fn alpha(db: &mut PgConnection, g: &Grid, head: i64, head_ts: f64, names: 
             row.extend(wins.iter().map(|(_, iv)| ro(iv.ret[i], 2)));
             row.extend(ewins.iter().map(|(_, iv)| ro(iv.eff[i].map(|e| e * 100.0), 1)));
             row.extend(ewins.iter().map(|(_, iv)| json!(iv.rk[i])));
+            row.extend(ewins.iter().map(|(_, iv)| json!(u8::from(iv.top[i]))));
             row.push(r(x.ct * 100.0, 1));
             Some(Value::Array(row))
         })

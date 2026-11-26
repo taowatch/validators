@@ -1,0 +1,845 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Choose a validator</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&amp;family=JetBrains+Mono:wght@400;500;600&amp;family=Space+Grotesk:wght@500;600;700&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#0A0E13}
+a{color:#3DDBB0}a:hover{color:#8CF2D6}
+button,select,input{font:inherit}
+button{cursor:pointer}
+button:focus-visible,input:focus-visible,select:focus-visible,a:focus-visible{outline:2px solid #3DDBB0;outline-offset:2px}
+.ch-row:hover{background:#111821 !important}
+.ch-chip:hover{border-color:#3A4656 !important;color:#E6EDF3 !important}
+.ch-mode:hover{border-color:#2E3A49 !important}
+.ch-skip{position:absolute;left:-9999px;top:8px;padding:8px 12px;border-radius:8px;background:#3DDBB0;color:#0A0E13;font-weight:600;z-index:10}
+.ch-skip:focus{left:16px}
+@keyframes chpulse{0%,100%{opacity:.45}50%{opacity:.9}}
+.ch-skel{animation:chpulse 1.4s ease-in-out infinite}
+.ch-cards{display:none}
+.ch-short{display:none}
+@media (max-width:899px){
+.ch-table{display:none !important}
+.ch-cards{display:block}
+.ch-main{padding:18px 16px 40px !important;gap:14px !important}
+.ch-hdr{padding:12px 16px !important;gap:10px 14px !important}
+.ch-sub,.ch-block{display:none !important}
+.ch-h1{font-size:24px !important}
+.ch-modes{grid-template-columns:repeat(2,minmax(0,1fr)) !important;gap:8px !important}
+.ch-mode{padding:10px 12px !important;border-radius:12px !important}
+.ch-mode-title{font-size:15px !important}
+.ch-long{display:none !important}
+.ch-short{display:block}
+.ch-snsel{min-width:0 !important;flex:1 1 100% !important}
+.ch-sum{padding:12px 14px !important;gap:10px 20px !important}
+.ch-sum-v{font-size:15px !important}
+.ch-chips{flex-wrap:nowrap !important;overflow-x:auto}
+.ch-chips button{flex:none}
+.vd-tabs{flex-wrap:nowrap !important;overflow-x:auto}
+.vd-tabs button{flex:none}
+.vd-kv{font-size:20px !important}
+.vd-h1{font-size:22px !important}
+.vd-ava{display:none !important}
+.ch-sum>div{min-width:0 !important;flex:1 1 40%}
+}
+</style>
+</helmet>
+<div style="min-height: 100vh; background: #0A0E13; color: #E6EDF3; font-family: Inter, system-ui, sans-serif; font-size: 14px; line-height: 1.45; -webkit-font-smoothing: antialiased">
+<a href="#validators" class="ch-skip">Skip to validators</a>
+
+<header style="border-bottom: 1px solid #1C232D">
+<div class="ch-hdr" style="max-width: 1280px; margin: 0 auto; padding: 16px 24px; display: flex; flex-wrap: wrap; align-items: center; gap: 12px 24px">
+<a href="/" onClick="{{home}}" aria-label="Validator Yield, back to choosing a validator" style="display: flex; align-items: center; gap: 12px; color: inherit; text-decoration: none; border-radius: 10px">
+<span style="width: 34px; height: 34px; border-radius: 9px; background: {{accent}}; color: #0A0E13; display: flex; align-items: center; justify-content: center; font-family: 'Space Grotesk', sans-serif; font-weight: 700; font-size: 20px" aria-hidden="true">τ</span>
+<span style="display: flex; flex-direction: column">
+<span style="font-family: 'Space Grotesk', sans-serif; font-weight: 600; font-size: 17px">Validator Yield</span>
+<span class="ch-sub" style="font-size: 12px; color: #8B97A6">Pick where to stake your TAO</span>
+</span>
+</a>
+<nav aria-label="Sections" style="display: flex; gap: 6px; flex-wrap: wrap">
+<a href="/" onClick="{{home}}" aria-current="page" style="height: 36px; padding: 0 14px; border-radius: 9px; background: #151C26; color: #E6EDF3; text-decoration: none; display: flex; align-items: center; font-weight: 500">Choose a validator</a>
+<a href="/analytics" style="height: 36px; padding: 0 14px; border-radius: 9px; color: #A9B4C2; text-decoration: none; display: flex; align-items: center">Analytics ›</a>
+</nav>
+<div style="flex: 1 1 auto"></div>
+<div title="{{tk.title}}" style="display: flex; align-items: center; gap: 10px; height: 36px; padding: 0 12px; border: 1px solid #1C232D; border-radius: 10px; background: #0E131A">
+<span style="font-family: 'Space Grotesk', sans-serif; font-weight: 600; font-size: 13px; color: #A9B4C2">TAO</span>
+<span style="font-family: 'JetBrains Mono', monospace; font-weight: 600; font-size: 14px; color: {{tk.flash}}">{{tk.price}}</span>
+<span style="font-family: 'JetBrains Mono', monospace; font-size: 12px; color: {{tk.chgColor}}">{{tk.chg}}</span>
+<span style="display: flex; align-items: center; gap: 5px; font-size: 11px; color: #8B97A6"><span style="width: 7px; height: 7px; border-radius: 50%; background: {{tk.dot}}" aria-hidden="true"></span>{{tk.status}}</span>
+</div>
+<span class="ch-block" style="font-family: 'JetBrains Mono', monospace; font-size: 12px; color: #8B97A6">finney · block #{{blockTxt}}</span>
+</div>
+</header>
+
+<sc-if value="{{loading}}" hint-placeholder-val="{{ false }}">
+<main class="ch-main" style="max-width: 1280px; margin: 0 auto; padding: 28px 24px 56px; display: flex; flex-direction: column; gap: 12px">
+<div class="ch-skel" style="height: 40px; width: 280px; border-radius: 10px; background: #121821"></div>
+<div class="ch-skel" style="height: 96px; border-radius: 14px; background: #121821"></div>
+<sc-for list="{{skel}}" as="s" hint-placeholder-count="8">
+<div class="ch-skel" style="height: 56px; border-radius: 10px; background: #10161E"></div>
+</sc-for>
+</main>
+</sc-if>
+
+<sc-if value="{{failed}}" hint-placeholder-val="{{ false }}">
+<main class="ch-main" style="max-width: 1280px; margin: 0 auto; padding: 64px 24px">
+<p style="margin: 0; color: #F5A524">Couldn&#39;t load validator data ({{err}}). The collector may still be taking its first snapshot; try again in a minute.</p>
+</main>
+</sc-if>
+
+<sc-if value="{{isList}}" hint-placeholder-val="{{ true }}">
+<main class="ch-main" style="max-width: 1280px; margin: 0 auto; padding: 28px 24px 56px; display: flex; flex-direction: column; gap: 20px">
+
+<section style="display: flex; flex-direction: column; gap: 6px">
+<h1 class="ch-h1" style="margin: 0; font-family: 'Space Grotesk', sans-serif; font-size: 30px; font-weight: 600; letter-spacing: -0.01em">Choose a validator</h1>
+<p style="margin: 0; color: #A9B4C2; max-width: 760px">First decide where your TAO goes, then pick who validates for you. Grades compare each validator with the best ones in the same place, after every fee.</p>
+</section>
+
+<section aria-label="Where to stake" class="ch-modes" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(min(300px, 100%), 1fr)); gap: 12px">
+<button type="button" class="ch-mode" onClick="{{pickRoot}}" aria-pressed="{{rootOn}}" style="text-align: left; padding: 18px 20px; border-radius: 14px; border: 1.5px solid {{rootBorder}}; background: {{rootBg}}; color: #E6EDF3; display: flex; flex-direction: column; gap: 6px">
+<span style="display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 4px 12px">
+<span class="ch-mode-title" style="font-family: 'Space Grotesk', sans-serif; font-size: 18px; font-weight: 600">Keep τ (Root)</span>
+<span class="ch-long" style="font-family: 'JetBrains Mono', monospace; font-size: 15px; color: {{accent}}">~{{rootBench}}% APY</span>
+</span>
+<span class="ch-long" style="color: #A9B4C2; font-size: 13px">Your principal stays in TAO. Rewards arrive as basket alpha. Lower yield, no alpha price risk.</span>
+<span class="ch-short" style="color: #A9B4C2; font-size: 12px">~{{rootBench}}% · no price risk</span>
+</button>
+<button type="button" class="ch-mode" onClick="{{pickAlpha}}" aria-pressed="{{alphaOn}}" style="text-align: left; padding: 18px 20px; border-radius: 14px; border: 1.5px solid {{alphaBorder}}; background: {{alphaBg}}; color: #E6EDF3; display: flex; flex-direction: column; gap: 6px">
+<span style="display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 4px 12px">
+<span class="ch-mode-title" style="font-family: 'Space Grotesk', sans-serif; font-size: 18px; font-weight: 600">Stake in a subnet</span>
+<span class="ch-long" style="font-family: 'JetBrains Mono', monospace; font-size: 15px; color: #E6EDF3">{{alphaRange}}</span>
+</span>
+<span class="ch-long" style="color: #A9B4C2; font-size: 13px">Higher yield paid in the subnet&#39;s alpha. Your principal moves with that alpha&#39;s price (median 30D: {{medDp}}).</span>
+<span class="ch-short" style="color: #A9B4C2; font-size: 12px">paid in alpha · price risk</span>
+</button>
+</section>
+
+<sc-if value="{{alphaOn}}" hint-placeholder-val="{{ false }}">
+<section aria-label="Subnet" style="display: flex; flex-wrap: wrap; align-items: center; gap: 10px">
+<label for="ch-sn" style="font-size: 13px; color: #A9B4C2">Subnet</label>
+<select id="ch-sn" class="ch-snsel" value="{{snVal}}" onChange="{{pickSn}}" style="height: 40px; min-width: 320px; padding: 0 12px; border-radius: 10px; border: 1px solid #1C232D; background: #0E131A; color: #E6EDF3">
+<sc-for list="{{snOpts}}" as="o" hint-placeholder-count="6">
+<option value="{{o.v}}">{{o.label}}</option>
+</sc-for>
+</select>
+<span class="ch-long" style="font-size: 12px; color: #8B97A6">Sorted by alpha staked. Best APY shown next to each.</span>
+</section>
+</sc-if>
+
+<section aria-label="Summary" class="ch-sum" style="padding: 18px 20px; border-radius: 14px; border: 1px solid #1C232D; background: #0E131A; display: flex; flex-wrap: wrap; gap: 16px 40px; align-items: flex-start">
+<div style="display: flex; flex-direction: column; gap: 2px; min-width: 200px">
+<span style="font-size: 12px; color: #8B97A6">{{sumKicker}}</span>
+<span style="font-family: 'Space Grotesk', sans-serif; font-size: 20px; font-weight: 600">{{sumTitle}}</span>
+</div>
+<sc-for list="{{sumStats}}" as="st" hint-placeholder-count="3">
+<div style="display: flex; flex-direction: column; gap: 2px" title="{{st.tip}}">
+<span style="font-size: 12px; color: #8B97A6">{{st.label}}</span>
+<span class="ch-sum-v" style="font-family: 'JetBrains Mono', monospace; font-size: 18px; color: {{st.color}}">{{st.value}}</span>
+<span style="font-size: 12px; color: #8B97A6">{{st.sub}}</span>
+</div>
+</sc-for>
+<sc-if value="{{sumNote}}" hint-placeholder-val="{{ false }}">
+<p style="flex-basis: 100%; margin: 0; font-size: 13px; color: #8B97A6">{{sumNote}}</p>
+</sc-if>
+</section>
+
+<section id="validators" aria-label="Validators" style="border: 1px solid #1C232D; border-radius: 14px; background: #0E131A; overflow: hidden">
+<div style="padding: 14px 20px; display: flex; flex-wrap: wrap; gap: 10px; align-items: center; border-bottom: 1px solid #1C232D">
+<label style="position: relative; flex: 1 1 220px; display: flex">
+<span style="position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0)">Search validators</span>
+<input type="search" value="{{q}}" onInput="{{onQ}}" aria-label="Search validators by name or hotkey" placeholder="Search by name or hotkey…" style="flex: 1; min-width: 0; height: 40px; padding: 0 14px; border-radius: 10px; border: 1px solid #1C232D; background: #0A0E13; color: #E6EDF3">
+</label>
+<div role="group" aria-label="Filter by grade" class="ch-chips" style="display: flex; gap: 6px; flex-wrap: wrap">
+<sc-for list="{{gradeChips}}" as="c" hint-placeholder-count="6">
+<button type="button" class="ch-chip" onClick="{{c.pick}}" aria-pressed="{{c.on}}" title="{{c.tip}}" style="height: 36px; padding: 0 12px; border-radius: 999px; border: 1px solid {{c.border}}; background: {{c.bg}}; color: {{c.fg}}; font-size: 12px; font-weight: 600; display: flex; align-items: center; gap: 6px">{{c.label}}<span style="font-weight: 400; color: #8B97A6">{{c.count}}</span></button>
+</sc-for>
+<button type="button" class="ch-chip" onClick="{{toggleWarn}}" aria-pressed="{{hideWarn}}" title="Hide validators flagged Not earning, High fee, Unstable or Thin benchmark" style="height: 36px; padding: 0 12px; border-radius: 999px; border: 1px solid {{warnBorder}}; background: transparent; color: {{warnFg}}; font-size: 12px">Hide warnings</button>
+</div>
+</div>
+
+<div class="ch-table" style="overflow-x: auto">
+<div style="min-width: 900px">
+<div aria-hidden="true" style="display: grid; grid-template-columns: minmax(260px, 2.2fr) 140px minmax(190px, 1.4fr) 150px 130px; gap: 16px; padding: 0 20px; height: 40px; align-items: center; background: #0B1016; border-bottom: 1px solid #1C232D; font-size: 11px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: #8B97A6">
+<span title="Who you delegate to. The grade sums up the checks on the right.">Validator</span>
+<span style="text-align: right" title="{{earnTip}}">You earn · 30D</span>
+<span title="How much of the best validators' payout here you would get. 100% matches the best; 80% means you get a fifth less.">Payout vs best</span>
+<span style="text-align: right" title="Everything the validator keeps: its own take plus any childkey take.">Total fee</span>
+<span style="text-align: right" title="How much others have staked here.">Stake</span>
+</div>
+<sc-for list="{{rows}}" as="r" hint-placeholder-count="8">
+<a href="{{r.href}}" class="ch-row" onClick="{{r.open}}" aria-label="{{r.aria}}" style="color: inherit; text-decoration: none; border-bottom: 1px solid #141A22; display: grid; grid-template-columns: minmax(260px, 2.2fr) 140px minmax(190px, 1.4fr) 150px 130px; gap: 16px; padding: 10px 20px; min-height: 60px; box-sizing: border-box; align-items: center; background: transparent">
+<span style="display: flex; align-items: center; gap: 12px; min-width: 0">
+<span title="{{r.gradeTip}}" style="flex: none; width: 34px; height: 34px; border-radius: 9px; background: {{r.gBg}}; color: {{r.gFg}}; display: flex; align-items: center; justify-content: center; font-family: 'Space Grotesk', sans-serif; font-weight: 700; font-size: 16px">{{r.grade}}</span>
+<span style="display: flex; flex-direction: column; gap: 3px; min-width: 0">
+<span style="font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis">{{r.name}}</span>
+<span style="display: flex; flex-wrap: wrap; gap: 4px">
+<span style="font-family: 'JetBrains Mono', monospace; font-size: 11px; color: #6B7684">{{r.hkShort}}</span>
+<sc-for list="{{r.badges}}" as="b" hint-placeholder-count="1">
+<span title="{{b.tip}}" style="font-size: 11px; padding: 0 6px; border-radius: 999px; background: {{b.bg}}; color: {{b.fg}}">{{b.label}}</span>
+</sc-for>
+</span>
+</span>
+</span>
+<span style="display: flex; flex-direction: column; align-items: flex-end">
+<span style="font-family: 'JetBrains Mono', monospace; font-size: 15px; font-weight: 600; color: {{r.earnColor}}">{{r.earn}}</span>
+<span style="font-size: 11px; color: #8B97A6">7D {{r.earn7}}</span>
+</span>
+<span style="display: flex; align-items: center; gap: 10px">
+<span style="flex: 1; height: 8px; border-radius: 4px; background: #1A212B; overflow: hidden"><span style="display: block; height: 100%; width: {{r.barW}}; background: {{r.barC}}"></span></span>
+<span style="font-family: 'JetBrains Mono', monospace; font-size: 13px; width: 52px; text-align: right; color: {{r.barC}}">{{r.payout}}</span>
+</span>
+<span style="display: flex; flex-direction: column; align-items: flex-end">
+<span style="font-family: 'JetBrains Mono', monospace; font-size: 14px; color: {{r.feeColor}}">{{r.fee}}</span>
+<span style="font-size: 11px; color: #8B97A6">{{r.feeSub}}</span>
+</span>
+<span style="display: flex; flex-direction: column; align-items: flex-end">
+<span style="font-family: 'JetBrains Mono', monospace; font-size: 13px">{{r.stake}}</span>
+<span style="font-size: 11px; color: #8B97A6">{{r.stakeSub}}</span>
+</span>
+</a>
+</sc-for>
+</div>
+</div>
+
+<div class="ch-cards">
+<sc-for list="{{rows}}" as="r" hint-placeholder-count="6">
+<a href="{{r.href}}" onClick="{{r.open}}" aria-label="{{r.aria}}" style="display: flex; align-items: center; gap: 12px; padding: 12px 16px; border-bottom: 1px solid #141A22; color: inherit; text-decoration: none; min-height: 64px; box-sizing: border-box">
+<span style="flex: none; width: 34px; height: 34px; border-radius: 9px; background: {{r.gBg}}; color: {{r.gFg}}; display: flex; align-items: center; justify-content: center; font-family: 'Space Grotesk', sans-serif; font-weight: 700">{{r.grade}}</span>
+<span style="flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px">
+<span style="font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis">{{r.name}}</span>
+<span style="font-size: 12px; color: {{r.cardSubColor}}; white-space: nowrap; overflow: hidden; text-overflow: ellipsis">{{r.cardSub}}</span>
+</span>
+<span style="flex: none; display: flex; flex-direction: column; align-items: flex-end; gap: 2px">
+<span style="font-family: 'JetBrains Mono', monospace; font-size: 16px; font-weight: 600; color: {{r.earnColor}}">{{r.earnShort}}</span>
+<span style="font-size: 11px; color: #8B97A6">{{r.payout}} of best</span>
+</span>
+</a>
+</sc-for>
+</div>
+
+<sc-if value="{{noRows}}" hint-placeholder-val="{{ false }}">
+<div style="padding: 32px 20px; display: flex; flex-direction: column; align-items: center; gap: 10px; color: #8B97A6">
+<p style="margin: 0; text-align: center">{{noRowsTxt}}</p>
+<button type="button" class="ch-chip" onClick="{{clearFilters}}" style="height: 36px; padding: 0 14px; border-radius: 999px; border: 1px solid #2A3340; background: transparent; color: #E6EDF3">Clear filters</button>
+</div>
+</sc-if>
+<sc-if value="{{more}}" hint-placeholder-val="{{ false }}">
+<div style="padding: 12px 20px; display: flex; justify-content: center; border-top: 1px solid #1C232D">
+<button type="button" class="ch-chip" onClick="{{showAll}}" style="height: 36px; padding: 0 16px; border-radius: 999px; border: 1px solid #2A3340; background: transparent; color: #E6EDF3">Show all {{total}}</button>
+</div>
+</sc-if>
+</section>
+
+<sc-if value="{{hasCalc}}" hint-placeholder-val="{{ true }}">
+<section aria-label="What you would earn" style="padding: 16px 20px; border-radius: 14px; border: 1px solid #1C232D; background: #0E131A; display: flex; flex-wrap: wrap; align-items: center; gap: 10px 14px">
+<label for="ch-amt" style="color: #A9B4C2">Stake</label>
+<input id="ch-amt" inputmode="decimal" value="{{amt}}" onInput="{{onAmt}}" style="width: 120px; height: 40px; padding: 0 12px; border-radius: 10px; border: 1px solid #1C232D; background: #0A0E13; color: #E6EDF3; font-family: 'JetBrains Mono', monospace">
+<label for="ch-calc" style="color: #A9B4C2">τ with</label>
+<select id="ch-calc" value="{{calc.hk}}" onChange="{{pickCalc}}" style="height: 40px; max-width: 260px; padding: 0 10px; border-radius: 10px; border: 1px solid #1C232D; background: #0A0E13; color: #E6EDF3">
+<sc-for list="{{calcOpts}}" as="o" hint-placeholder-count="5">
+<option value="{{o.v}}">{{o.label}}</option>
+</sc-for>
+</select>
+<span style="color: #A9B4C2">≈</span>
+<span style="font-family: 'JetBrains Mono', monospace; font-size: 16px; color: {{accent}}">{{calc.perYear}}</span>
+<span style="color: #8B97A6">{{calc.usd}}</span>
+<span style="color: #8B97A6">{{calc.vs}}</span>
+<a href="{{calc.href}}" onClick="{{calc.open}}" style="margin-left: auto; font-weight: 500">Open {{calc.name}} ›</a>
+</section>
+</sc-if>
+
+<p style="margin: 0; font-size: 12px; color: #8B97A6">Grades: A ≥ 95% of the best payout here · B ≥ 85% · C ≥ 70% · D below · F earned nothing. The best payout leaves out the validator being graded, uses daily yields, and takes the weaker of the 7-day and 30-day results. Fees are shown, not graded. {{priceFoot}} Data as of block #{{blockTxt}} ({{timeTxt}}).</p>
+</main>
+</sc-if>
+
+<sc-if value="{{isDetail}}" hint-placeholder-val="{{ false }}">
+<main class="ch-main" style="max-width: 1280px; margin: 0 auto; padding: 24px 24px 56px; display: flex; flex-direction: column; gap: 20px">
+<a href="/" onClick="{{back}}" style="align-self: flex-start; display: flex; align-items: center; gap: 6px; height: 36px; padding: 0 12px; border-radius: 10px; border: 1px solid #1C232D; color: #E6EDF3; text-decoration: none">‹ All validators</a>
+
+<sc-if value="{{d.loading}}" hint-placeholder-val="{{ false }}">
+<div class="ch-skel" style="height: 72px; border-radius: 14px; background: #121821"></div>
+<div class="ch-skel" style="height: 140px; border-radius: 14px; background: #10161E"></div>
+<div class="ch-skel" style="height: 220px; border-radius: 14px; background: #10161E"></div>
+</sc-if>
+
+<sc-if value="{{d.failed}}" hint-placeholder-val="{{ false }}">
+<p style="margin: 0; color: #F5A524">{{d.err}}</p>
+</sc-if>
+
+<sc-if value="{{d.ready}}" hint-placeholder-val="{{ true }}">
+<section aria-label="Validator" style="display: flex; flex-wrap: wrap; align-items: center; gap: 16px">
+<span aria-hidden="true" class="vd-ava" style="width: 56px; height: 56px; border-radius: 14px; background: {{d.monoBg}}; color: {{d.monoFg}}; display: flex; align-items: center; justify-content: center; font-family: 'Space Grotesk', sans-serif; font-weight: 700; font-size: 20px">{{d.ini}}</span>
+<div style="display: flex; flex-direction: column; gap: 6px; min-width: 0; flex: 1 1 280px">
+<div style="display: flex; flex-wrap: wrap; align-items: center; gap: 10px">
+<h1 class="vd-h1" style="margin: 0; font-family: 'Space Grotesk', sans-serif; font-size: 28px; font-weight: 600; overflow-wrap: anywhere">{{d.name}}</h1>
+<span title="{{d.gTip}}" style="height: 28px; padding: 0 10px; border-radius: 8px; background: {{d.gBg}}; color: {{d.gFg}}; display: flex; align-items: center; font-family: 'Space Grotesk', sans-serif; font-weight: 700">Grade {{d.grade}} · {{d.locLabel}}</span>
+<span style="height: 28px; padding: 0 10px; border-radius: 8px; background: #161C25; color: #C9D1D9; display: flex; align-items: center; font-size: 12px">Fee {{d.feeTxt}}</span>
+<sc-if value="{{d.nomTxt}}" hint-placeholder-val="{{ false }}">
+<span style="height: 28px; padding: 0 10px; border-radius: 8px; background: #161C25; color: #C9D1D9; display: flex; align-items: center; font-size: 12px">{{d.nomTxt}}</span>
+</sc-if>
+</div>
+<div style="display: flex; flex-wrap: wrap; align-items: center; gap: 8px">
+<span style="font-size: 12px; color: #8B97A6">hotkey</span>
+<span style="font-family: 'JetBrains Mono', monospace; font-size: 12px; color: #C9D1D9; word-break: break-all">{{d.hk}}</span>
+<button type="button" class="ch-chip" onClick="{{d.copy}}" style="height: 28px; padding: 0 10px; border-radius: 8px; border: 1px solid #1C232D; background: transparent; color: #A9B4C2; font-size: 12px">{{d.copyTxt}}</button>
+</div>
+</div>
+</section>
+
+<nav aria-label="Where this validator operates" class="vd-tabs" style="display: flex; flex-wrap: wrap; gap: 6px">
+<sc-for list="{{d.tabs}}" as="t" hint-placeholder-count="4">
+<button type="button" class="ch-chip" onClick="{{t.pick}}" aria-pressed="{{t.on}}" style="height: 40px; padding: 0 14px; border-radius: 10px; border: 1px solid {{t.border}}; background: {{t.bg}}; color: {{t.fg}}; display: flex; align-items: center; gap: 8px"><span style="font-weight: 600">{{t.label}}</span><span style="font-size: 12px; color: {{t.gFg}}">{{t.grade}}</span></button>
+</sc-for>
+<sc-if value="{{d.moreLocs}}" hint-placeholder-val="{{ false }}">
+<a href="#places" style="height: 40px; padding: 0 14px; border-radius: 10px; border: 1px dashed #2A3340; color: #A9B4C2; text-decoration: none; display: flex; align-items: center; flex: none">+{{d.moreLocs}} more subnets</a>
+</sc-if>
+</nav>
+
+<section aria-label="Verdict" style="padding: 18px 20px; border-radius: 14px; border: 1px solid {{d.vBorder}}; background: #0E131A; display: flex; flex-direction: column; gap: 10px">
+<h2 style="margin: 0; font-family: 'Space Grotesk', sans-serif; font-size: 16px; font-weight: 600">Verdict for {{d.locLong}}</h2>
+<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(min(320px, 100%), 1fr)); gap: 10px 24px">
+<sc-for list="{{d.verdict}}" as="v" hint-placeholder-count="4">
+<div style="display: flex; gap: 10px; align-items: flex-start">
+<span aria-hidden="true" style="flex: none; width: 22px; height: 22px; border-radius: 6px; background: {{v.bg}}; color: {{v.fg}}; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 13px">{{v.icon}}</span>
+<span style="color: #D5DCE4">{{v.text}}</span>
+</div>
+</sc-for>
+</div>
+</section>
+
+<section aria-label="Key numbers" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(min(220px, 100%), 1fr)); gap: 12px">
+<sc-for list="{{d.kpis}}" as="k" hint-placeholder-count="4">
+<div title="{{k.tip}}" style="padding: 16px 18px; border-radius: 14px; border: 1px solid #1C232D; background: #0E131A; display: flex; flex-direction: column; gap: 4px">
+<span style="font-size: 12px; color: #8B97A6">{{k.label}}</span>
+<span class="vd-kv" style="font-family: 'JetBrains Mono', monospace; font-size: 24px; color: {{k.color}}">{{k.value}}</span>
+<span style="font-size: 12px; color: #8B97A6">{{k.sub}}</span>
+</div>
+</sc-for>
+</section>
+
+<div style="display: flex; flex-wrap: wrap; gap: 16px; align-items: stretch">
+<section aria-label="Payout over time" style="flex: 999 1 560px; min-width: 0; padding: 18px 20px; border-radius: 14px; border: 1px solid #1C232D; background: #0E131A; display: flex; flex-direction: column; gap: 12px">
+<div style="display: flex; flex-wrap: wrap; justify-content: space-between; gap: 8px">
+<h2 style="margin: 0; font-family: 'Space Grotesk', sans-serif; font-size: 16px; font-weight: 600">Payout vs best, over time</h2>
+<span style="font-size: 12px; color: #8B97A6">{{d.chartNote}}</span>
+</div>
+<div role="img" aria-label="{{d.chartAria}}" style="position: relative; height: 180px; display: flex; align-items: flex-end; gap: {{d.barGap}}; padding: 0 4px; border-bottom: 1px solid #1C232D">
+<span aria-hidden="true" style="position: absolute; left: 0; right: 0; bottom: {{d.line90}}; border-top: 1px dashed #3A4656"></span>
+<span aria-hidden="true" style="position: absolute; right: 0; bottom: {{d.line90}}; transform: translateY(-2px); font-size: 11px; color: #8B97A6">90%</span>
+<sc-for list="{{d.bars}}" as="b" hint-placeholder-count="4">
+<div style="flex: 1; min-width: 0; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; gap: 4px; height: 100%">
+<span style="font-family: 'JetBrains Mono', monospace; font-size: {{d.barFont}}; color: {{b.color}}">{{b.txt}}</span>
+<span style="width: 100%; max-width: 64px; height: {{b.h}}; border-radius: 6px 6px 0 0; background: {{b.color}}"></span>
+</div>
+</sc-for>
+</div>
+<div style="display: flex; gap: {{d.barGap}}; padding: 0 4px">
+<sc-for list="{{d.bars}}" as="b" hint-placeholder-count="4">
+<span style="flex: 1; min-width: 0; text-align: center; font-size: 11px; color: #8B97A6; white-space: nowrap; overflow: hidden">{{b.label}}</span>
+</sc-for>
+</div>
+</section>
+
+<section aria-label="Calculator" style="flex: 1 1 300px; padding: 18px 20px; border-radius: 14px; border: 1px solid #1C232D; background: #0E131A; display: flex; flex-direction: column; gap: 12px">
+<h2 style="margin: 0; font-family: 'Space Grotesk', sans-serif; font-size: 16px; font-weight: 600">What you would earn</h2>
+<label for="vd-amt" style="font-size: 12px; color: #8B97A6">τ staked here</label>
+<input id="vd-amt" inputmode="decimal" value="{{d.amt}}" onInput="{{d.onAmt}}" style="height: 44px; padding: 0 12px; border-radius: 10px; border: 1px solid #1C232D; background: #0A0E13; color: #E6EDF3; font-family: 'JetBrains Mono', monospace; font-size: 16px">
+<div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px">
+<div style="padding: 12px; border-radius: 10px; background: #0A0E13; border: 1px solid #1C232D; display: flex; flex-direction: column; gap: 2px">
+<span style="font-size: 11px; color: #8B97A6">Per year</span>
+<span style="font-family: 'JetBrains Mono', monospace; font-size: 18px; color: {{accent}}">{{d.calcYear}}</span>
+</div>
+<div style="padding: 12px; border-radius: 10px; background: #0A0E13; border: 1px solid #1C232D; display: flex; flex-direction: column; gap: 2px">
+<span style="font-size: 11px; color: #8B97A6">Per month</span>
+<span style="font-family: 'JetBrains Mono', monospace; font-size: 18px">{{d.calcMonth}}</span>
+</div>
+</div>
+<p style="margin: 0; font-size: 13px; color: #A9B4C2">{{d.calcVs}}</p>
+<p style="margin: 0; font-size: 12px; color: #8B97A6">{{d.calcNote}}</p>
+</section>
+</div>
+
+<section id="places" aria-label="Every place this validator operates" style="border: 1px solid #1C232D; border-radius: 14px; background: #0E131A; overflow: hidden">
+<div style="padding: 14px 20px; display: flex; flex-wrap: wrap; justify-content: space-between; gap: 8px; border-bottom: 1px solid #1C232D">
+<h2 style="margin: 0; font-family: 'Space Grotesk', sans-serif; font-size: 16px; font-weight: 600">Where it operates</h2>
+<span style="font-size: 12px; color: #8B97A6">{{d.placesNote}}</span>
+</div>
+<div style="overflow-x: auto">
+<div style="min-width: 620px">
+<div aria-hidden="true" style="display: grid; grid-template-columns: minmax(180px, 2fr) 60px 100px 100px 90px 110px; gap: 12px; padding: 0 20px; height: 36px; align-items: center; background: #0B1016; border-bottom: 1px solid #1C232D; font-size: 11px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: #8B97A6">
+<span>Where</span><span>Grade</span><span style="text-align: right">APY 30D</span><span style="text-align: right">Payout</span><span style="text-align: right">Fee</span><span style="text-align: right">Stake</span>
+</div>
+<sc-for list="{{d.places}}" as="p" hint-placeholder-count="5">
+<button type="button" class="ch-row" onClick="{{p.pick}}" aria-pressed="{{p.on}}" style="width: 100%; text-align: left; color: inherit; border: 0; border-bottom: 1px solid #141A22; display: grid; grid-template-columns: minmax(180px, 2fr) 60px 100px 100px 90px 110px; gap: 12px; padding: 0 20px; height: 44px; align-items: center; background: {{p.bg}}">
+<span style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis"><b>{{p.label}}</b> <span style="color: #8B97A6">{{p.sname}}</span></span>
+<span style="font-family: 'Space Grotesk', sans-serif; font-weight: 700; color: {{p.gFg}}">{{p.grade}}</span>
+<span style="text-align: right; font-family: 'JetBrains Mono', monospace">{{p.apy}}</span>
+<span style="text-align: right; font-family: 'JetBrains Mono', monospace; color: {{p.gFg}}">{{p.pr}}</span>
+<span style="text-align: right; font-family: 'JetBrains Mono', monospace; color: {{p.feeColor}}">{{p.fee}}</span>
+<span style="text-align: right; font-family: 'JetBrains Mono', monospace">{{p.stake}}</span>
+</button>
+</sc-for>
+</div>
+</div>
+<sc-if value="{{d.placesMore}}" hint-placeholder-val="{{ false }}">
+<div style="padding: 12px 20px; display: flex; justify-content: center; border-top: 1px solid #1C232D">
+<button type="button" class="ch-chip" onClick="{{d.showAllPlaces}}" style="height: 36px; padding: 0 16px; border-radius: 999px; border: 1px solid #2A3340; background: transparent; color: #E6EDF3">Show all {{d.placesTotal}}</button>
+</div>
+</sc-if>
+</section>
+</sc-if>
+</main>
+</sc-if>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"accent":{"editor":"color","default":"#3DDBB0","options":["#3DDBB0","#7AA2F7","#E8C35A"]},"$preview":{"width":1440,"height":2400}}'>
+const DATA_URL = '/api/choose';
+const VALIDATOR_URL = '/api/validator/';
+const GRADE = {
+  A: { bg: '#123327', fg: '#3DDBB0', tip: 'A: pays at least 95% of the best validators here' },
+  B: { bg: '#16223A', fg: '#8FB0FF', tip: 'B: pays 85–95% of the best' },
+  C: { bg: '#2E2814', fg: '#E8C35A', tip: 'C: pays 70–85% of the best' },
+  D: { bg: '#33210F', fg: '#F5A524', tip: 'D: pays less than 70% of the best' },
+  F: { bg: '#3A1716', fg: '#FF8A80', tip: 'F: earned nothing over 30 days' },
+};
+const BADGE = {
+  'Not earning': { bg: '#3A1716', fg: '#FF8A80', tip: 'No rewards reached stakers over the window' },
+  'High fee': { bg: '#33210F', fg: '#F5A524', tip: 'Keeps 15% or more of rewards (take + childkey take)' },
+  'Unstable': { bg: '#2E2814', fg: '#E8C35A', tip: 'Its 7-day and 30-day payout differ by more than 15 points' },
+  'Thin benchmark': { bg: '#1A212B', fg: '#A9B4C2', tip: 'Few comparable validators here, so the comparison is rough' },
+  'New': { bg: '#1A212B', fg: '#A9B4C2', tip: 'Not enough history to grade yet' },
+  'Small': { bg: '#1A212B', fg: '#A9B4C2', tip: 'Under 1,000 τ staked: not graded' },
+};
+const WARN_BADGES = new Set(['Not earning', 'High fee', 'Unstable', 'Thin benchmark']);
+const OK = { icon: '✓', bg: '#123327', fg: '#3DDBB0' };
+const WARN = { icon: '!', bg: '#33210F', fg: '#F5A524' };
+const BAD = { icon: '×', bg: '#3A1716', fg: '#FF8A80' };
+const INFO = { icon: 'i', bg: '#161C25', fg: '#A9B4C2' };
+// finney: TAO/USDT ticker streamed from Binance; the snapshot is only the fallback until the stream connects
+const PRICE_WS = 'wss://data-stream.binance.vision/ws/taousdt@ticker';
+const PRICE_SNAPSHOT = { c: 185.10, P: 3.989, h: 186.10, l: 169.10, q: 16169472.5, E: 1795663101480 };
+const HASH_RE = /^#v\/([1-9A-HJ-NP-Za-km-z]{40,60})(?:\/(\d+))?$/;
+const PAGE = 40;
+const TABS = 8;
+const PLACES = 12;
+const fmtInt = (n) => n == null ? '—' : Math.round(n).toLocaleString('en-US');
+const fmtK = (n) => n == null ? '—' : n >= 1e6 ? (n / 1e6).toFixed(2) + 'M' : n >= 1e3 ? (n / 1e3).toFixed(1) + 'K' : String(Math.round(n));
+const pct = (n, d) => n == null ? '—' : n.toFixed(d == null ? 1 : d) + '%';
+const sgn = (n, d) => { if (n == null) return '—'; const t = Math.abs(n).toFixed(d == null ? 1 : d); return (+t === 0 ? '' : n > 0 ? '+' : '−') + t + '%'; };
+const short = (hk) => hk ? hk.slice(0, 6) + '…' + hk.slice(-4) : '';
+function usd(n) {
+  if (n == null || !isFinite(n)) return '—';
+  const a = Math.abs(n);
+  if (a >= 1e9) return '$' + (n / 1e9).toFixed(2) + 'B';
+  if (a >= 1e6) return '$' + (n / 1e6).toFixed(2) + 'M';
+  if (a >= 1e4) return '$' + (n / 1e3).toFixed(1) + 'K';
+  return '$' + n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+function hue(s) { let h = 0; for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) % 360; return h; }
+function modified(e) { return !!(e && (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || e.button === 1)); }
+
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.state = {
+      data: null, err: null, mode: 'root', sn: null, q: '', grade: 'all', hideWarn: false, all: false, calcHk: null, amt: '1,000',
+      view: 'list', hk: null, wantNu: null, det: null, detErr: null, loc: null, amtD: '1,000', copied: null, allPlaces: false,
+      px: null, pxLive: false, pxDir: 0,
+    };
+  }
+
+  componentDidMount() {
+    this.connectPrice();
+    if (typeof window !== 'undefined' && !this.winBound) {
+      this.winBound = true;
+      window.addEventListener('pageshow', (e) => this.onPageShow(e));
+      window.addEventListener('popstate', () => this.route());
+      this.route();
+    }
+    fetch(DATA_URL)
+      .then((r) => { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
+      .then((d) => this.setState({ data: d }))
+      .catch((e) => this.setState({ err: String((e && e.message) || e) }));
+  }
+
+  componentWillUnmount() {
+    this.dead = true;
+    clearTimeout(this.wsTimer);
+    if (this.ws) { const w = this.ws; this.ws = null; try { w.close(); } catch (e) { /* ignore */ } }
+  }
+
+  // ---- live TAO price ----
+  connectPrice() {
+    if (this.dead || typeof WebSocket === 'undefined') return;
+    let ws;
+    try { ws = new WebSocket(PRICE_WS); } catch (e) { this.retryPrice(); return; }
+    this.ws = ws;
+    ws.onopen = () => { this.wsTries = 0; };
+    ws.onmessage = (ev) => {
+      let m; try { m = JSON.parse(ev.data); } catch (e) { return; }
+      const c = parseFloat(m.c);
+      if (!isFinite(c)) return;
+      const prev = this.state.px ? this.state.px.c : null;
+      this.setState({ pxLive: true, pxDir: prev == null || c === prev ? 0 : c > prev ? 1 : -1, px: { c, P: parseFloat(m.P), h: parseFloat(m.h), l: parseFloat(m.l), q: parseFloat(m.q), E: m.E } });
+    };
+    ws.onclose = () => { if (this.ws === ws) { this.ws = null; this.setState({ pxLive: false }); this.retryPrice(); } };
+    ws.onerror = () => { try { ws.close(); } catch (e) { /* ignore */ } };
+  }
+  retryPrice() {
+    if (this.dead) return;
+    this.wsTries = (this.wsTries || 0) + 1;
+    clearTimeout(this.wsTimer);
+    this.wsTimer = setTimeout(() => this.connectPrice(), Math.min(30000, 1000 * 2 ** this.wsTries));
+  }
+  // A page restored from the back/forward cache got `pagehide` without a fresh mount.
+  onPageShow(e) {
+    if (!e.persisted) return;
+    this.dead = false;
+    this.wsTries = 0;
+    if (!this.ws) this.connectPrice();
+  }
+  ticker(accent) {
+    const S = this.state, p = S.px || PRICE_SNAPSHOT, live = S.pxLive && !!S.px;
+    const t = new Date(p.E);
+    return {
+      price: '$' + p.c.toFixed(2),
+      chg: sgn(p.P, 2) + ' 24h', chgColor: p.P >= 0 ? accent : '#F5A524',
+      flash: !live || S.pxDir === 0 ? '#E6EDF3' : S.pxDir > 0 ? accent : '#F5A524',
+      dot: live ? accent : '#5B6675', status: live ? 'live' : S.px ? 'reconnecting' : 'snapshot',
+      title: 'Binance TAO/USDT · 24h high $' + p.h.toFixed(2) + ' · low $' + p.l.toFixed(2) + ' · vol ' + usd(p.q) + ' · ' + t.toISOString().slice(11, 19) + ' UTC',
+    };
+  }
+
+  // ---- navigation: "/" = choose, "#v/<hotkey>[/<netuid>]" = validator page ----
+  route() {
+    let m = null;
+    try { m = HASH_RE.exec(window.location.hash); } catch (e) { /* ignore */ }
+    if (m) this.show(m[1], m[2] != null ? +m[2] : null);
+    else if (this.state.view === 'detail') this.toList();
+  }
+  show(hk, nu) {
+    if (this.state.view !== 'detail' && typeof window !== 'undefined') this.listY = window.scrollY || 0;
+    const same = this.state.hk === hk && this.state.det;
+    this.setState({ view: 'detail', hk, wantNu: nu, loc: null, copied: null, allPlaces: false, det: same ? this.state.det : null, detErr: null });
+    if (typeof window !== 'undefined' && window.scrollTo) window.scrollTo(0, 0);
+    if (same) return;
+    fetch(VALIDATOR_URL + encodeURIComponent(hk))
+      .then((r) => { if (r.status === 404) throw new Error('unknown'); if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
+      .then((d) => { if (this.state.hk === hk) this.setState({ det: d }); })
+      .catch((e) => {
+        if (this.state.hk !== hk) return;
+        const msg = String((e && e.message) || e);
+        this.setState({ detErr: msg === 'unknown' ? 'No data for this hotkey. It is not a validator we track (root stake or alpha pools of 10 τ or more).' : 'Couldn’t load this validator (' + msg + ').' });
+      });
+  }
+  open(hk, nu, e) {
+    if (modified(e)) return;
+    if (e) e.preventDefault();
+    const h = '#v/' + hk + (nu != null ? '/' + nu : '');
+    try { if (window.location.hash !== h) window.history.pushState({ vr: 1 }, '', h); } catch (err) { /* no history API */ }
+    this.show(hk, nu);
+  }
+  toList() {
+    const y = this.listY || 0;
+    this.setState({ view: 'list' });
+    if (typeof window !== 'undefined' && window.requestAnimationFrame) window.requestAnimationFrame(() => window.scrollTo(0, y));
+  }
+  back(e) {
+    if (modified(e)) return;
+    if (e) e.preventDefault();
+    try {
+      if (window.history.state && window.history.state.vr) { window.history.back(); return; }
+      if (window.location.hash) window.history.replaceState(null, '', window.location.pathname + window.location.search);
+    } catch (err) { /* no history API */ }
+    this.toList();
+  }
+  home(e) {
+    if (modified(e)) return;
+    if (e) e.preventDefault();
+    try { if (window.location.hash) window.history.pushState(null, '', window.location.pathname + window.location.search); } catch (err) { /* ignore */ }
+    this.listY = 0;
+    this.setState({ view: 'list', mode: 'root', sn: null, q: '', grade: 'all', hideWarn: false, all: false, calcHk: null });
+    if (typeof window !== 'undefined' && window.scrollTo) window.scrollTo(0, 0);
+  }
+  copyHk(hk) {
+    const done = (ok) => {
+      this.setState({ copied: ok ? 'ok' : 'fail' });
+      clearTimeout(this.copyTimer);
+      this.copyTimer = setTimeout(() => this.setState({ copied: null }), 1800);
+    };
+    try {
+      if (!navigator.clipboard || !navigator.clipboard.writeText) throw new Error('no clipboard');
+      navigator.clipboard.writeText(hk).then(() => done(true), () => done(false));
+    } catch (e) { done(false); }
+  }
+
+  // ---- data ----
+  rowsFor(D, alpha, sn) {
+    if (!alpha) {
+      return D.root.rows.map((r) => ({
+        name: r.n || short(r.hk), hk: r.hk, g: r.g, a30: r.a30, a7: r.a7, pr: r.pr, fee: r.t * 100, take: r.t * 100, ck: 0,
+        stake: r.s, stakeSub: r.nom != null ? fmtInt(r.nom) + ' nominators' : '', b: r.b || [], nu: null,
+      }));
+    }
+    const C = D.pcols, ix = (k) => C.indexOf(k);
+    return (D.pools[String(sn)] || []).map((p) => ({
+      name: p[ix('n')], hk: p[ix('hk')], g: p[ix('g')], a30: p[ix('a30')], a7: p[ix('a7')], pr: p[ix('pr')], fee: p[ix('fee')], take: p[ix('take')], ck: p[ix('ck')],
+      stake: p[ix('tao')], stakeSub: 'alpha staked, in τ', b: p[ix('b')] || [], nu: sn,
+    }));
+  }
+
+  renderVals() {
+    const accent = this.props.accent ?? '#3DDBB0';
+    const S = this.state, D = S.data;
+    const base = {
+      accent, tk: this.ticker(accent), home: (e) => this.home(e), back: (e) => this.back(e),
+      loading: !D && !S.err, failed: !D && !!S.err, err: S.err, skel: [1, 2, 3, 4, 5, 6, 7, 8],
+      blockTxt: D ? fmtInt(D.block) : '…', timeTxt: D && D.ts ? new Date(D.ts).toISOString().slice(0, 16).replace('T', ' ') + ' UTC' : '',
+      isList: false, isDetail: false, d: {},
+    };
+    if (S.view === 'detail') return Object.assign(base, { loading: false, failed: false, isDetail: true, d: this.detail(D, accent) });
+    if (!D) return base;
+    return Object.assign(base, { isList: true }, this.list(D, accent));
+  }
+
+  list(D, accent) {
+    const S = this.state;
+    const alpha = S.mode === 'alpha';
+    const subs = D.subnets || [];
+    const sn = S.sn != null ? S.sn : (subs.find((s) => s.nu === 51) || subs[0] || {}).nu;
+    const cur = subs.find((s) => s.nu === sn) || null;
+    const sorted = (xs) => xs.filter((x) => x != null).sort((a, b) => a - b);
+    const med = (xs) => xs.length ? xs[Math.floor(xs.length / 2)] : null;
+    const bests = sorted(subs.map((s) => s.best)), dps = sorted(subs.map((s) => s.dp30));
+
+    let all = this.rowsFor(D, alpha, sn);
+    const q = S.q.trim().toLowerCase();
+    if (q) all = all.filter((r) => (r.name || '').toLowerCase().includes(q) || r.hk.toLowerCase().includes(q));
+    const counts = { all: all.length };
+    'ABCDF'.split('').forEach((g) => { counts[g] = all.filter((r) => r.g === g).length; });
+    let list = S.grade === 'all' ? all : all.filter((r) => r.g === S.grade);
+    if (S.hideWarn) list = list.filter((r) => !r.b.some((b) => WARN_BADGES.has(b)));
+    const total = list.length;
+    const shown = S.all ? list : list.slice(0, PAGE);
+    const best = alpha ? (cur && cur.best) : D.root.bench;
+
+    const rows = shown.map((r) => {
+      const G = GRADE[r.g], F = r.g === 'F';
+      const pr = F ? 0 : r.pr;
+      const barC = pr == null ? '#4A5565' : pr >= 95 ? accent : pr >= 85 ? '#8FB0FF' : pr >= 70 ? '#E8C35A' : '#F5A524';
+      const href = '#v/' + r.hk + (r.nu != null ? '/' + r.nu : '');
+      return {
+        name: r.name, hkShort: short(r.hk), grade: r.g || '—', gBg: G ? G.bg : '#1A212B', gFg: G ? G.fg : '#8B97A6',
+        gradeTip: G ? G.tip : 'Not graded yet',
+        badges: r.b.map((b) => Object.assign({ label: b }, BADGE[b] || { bg: '#1A212B', fg: '#A9B4C2', tip: '' })),
+        earn: F ? 'Not earning' : pct(r.a30, alpha ? 1 : 2), earnShort: F ? '0%' : pct(r.a30, alpha ? 1 : 2), earn7: pct(r.a7, alpha ? 1 : 2), earnColor: F ? '#FF8A80' : '#E6EDF3',
+        payout: pr == null ? '—' : Math.round(pr) + '%', barW: pr == null ? '0%' : Math.min(100, pr) + '%', barC,
+        fee: pct(r.fee, 1), feeColor: r.fee >= 15 ? '#F5A524' : '#E6EDF3',
+        feeSub: r.ck > 0.05 ? 'take ' + pct(r.take, 0) + ' + childkey ' + pct(r.ck, 1) : 'take only',
+        stake: fmtK(r.stake) + ' τ', stakeSub: r.stakeSub,
+        cardSub: 'fee ' + pct(r.fee, 1) + ' · ' + fmtK(r.stake) + ' τ' + (r.b.length ? ' · ' + r.b.join(', ') : ''),
+        cardSubColor: r.fee >= 15 || r.b.some((b) => WARN_BADGES.has(b)) ? '#F5A524' : '#8B97A6',
+        href, aria: r.name + ', grade ' + (r.g || 'not graded') + ', earns ' + (F ? 'nothing' : pct(r.a30, 1)) + ', fee ' + pct(r.fee, 1),
+        open: (e) => this.open(r.hk, r.nu, e),
+      };
+    });
+
+    const gradeChips = [{ k: 'all', label: 'All' }].concat('ABCDF'.split('').map((g) => ({ k: g, label: g }))).map((c) => {
+      const on = S.grade === c.k, G = GRADE[c.k];
+      return { label: c.label, count: counts[c.k], on, tip: G ? G.tip : 'Every grade',
+        border: on ? (G ? G.fg : accent) : '#1C232D', bg: on ? (G ? G.bg : '#151C26') : 'transparent', fg: on ? (G ? G.fg : '#E6EDF3') : '#A9B4C2',
+        pick: () => this.setState({ grade: c.k, all: false }) };
+    });
+
+    let sumKicker, sumTitle, sumStats, sumNote = '';
+    if (alpha && cur) {
+      sumKicker = 'SN' + cur.nu;
+      sumTitle = cur.name;
+      sumStats = [
+        { label: 'Best APY · 30D', value: pct(cur.best, 1), sub: 'in alpha, median of the top 3', color: accent, tip: 'What the best validators here paid stakers, in alpha' },
+        { label: 'Alpha price · 30D', value: sgn(cur.dp30, 1), sub: 'same for every validator here', color: '#A9B4C2', tip: 'Change of this alpha against τ. Not caused by validators.' },
+        { label: 'Net in τ · 30D', value: sgn(cur.net30, 1), sub: 'best validator, rewards + price', color: '#A9B4C2', tip: 'What staking with the best validator here returned in τ over 30 days, not annualized' },
+        { label: 'Validators', value: fmtInt(cur.nv), sub: 'with 10 τ or more', color: '#E6EDF3', tip: '' },
+      ];
+      sumNote = cur.nbest < 3 ? 'Few large validators on this subnet, so grades here compare against smaller pools and are rougher.' : '';
+    } else if (alpha) {
+      sumKicker = 'Subnet'; sumTitle = 'No subnet data yet'; sumStats = [];
+    } else {
+      const graded = D.root.rows.filter((r) => r.g).length;
+      sumKicker = 'Root';
+      sumTitle = 'Principal stays in τ';
+      sumStats = [
+        { label: 'Best APY · 30D', value: pct(D.root.bench, 2), sub: 'median of the top 3', color: accent, tip: 'What the best root validators paid, in τ, after fees' },
+        { label: 'Graded validators', value: fmtInt(graded), sub: '1,000 τ or more, 21+ days', color: '#E6EDF3', tip: '' },
+        { label: 'Price risk', value: 'None on principal', sub: 'rewards paid as basket alpha', color: '#A9B4C2', tip: 'Your staked τ stays τ; the alpha you earn can change in value' },
+      ];
+    }
+
+    // calculator: any validator in the current list (default the first)
+    const calcRow = list.find((r) => r.hk === S.calcHk) || list[0] || null;
+    const amt = parseFloat(String(S.amt).replace(/,/g, '')) || 0;
+    const unit = alpha ? ' α/yr' : ' τ/yr';
+    const px = (S.px || PRICE_SNAPSHOT).c;
+    const yr = calcRow ? (calcRow.g === 'F' ? 0 : amt * (calcRow.a30 || 0) / 100) : 0;
+    const calc = calcRow ? {
+      hk: calcRow.hk, name: calcRow.name,
+      perYear: fmtInt(yr) + unit,
+      usd: alpha ? '' : '(' + usd(yr * px) + ')',
+      vs: best != null && calcRow.a30 != null ? (best - calcRow.a30 > 0.005 ? '· the best here would pay +' + fmtInt(amt * (best - calcRow.a30) / 100) + unit.replace('/yr', ' more a year') : '· on par with the best here') : '',
+      href: '#v/' + calcRow.hk + (calcRow.nu != null ? '/' + calcRow.nu : ''), open: (e) => this.open(calcRow.hk, calcRow.nu, e),
+    } : { hk: '', name: '—', perYear: '—', usd: '', vs: '', href: '#', open: () => {} };
+    const calcOpts = list.slice(0, 200).map((r) => ({ v: r.hk, label: (r.g ? r.g + ' · ' : '') + r.name }));
+
+    return {
+      rootOn: !alpha, alphaOn: alpha,
+      rootBorder: !alpha ? accent : '#1C232D', rootBg: !alpha ? '#0F1A17' : '#0E131A',
+      alphaBorder: alpha ? accent : '#1C232D', alphaBg: alpha ? '#0F1A17' : '#0E131A',
+      pickRoot: () => this.setState({ mode: 'root', all: false, calcHk: null, grade: 'all' }),
+      pickAlpha: () => this.setState({ mode: 'alpha', all: false, calcHk: null, grade: 'all' }),
+      q: S.q, onQ: (e) => this.setState({ q: e.target.value, all: false }),
+      hideWarn: S.hideWarn, toggleWarn: () => this.setState({ hideWarn: !S.hideWarn, all: false }),
+      warnBorder: S.hideWarn ? accent : '#1C232D', warnFg: S.hideWarn ? accent : '#A9B4C2',
+      amt: S.amt, onAmt: (e) => this.setState({ amt: e.target.value }),
+      showAll: () => this.setState({ all: true }),
+      clearFilters: () => this.setState({ q: '', grade: 'all', hideWarn: false, all: false }),
+      earnTip: alpha ? 'Yearly yield in this subnet’s alpha, after all fees, from the last 30 days. Alpha price moves are not included.' : 'Yearly yield in τ after all fees, from the last 30 days.',
+      rootBench: (D.root.bench || 0).toFixed(1),
+      alphaRange: bests.length ? Math.round(med(bests)) + '% median APY' : '—', medDp: sgn(med(dps), 1),
+      snOpts: subs.map((s) => ({ v: String(s.nu), label: 'SN' + s.nu + ' · ' + s.name + (s.best != null ? ' · ' + Math.round(s.best) + '% APY' : '') })),
+      snVal: String(sn), pickSn: (e) => this.setState({ sn: +e.target.value, all: false, calcHk: null, grade: 'all' }),
+      sumKicker, sumTitle, sumStats, sumNote,
+      gradeChips, rows, noRows: rows.length === 0,
+      noRowsTxt: q ? 'No validator matches “' + S.q.trim() + '” here.' : 'No validator matches these filters.',
+      more: !S.all && total > shown.length, total,
+      hasCalc: !!calcRow, calc, calcOpts, pickCalc: (e) => this.setState({ calcHk: e.target.value }),
+      priceFoot: alpha ? 'Alpha APY is paid in alpha; the alpha price line above shows what that alpha did against τ.' : 'Root APY is paid as basket alpha valued at today’s price.',
+    };
+  }
+
+  detail(D, accent) {
+    const S = this.state, V = S.det;
+    if (S.detErr) return { failed: true, err: S.detErr };
+    if (!V) return { loading: true };
+    const locs = V.locs || [];
+    if (!locs.length) return { failed: true, err: 'No graded stake for this validator yet.' };
+    let li = S.loc;
+    if (li == null) {
+      const want = S.wantNu;
+      li = want != null ? locs.findIndex((l) => l.nu === want) : 0;
+      if (li < 0) li = 0;
+    }
+    const L = locs[Math.min(li, locs.length - 1)];
+    const isRoot = L.kind === 'root';
+    const G = GRADE[L.g];
+    const rootBench = D ? D.root.bench : null;
+    const best = isRoot ? rootBench : L.bench;
+    const where = isRoot ? 'root' : L.label + (L.sname ? ' ' + L.sname : '');
+
+    const verdict = [];
+    if (L.g === 'F') verdict.push(Object.assign({ text: 'Earned nothing for stakers on ' + where + ' over the last 30 days. Stake elsewhere.' }, BAD));
+    else if (L.pr != null) {
+      const p = Math.round(L.pr);
+      verdict.push(Object.assign({ text: 'Pays ' + p + '% of what the best validators on ' + where + ' pay (after fees, weaker of 7D and 30D).' }, p >= 95 ? OK : p >= 85 ? INFO : WARN));
+    } else verdict.push(Object.assign({ text: 'Not enough comparable data to grade on ' + where + ' yet.' }, INFO));
+    const feeLine = 'Fee ' + pct(L.fee, 1) + (L.ck > 0.05 ? ' (take ' + pct(L.take, 0) + ' + childkey ' + pct(L.ck, 1) + ')' : ' (validator take only)');
+    verdict.push(Object.assign({ text: L.fee >= 15 ? 'High fee: ' + feeLine + '. Most of the gap to the best comes from this.' : feeLine + '.' }, L.fee >= 15 ? WARN : OK));
+    if (isRoot) {
+      if (L.hit != null) verdict.push(Object.assign({ text: 'Paid at least 90% of the best on ' + Math.round(L.hit) + '% of days.' }, L.hit >= 67 ? OK : WARN));
+    } else if (L.pr7 != null && L.pr30 != null && L.g !== 'F') {
+      const unstable = (L.b || []).includes('Unstable');
+      verdict.push(Object.assign({ text: (unstable ? 'Unsteady: ' : 'Steady: ') + '7-day payout ' + Math.round(L.pr7) + '%, 30-day ' + Math.round(L.pr30) + '% of the best.' }, unstable ? WARN : OK));
+    }
+    if (!isRoot && L.kind30 === 'thin') verdict.push(Object.assign({ text: 'Few large validators on ' + L.label + ', so this comparison is rough.' }, INFO));
+    if (!isRoot) verdict.push(Object.assign({ text: 'Alpha price on ' + L.label + ': ' + sgn(L.dp30, 1) + ' against τ over 30 days. The same for every validator there, not caused by this one.' }, INFO));
+    else verdict.push(Object.assign({ text: 'Your principal stays in τ. Rewards arrive as basket alpha valued at today’s price.' }, INFO));
+
+    const kpis = [
+      { label: 'You earn · APY 30D', value: L.g === 'F' ? '0%' : pct(L.a30, isRoot ? 2 : 1), sub: '7D ' + pct(L.a7, isRoot ? 2 : 1) + (isRoot ? ' · in τ' : ' · in alpha'), color: L.g === 'F' ? '#FF8A80' : '#E6EDF3', tip: isRoot ? 'Yearly yield in τ after fees' : 'Yearly yield in this subnet’s alpha after fees; price moves not included' },
+      { label: 'Payout vs best', value: L.g === 'F' ? '0%' : L.pr == null ? '—' : Math.round(L.pr) + '%', sub: isRoot ? 'best here ' + pct(rootBench, 2) + ' APY' : (L.rank ? '#' + L.rank + ' of ' + L.of + ' on ' + L.label : 'best here ' + pct(L.bench, 1)), color: G ? G.fg : '#E6EDF3', tip: 'Compared with the best validators here, leaving this one out' },
+      { label: 'Total fee', value: pct(L.fee, 1), sub: L.ck > 0.05 ? 'take ' + pct(L.take, 0) + ' + childkey ' + pct(L.ck, 1) : 'take ' + pct(L.take, 0) + ', no childkey', color: L.fee >= 15 ? '#F5A524' : '#E6EDF3', tip: 'Everything the validator keeps' },
+      { label: isRoot ? 'Root stake' : 'Alpha stake here', value: fmtInt(L.stake) + ' τ', sub: isRoot ? (V.nom != null ? fmtInt(V.nom) + ' nominators' : '') : 'valued in τ at today’s price', color: '#E6EDF3', tip: '' },
+    ];
+
+    let bars, chartNote;
+    const H = 150, top = 120;
+    const mk = (label, v) => {
+      const c = v == null ? '#2A3340' : v >= 95 ? accent : v >= 85 ? '#8FB0FF' : v >= 70 ? '#E8C35A' : '#F5A524';
+      return { label, txt: v == null ? '—' : Math.round(v) + '%', h: v == null ? '4px' : Math.max(4, Math.min(v, top) / top * H) + 'px', color: c };
+    };
+    if (isRoot) {
+      const per = L.per || [];
+      const n = per.length, step = n > 8 ? 2 : 1;
+      bars = per.map((v, i) => mk(i === n - 1 ? 'last 7D' : (n - 1 - i) % step ? '' : (n - 1 - i) * 7 + 'D ago', v));
+      chartNote = 'each bar: 7-day yield ÷ best root validators';
+    } else {
+      bars = [mk('30 days', L.pr30), mk('last 7 days', L.pr7)];
+      chartNote = 'longer history appears as data builds up';
+    }
+
+    const amt = parseFloat(String(S.amtD).replace(/,/g, '')) || 0;
+    const unit = isRoot ? ' τ' : ' α';
+    const yr = L.g === 'F' ? 0 : amt * (L.a30 || 0) / 100;
+    const gap = best != null && L.a30 != null ? amt * (best - L.a30) / 100 : null;
+    const px = (S.px || PRICE_SNAPSHOT).c;
+
+    // tabs: the first few places plus the selected one; the full list is in "Where it operates"
+    const tabIdx = locs.map((_, i) => i).filter((i) => i < TABS || i === li);
+    const tabOf = (i) => {
+      const l = locs[i], on = i === li, g = GRADE[l.g];
+      return { label: l.label, grade: l.g || '—', gFg: g ? g.fg : '#8B97A6', on, border: on ? accent : '#1C232D', bg: on ? '#0F1A17' : '#0E131A', fg: on ? '#E6EDF3' : '#A9B4C2', pick: () => this.pickLoc(i) };
+    };
+    const placesAll = locs.map((l, i) => {
+      const g = GRADE[l.g];
+      return {
+        label: l.label, sname: l.sname || (l.kind === 'root' ? 'principal in τ' : ''), grade: l.g || '—', gFg: g ? g.fg : '#8B97A6',
+        apy: l.g === 'F' ? '0%' : pct(l.a30, l.kind === 'root' ? 2 : 1), pr: l.g === 'F' ? '0%' : l.pr == null ? '—' : Math.round(l.pr) + '%',
+        fee: pct(l.fee, 1), feeColor: l.fee >= 15 ? '#F5A524' : '#E6EDF3', stake: fmtK(l.stake) + ' τ',
+        on: i === li, bg: i === li ? '#111A1F' : 'transparent', pick: () => { this.pickLoc(i); if (window.scrollTo) window.scrollTo(0, 0); },
+      };
+    });
+    const places = S.allPlaces ? placesAll : placesAll.slice(0, PLACES);
+    const ngraded = locs.filter((l) => l.g).length;
+    const h = hue(V.hk);
+
+    return {
+      ready: true,
+      name: V.n, ini: (V.n.replace(/[^A-Za-z0-9]/g, '').slice(0, 2) || V.hk.slice(1, 3)).toUpperCase(),
+      monoBg: 'hsl(' + h + ' 34% 20%)', monoFg: 'hsl(' + h + ' 70% 78%)',
+      grade: L.g || '—', gBg: G ? G.bg : '#1A212B', gFg: G ? G.fg : '#8B97A6', gTip: G ? G.tip : 'Not graded yet',
+      locLabel: L.label, locLong: where, feeTxt: pct(L.fee, 1), nomTxt: V.nom != null ? fmtInt(V.nom) + ' nominators' : '',
+      hk: V.hk, copyTxt: S.copied === 'ok' ? 'Copied' : S.copied === 'fail' ? 'Copy failed: select the key' : 'Copy',
+      copy: () => this.copyHk(V.hk),
+      tabs: tabIdx.map(tabOf), moreLocs: locs.length > tabIdx.length ? locs.length - tabIdx.length : 0,
+      vBorder: G ? G.fg : '#1C232D', verdict, kpis,
+      bars, barGap: bars.length > 8 ? '4px' : '10px', barFont: bars.length > 8 ? '10px' : '12px',
+      line90: (90 / top * H + 1) + 'px', chartNote,
+      chartAria: 'Payout vs best: ' + bars.map((b) => (b.label || '') + ' ' + b.txt).join(', '),
+      amt: S.amtD, onAmt: (e) => this.setState({ amtD: e.target.value }),
+      calcYear: fmtInt(yr) + unit, calcMonth: fmtInt(yr / 12) + unit,
+      calcVs: (gap == null ? '' : gap > 0.5 ? 'The best validators here would pay about ' + fmtInt(gap) + unit + ' more a year on the same stake.' : 'On par with the best validators here.') + (isRoot && yr > 0 ? ' About ' + usd(yr * px) + ' a year at today’s TAO price.' : ''),
+      calcNote: isRoot ? 'Based on the 30-day APY. Rewards arrive as basket alpha; their τ value moves with alpha prices.' : 'Based on the 30-day APY, paid in alpha. What that alpha is worth in τ depends on the subnet’s price.',
+      places, placesMore: !S.allPlaces && placesAll.length > places.length, placesTotal: placesAll.length,
+      showAllPlaces: () => this.setState({ allPlaces: true }),
+      placesNote: locs.length + (locs.length === 1 ? ' place' : ' places') + ', ' + ngraded + ' graded · pools of 10 τ or more',
+    };
+  }
+
+  pickLoc(i) {
+    this.setState({ loc: i });
+    const V = this.state.det, l = V && V.locs[i];
+    if (!l) return;
+    const h = '#v/' + V.hk + (l.nu != null ? '/' + l.nu : '');
+    try { if (window.location.hash !== h) window.history.replaceState(window.history.state, '', h); } catch (e) { /* ignore */ }
+  }
+}
+</script>
+</body>
+</html>

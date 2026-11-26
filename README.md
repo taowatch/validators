@@ -145,12 +145,45 @@ The API serves as much history as is stored: the daily grid reaches back to the 
 - Rough storage cost: about 2 MB per stored day, so 365 days is under 1 GB.
 - **Configured take.** 1 − (1 − take)(1 − Σ proportion × childkey take). `ChildKeys` proportions are u64 / 2⁶⁴; `ChildkeyTake` and `Delegates` takes are u16 / 65535.
 
+## How validators are graded
+
+The home page ("Choose a validator") gives each validator a grade per place it operates: root, and each subnet it validates on.
+It answers one question: *how much of the best available payout does a staker get here?*
+
+- **Payout vs best (PR):** the validator's daily yield ÷ a benchmark daily yield, capped at 120%. Daily yields are compared rather than APYs, so a short burst cannot inflate the ratio.
+  - **Root:** the benchmark is the median of the top 3 APY 30D among rated validators (≥ 1K τ, ≥ 21 days of data).
+  - **Alpha pool:** the benchmark is the median of the top 3 earning pools on the same subnet, **excluding the validator's own pool** (leave-one-out), so nobody is compared with itself.
+    - Pools of ≥ 100 τ are used. If there are fewer than 3, pools of ≥ 10 τ are used instead and the pool gets a "Thin benchmark" badge.
+    - The grade uses the weaker of PR 7D and PR 30D: a validator must be good in both windows.
+- **Grades:**
+
+  | Grade | Rule |
+  |---|---|
+  | A | PR ≥ 95% (root: also ≥ 90% of the daily benchmark on at least 2/3 of the last 30 days) |
+  | B | PR ≥ 85% |
+  | C | PR ≥ 70% |
+  | D | below 70% |
+  | F | not earning (APY < 0.01%) |
+
+- **Badges:**
+  - **Not earning**
+  - **Thin benchmark**
+  - **Unstable:** PR 7D and PR 30D differ by more than 15 pp, or root hits the benchmark on fewer than half the days.
+  - **High fee:** total fee ≥ 15%.
+  - **New:** too little history.
+  - **Small:** under 1K τ on root.
+- **Total fee** = 1 − (1 − take)(1 − childkey take), shown next to the grade. It is not folded into the grade, since yields are already net of it.
+
+On a subnet, the alpha price move is the same for every validator, so it is shown once in the subnet header rather than on each row.
+
 ## API
 
 | Endpoint | Content |
 |---|---|
 | `GET /api/validators` | Root: stake, take, nominators, APY for each window in `win` (`a1`, `a7`, `a30`, `a90`, …), rolling 7D and 30D APY series (`d`, `d30`), stake history, NAV, basket holdings |
 | `GET /api/alpha` | Subnets (reference APY and price change per window), validators (APY, efficiency and effective take per window, per-period efficiency `effp`, consistency `cons`) and every pool (columns named in `pf`) |
+| `GET /api/choose` | Home page data: graded root list (`root.rows`, with `bench`), subnets, and graded pools per subnet (`pools`, columns named in `pcols`) |
+| `GET /api/validator/{hotkey}` | One validator: its root record and every subnet pool ≥ 10 τ, with grade, payout vs best, fee split, rank and benchmark |
 | `GET /api/health` | Database reachable, newest block and its age |
 
 The API computes every response from one consistent database snapshot.

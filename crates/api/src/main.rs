@@ -2,6 +2,9 @@
 //!
 //! GET /api/validators  root ranking (validators.json shape)
 //! GET /api/alpha       alpha pools, subnets, efficiency (alpha.json shape)
+//! GET /api/choose      "Choose a validator": graded root list, subnets, graded pools per subnet
+//! GET /api/validator/{hotkey}  one validator: root and every subnet it operates on
+//! GET /analytics       the analytics page (analytics.html)
 //! GET /api/health
 //! everything else      files from WEB_DIR (the frontend)
 //!
@@ -9,6 +12,7 @@
 //! from memory, so requests never touch the database.
 
 mod compute;
+mod rating;
 
 use std::sync::Arc;
 use std::time::Duration;
@@ -31,6 +35,8 @@ struct Cache {
     key: (i64, i64, i64),
     validators: Option<Arc<String>>,
     alpha: Option<Arc<String>>,
+    choose: Option<Arc<String>>,
+    details: Arc<std::collections::HashMap<String, Arc<String>>>,
 }
 
 #[derive(Clone)]
@@ -64,6 +70,9 @@ async fn main() -> Result<()> {
         .route("/api/health", get(health))
         .route("/api/validators", get(validators))
         .route("/api/alpha", get(alpha))
+        .route("/api/choose", get(choose))
+        .route("/api/validator/{hotkey}", get(validator))
+        .route_service("/analytics", ServeFile::new(format!("{web}/analytics.html")))
         .fallback_service(ServeDir::new(&web).fallback(ServeFile::new(index)))
         .layer(axum::middleware::map_response(static_cache))
         .layer(CompressionLayer::new())
@@ -95,8 +104,11 @@ async fn refresh(app: &App) -> Result<()> {
     if let Some(out) = compute::compute(&app.pool).await? {
         let mut c = app.cache.write().await;
         c.key = key;
+        let rated = rating::build(&out.validators, &out.alpha);
         c.validators = Some(Arc::new(out.validators.to_string()));
         c.alpha = Some(Arc::new(out.alpha.to_string()));
+        c.choose = Some(Arc::new(rated.choose.to_string()));
+        c.details = Arc::new(rated.details.into_iter().map(|(k, v)| (k, Arc::new(v.to_string()))).collect());
         info!(block = out.block, ms = t.elapsed().as_millis() as u64, "rankings recomputed");
     }
     Ok(())
@@ -142,6 +154,21 @@ async fn alpha(State(app): State<App>) -> Response {
 
 /// 200 while the database answers. The body says how old the newest snapshot is, so a
 /// stalled collector is visible here too (`stale` after 3 hours).
+async fn choose(State(app): State<App>) -> Response {
+    json(app.cache.read().await.choose.clone())
+}
+
+async fn validator(State(app): State<App>, axum::extract::Path(hotkey): axum::extract::Path<String>) -> Response {
+    let c = app.cache.read().await;
+    if c.choose.is_none() {
+        return json(None);
+    }
+    match c.details.get(&hotkey) {
+        Some(v) => json(Some(v.clone())),
+        None => (StatusCode::NOT_FOUND, "unknown validator").into_response(),
+    }
+}
+
 async fn health(State(app): State<App>) -> Response {
     let q = sqlx::query_as::<_, (Option<i64>, Option<f64>)>("SELECT max(block), extract(epoch FROM now() - max(ts))::float8 FROM snapshot");
     match q.fetch_one(&app.pool).await {
