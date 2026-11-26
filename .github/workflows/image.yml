@@ -38,7 +38,7 @@ jobs:
       - name: frontend syntax
         run: for f in web/*.js; do node --check "$f" || exit 1; done
       # Same toolchain as the Dockerfile, so new lints don't break CI unannounced.
-      - uses: dtolnay/rust-toolchain@1.100
+      - uses: dtolnay/rust-toolchain@1.120
         with:
           components: clippy
       - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
