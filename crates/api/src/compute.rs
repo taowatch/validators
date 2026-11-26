@@ -71,8 +71,14 @@ const MIN_EARNING: f64 = 0.01;
 struct Grid {
     n: usize,
     pts: Vec<Option<(i64, f64)>>,
+    /// the point 24h before head, with a tight tolerance (see [`TOL_1D`])
+    one: Option<(i64, f64)>,
     win: Vec<usize>,
 }
+
+/// 1D is the only window where the daily tolerance would distort the span (a sample 14h off
+/// turns "1 day" into 10h or 38h): it needs an hourly sample within 3h of head − 24h.
+const TOL_1D: f64 = 3.0 * 3600.0;
 
 impl Grid {
     fn new(snaps: &[(i64, f64)], head: i64, head_ts: f64) -> Self {
@@ -80,14 +86,21 @@ impl Grid {
         let n = (((head_ts - oldest) / DAY).round() as usize).clamp(30, MAX_SPAN);
         let pts: Vec<_> = (0..=n).map(|i| if i == n { Some((head, head_ts)) } else { nearest(snaps, head_ts - (n - i) as f64 * DAY, TOL) }).collect();
         let win = WINDOWS.iter().copied().enumerate().filter(|&(k, w)| k < BASE_WINDOWS || (w <= n && pts[n - w].is_some())).map(|(_, w)| w).collect();
-        Self { n, pts, win }
+        let one = nearest(snaps, head_ts - DAY, TOL_1D);
+        Self { n, pts, one, win }
     }
     /// Point `d` days before head.
     fn back(&self, d: usize) -> Option<(i64, f64)> {
-        if d > self.n { None } else { self.pts[self.n - d] }
+        if d == 1 {
+            self.one
+        } else if d > self.n {
+            None
+        } else {
+            self.pts[self.n - d]
+        }
     }
     fn blocks(&self) -> Vec<i64> {
-        let mut b: Vec<i64> = self.pts.iter().flatten().map(|p| p.0).collect();
+        let mut b: Vec<i64> = self.pts.iter().flatten().chain(self.one.iter()).map(|p| p.0).collect();
         b.sort();
         b.dedup();
         b
@@ -110,8 +123,29 @@ pub async fn compute(pool: &PgPool) -> Result<Option<Out>> {
     let grid = Grid::new(&snaps, head, head_ts);
     let names: HashMap<i32, String> =
         sqlx::query_as::<_, (i32, Option<String>)>("SELECT netuid, name FROM subnet").fetch_all(&mut *tx).await?.into_iter().filter_map(|(n, s)| s.map(|s| (n, s))).collect();
-    let validators = root(&mut tx, &grid, head, head_ts, &names).await?;
-    let alpha = alpha(&mut tx, &grid, head, head_ts, &names).await?;
+    // identity images (https URLs, filtered by the collector)
+    let img: HashMap<String, String> =
+        sqlx::query_as::<_, (String, String)>("SELECT hotkey, image FROM validator WHERE image IS NOT NULL").fetch_all(&mut *tx).await?.into_iter().collect();
+    let logos: HashMap<i32, String> =
+        sqlx::query_as::<_, (i32, String)>("SELECT netuid, logo FROM subnet WHERE logo IS NOT NULL").fetch_all(&mut *tx).await?.into_iter().collect();
+    let mut validators = root(&mut tx, &grid, head, head_ts, &names).await?;
+    let mut alpha = alpha(&mut tx, &grid, head, head_ts, &names).await?;
+    for doc in [&mut validators, &mut alpha] {
+        if let Some(vs) = doc.get_mut("v").and_then(Value::as_array_mut) {
+            for v in vs {
+                if let Some(u) = v.get("hk").and_then(Value::as_str).and_then(|h| img.get(h)) {
+                    v["img"] = json!(u);
+                }
+            }
+        }
+    }
+    if let Some(ss) = alpha.get_mut("subnets").and_then(Value::as_array_mut) {
+        for sn in ss {
+            if let Some(u) = sn.get("nu").and_then(Value::as_i64).and_then(|n| logos.get(&(n as i32))) {
+                sn["logo"] = json!(u);
+            }
+        }
+    }
     tx.commit().await?;
     Ok(Some(Out { block: head, validators, alpha }))
 }

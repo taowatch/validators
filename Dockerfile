@@ -1,7 +1,7 @@
 # syntax=docker/dockerfile:1
 # One image, two binaries: `api` (default; also serves the frontend) and `collector`.
 # Published by .github/workflows/image.yml as ghcr.io/taowatch/validators.
-FROM rust:1.99-alpine3.24 AS build
+FROM rust:1.100-alpine3.24 AS build
 RUN apk add --no-cache musl-dev
 WORKDIR /src
 COPY Cargo.toml Cargo.lock ./

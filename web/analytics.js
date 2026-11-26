@@ -21,6 +21,13 @@ function usd(n) {
   return '$' + n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 const ORANGE = '#F59E3B', BLUE = '#7AA2F7', MUTED = '#8B97A6', TEXT = '#E6EDF3';
+// Remember the Terminal interface (per viewer) and open its analytics page.
+function toTerminalUI(e) {
+  if (e && (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || e.button === 1)) return;
+  if (e) e.preventDefault();
+  try { localStorage.setItem('vy.ui', 'terminal'); } catch (err) { /* storage blocked: the link still works */ }
+  window.location.href = '/terminal/analytics';
+}
 
 function fmtInt(n) { return n == null ? '—' : Math.round(n).toLocaleString('en-US'); }
 function fmtK(n) {
@@ -122,6 +129,14 @@ function consCell(v, A, accent) {
 const MINS = [[0, 'All'], [1000, '≥ 1K τ'], [10000, '≥ 10K τ'], [100000, '≥ 100K τ']];
 
 class Component extends DCLogic {
+  // identity image when the chain has one and it loads; otherwise the monogram
+  ava(url, monoBg) {
+    this.badImg = this.badImg || new Set();
+    const ok = !!url && !this.badImg.has(url);
+    return { img: ok, mono: !ok, src: ok ? url : '', bg: ok ? '#0E131A' : monoBg,
+      err: () => { if (!this.badImg.has(url)) { this.badImg.add(url); this.setState({ badImg: this.badImg.size }); } } };
+  }
+
   constructor(props) {
     super(props);
     this.state = { data: null, err: null, q: '', win: null, rng: 30, crng: null, ew: null, min: 1000, sortKey: 'rank', dir: -1, hideTake: false, sel: null, hov: null, hovIdx: null, amt: '1,000', showAll: false, copied: false, px: null, pxLive: false, pxDir: 0, tab: 'root', sn: null, effMin: 1000, effSort: 'tao', effDir: -1, ehov: null, alpha: null, alphaErr: null };
@@ -137,11 +152,27 @@ class Component extends DCLogic {
       let m; try { m = JSON.parse(ev.data); } catch (e) { return; }
       const c = parseFloat(m.c);
       if (!isFinite(c)) return;
-      const prev = this.state.px ? this.state.px.c : null;
-      this.setState({ pxLive: true, pxDir: prev == null || c === prev ? 0 : c > prev ? 1 : -1, px: { c, P: parseFloat(m.P), h: parseFloat(m.h), l: parseFloat(m.l), q: parseFloat(m.q), E: m.E } });
+      this.pxNext = { c, P: parseFloat(m.P), h: parseFloat(m.h), l: parseFloat(m.l), q: parseFloat(m.q), E: m.E };
+      this.flushPrice();
     };
     ws.onclose = () => { if (this.ws === ws) { this.ws = null; this.setState({ pxLive: false }); this.retryPrice(); } };
     ws.onerror = () => { try { ws.close(); } catch (e) { /* ignore */ } };
+  }
+
+  // At most one price render every 2 s, and none when nothing visible changed: every
+  // render rebuilds the whole page, and Binance sends ticks about once a second.
+  flushPrice() {
+    if (this.pxTimer) return;
+    const wait = Math.max(0, (this.pxAt || 0) + 2000 - Date.now());
+    this.pxTimer = setTimeout(() => {
+      this.pxTimer = null;
+      const n = this.pxNext, S = this.state, p = S.px;
+      this.pxNext = null;
+      if (!n || this.dead) return;
+      if (S.pxLive && p && p.c === n.c && p.P === n.P) return;
+      this.pxAt = Date.now();
+      this.setState({ pxLive: true, pxDir: !p || n.c === p.c ? 0 : n.c > p.c ? 1 : -1, px: n });
+    }, wait);
   }
 
   retryPrice() {
@@ -173,6 +204,8 @@ class Component extends DCLogic {
   componentWillUnmount() {
     this.dead = true;
     clearTimeout(this.wsTimer);
+    clearTimeout(this.pxTimer);
+    this.pxTimer = null;
     if (this.ws) { const w = this.ws; this.ws = null; try { w.close(); } catch (e) { /* ignore */ } }
   }
 
@@ -320,7 +353,7 @@ class Component extends DCLogic {
   renderVals() {
     const accent = this.props.accent ?? '#3DDBB0';
     const S = this.state, D = S.data, A = S.alpha;
-    const base = { accent, home: (e) => this.home(e), tk: this.ticker(accent), loading: !D && !S.err, failed: !!S.err, err: S.err, ready: !!D, skel: [1, 2, 3, 4, 5, 6, 7, 8] };
+    const base = { accent, home: (e) => this.home(e), toTerminal: (e) => toTerminalUI(e), tk: this.ticker(accent), loading: !D && !S.err, failed: !!S.err, err: S.err, ready: !!D, skel: [1, 2, 3, 4, 5, 6, 7, 8] };
     this.px = (S.px || PRICE_SNAPSHOT).c;
     // efficiency window chips, shared by the alpha tab, the efficiency tab and alpha pages
     if (A) {
@@ -367,6 +400,7 @@ class Component extends DCLogic {
       return {
         rank: r || '—', rankColor: r && r <= 3 ? accent : MUTED,
         name: x.name, nameColor: x.named ? TEXT : '#A9B4C2', short: x.short, ini: x.ini, monoBg: x.monoBg, monoFg: x.monoFg,
+        av: this.ava(x.img, x.monoBg),
         aria: x.name + ', APY ' + winLabel + ' ' + pct(x[win]) + ', view details',
         stake: fmtInt(x.s), stakeUsd: '≈ ' + usd(x.s * this.px), stakeBar: x.s >= 1 ? Math.max(2, Math.log10(x.s) / logMax * 100).toFixed(1) : '0',
         take: pct(x.t * 100, 0), takeBg: x.t >= 0.15 ? '#2A1D0E' : x.t === 0 ? '#12281F' : '#161C25', takeFg: x.t >= 0.15 ? ORANGE : x.t === 0 ? accent : '#C9D1D9',
@@ -921,3 +955,4 @@ class Component extends DCLogic {
     };
   }
 }
+DCMount(Component, document.getElementById('tpl'), document.getElementById('app'), {});

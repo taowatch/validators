@@ -69,11 +69,13 @@ struct RawBasket {
 #[derive(Debug, scale_decode::DecodeAsType)]
 struct RawIdentity {
     name: Vec<u8>,
+    image: Vec<u8>,
 }
 
 #[derive(Debug, scale_decode::DecodeAsType)]
 struct RawSubnetIdentity {
     subnet_name: Vec<u8>,
+    logo_url: Vec<u8>,
 }
 
 #[derive(scale_decode::DecodeAsType)]
@@ -128,7 +130,11 @@ pub struct Meta {
     pub take: HashMap<Acc, f64>,
     pub owner: HashMap<Acc, Acc>,
     pub identity: HashMap<Acc, String>,
+    /// `IdentitiesV2.image` per coldkey: an image URL (https only, see [`image_url`]).
+    pub identity_image: HashMap<Acc, String>,
     pub subnet_names: HashMap<u16, String>,
+    /// `SubnetIdentitiesV3.logo_url` (https only).
+    pub subnet_logos: HashMap<u16, String>,
     /// `ChildKeys(parent, netuid)` → [(proportion 0..1, child)].
     pub children: HashMap<(Acc, u16), Vec<(f64, Acc)>>,
     /// `ChildkeyTake(hotkey, netuid)`, 0..1.
@@ -159,6 +165,12 @@ impl Chain {
         let keys: Vec<(Acc,)> = hotkeys.iter().map(|h| (*h,)).collect();
         let got = fetch_many::<(Acc,), Acc>(&at, &self.rpc, "Owner", &keys).await?;
         Ok(got.into_iter().filter_map(|((h,), v)| v.map(|v| (h, v))).collect())
+    }
+
+    /// `Timestamp.Now` (ms) at `block`: a single cheap read, used to correct block estimates.
+    pub async fn timestamp(&self, block: u32) -> Result<u64> {
+        let at = self.at(Some(block)).await?;
+        Ok(at.storage().fetch(dynamic::storage::<(), u64>("Timestamp", "Now"), ()).await?.decode()?)
     }
 
     /// Latest block number. Head reads are pinned to it so meta, maps and owners agree.
@@ -285,7 +297,9 @@ impl Chain {
                 .collect(),
             take: take.into_iter().map(|((k,), v)| (k, v as f64 / 65535.0)).collect(),
             owner: HashMap::new(), // filled by `Chain::owners` once the tracked set is known
+            identity_image: ident.iter().filter_map(|((k,), v)| Some((*k, image_url(&v.image)?))).collect(),
             identity: ident.into_iter().map(|((k,), v)| (k, clean(&v.name))).filter(|(_, n)| !n.is_empty()).collect(),
+            subnet_logos: subnets.iter().filter_map(|((k,), v)| Some((*k, image_url(&v.logo_url)?))).collect(),
             subnet_names: subnets.into_iter().map(|((k,), v)| (k, clean(&v.subnet_name))).filter(|(_, n)| !n.is_empty()).collect(),
             children: children
                 .into_iter()
@@ -295,6 +309,17 @@ impl Chain {
             nominators,
         })
     }
+}
+
+/// An identity image URL fit to put in an `<img src>`: https, no whitespace or quotes, ≤ 512 chars.
+/// Anything else (http, ipfs://, data:, javascript:, free text) is dropped.
+fn image_url(b: &[u8]) -> Option<String> {
+    let u = String::from_utf8_lossy(b).trim().to_string();
+    let ok = u.len() <= 512
+        && u.get(..8).is_some_and(|p| p.eq_ignore_ascii_case("https://"))
+        && u.len() > 8
+        && !u.chars().any(|c| c.is_whitespace() || c.is_control() || matches!(c, '"' | '\'' | '<' | '>' | '\\' | '`'));
+    ok.then_some(u)
 }
 
 fn clean(b: &[u8]) -> String {
@@ -422,5 +447,34 @@ impl Pool {
             tokio::time::sleep(Duration::from_secs(2 + 5 * attempt as u64)).await;
         }
         Err(last.unwrap_or_else(|| anyhow!("{what}: no attempts")))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::image_url;
+
+    #[test]
+    fn image_url_accepts_plain_https() {
+        assert_eq!(image_url(b" https://example.com/logo.png ").as_deref(), Some("https://example.com/logo.png"));
+        assert!(image_url(b"HTTPS://example.com/a.svg").is_some());
+    }
+
+    #[test]
+    fn image_url_rejects_everything_else() {
+        for bad in [
+            &b"http://example.com/a.png"[..],
+            b"javascript:alert(1)",
+            b"data:image/png;base64,AAAA",
+            b"ipfs://Qm",
+            b"https://",
+            b"https://a.com/x\" onerror=\"x",
+            b"https://a.com/<script>",
+            b"https://a.com/a b.png",
+            b"",
+        ] {
+            assert!(image_url(bad).is_none(), "{:?}", String::from_utf8_lossy(bad));
+        }
+        assert!(image_url(format!("https://a.com/{}", "x".repeat(600)).as_bytes()).is_none());
     }
 }

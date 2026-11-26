@@ -6,6 +6,7 @@
 <title>Analytics · Validator Yield · Bittensor</title>
 <meta name="description" content="Bittensor validators ranked by root-claim and alpha yield, computed from on-chain data.">
 <meta name="color-scheme" content="dark">
+<script src="/ui.js?v=0cdf1daf7c8a" data-page="analytics"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&amp;family=JetBrains+Mono:wght@400;500;600&amp;family=Space+Grotesk:wght@500;600;700&amp;display=swap" rel="stylesheet">
@@ -22,6 +23,7 @@ button:focus-visible,input:focus-visible{outline:2px solid #3DDBB0;outline-offse
 .vr-scroll{scrollbar-width:thin;scrollbar-color:#2A3340 transparent}
 @keyframes vrpulse{0%,100%{opacity:.45}50%{opacity:.9}}
 .vr-skel{animation:vrpulse 1.4s ease-in-out infinite}
+@media (prefers-reduced-motion:reduce){.vr-skel{animation:none}}
 .vr-skip{position:absolute;left:-9999px;top:8px;z-index:20;padding:10px 16px;border-radius:8px;background:#3DDBB0;color:#0A0E13 !important;font-weight:600;text-decoration:none}
 .vr-skip:focus{left:16px}
 .vr-kpis{background:#0E131A !important}
@@ -32,6 +34,10 @@ button:focus-visible,input:focus-visible{outline:2px solid #3DDBB0;outline-offse
 @media (max-width:900px){.vr-wide{display:none !important}.vr-analysis{order:5}.vr-rank{order:4}.vr-foot{order:6}}
 @media (min-width:901px){.vr-narrow{display:none !important}}
 @media (max-width:600px){.vr-kpis{grid-template-columns:repeat(2,minmax(0,1fr)) !important}.vr-kpis>div:last-child:nth-child(odd){grid-column:1/-1}.vr-kpis>div span:last-child{font-size:11px !important}.vr-mini{grid-template-columns:repeat(2,minmax(0,1fr)) !important}.vr-tabs{flex-wrap:nowrap !important;overflow-x:auto;align-self:stretch !important}.vr-tabs button{height:40px !important;padding:0 12px !important;font-size:13px !important;white-space:nowrap;flex:none}.vr-hdr{align-items:flex-start !important}.vr-kpis>div{padding:12px 14px !important}.vr-kv{font-size:20px !important}.vr-avatar{width:44px !important;height:44px !important;font-size:17px !important;border-radius:12px !important}.vr-h1{font-size:26px !important}.vr-hdr{gap:14px !important}}
+.vr-swu{height:36px;padding:0 14px;border-radius:999px;background:#F5C542;color:#0A0E13 !important;text-decoration:none;display:flex;align-items:center;font-weight:600;white-space:nowrap}
+.vr-swu:hover{background:#FFD866}
+.vr-ava{overflow:hidden}
+.vr-ava img{width:100%;height:100%;object-fit:cover;display:block}
 </style>
 </head>
 <body>
@@ -51,8 +57,14 @@ button:focus-visible,input:focus-visible{outline:2px solid #3DDBB0;outline-offse
 <nav aria-label="Sections" style="display: flex; gap: 6px; flex-wrap: wrap">
 <a href="/" style="height: 36px; padding: 0 14px; border-radius: 9px; color: #A9B4C2; text-decoration: none; display: flex; align-items: center">‹ Choose a validator</a>
 <a href="/analytics" aria-current="page" style="height: 36px; padding: 0 14px; border-radius: 9px; background: #151C26; color: #E6EDF3; text-decoration: none; display: flex; align-items: center; font-weight: 500">Analytics</a>
+<a href="/#v/5FFSBkNiymQWHaxc8dTmfTT7iHoz6YDexVG4xR2yLrffVR86" class="vr-swu" title="Kooltek68: the validator behind this site">Stake with us</a>
 </nav>
 <div style="flex: 1 1 auto"></div>
+<div role="group" aria-label="Interface" style="display: flex; align-items: center; gap: 2px; padding: 3px; border: 1px solid #1C232D; border-radius: 10px; background: #0E131A">
+<span style="font-size: 11px; color: #8B97A6; padding: 0 6px; text-transform: uppercase; letter-spacing: 0.08em">UI</span>
+<span aria-current="true" style="height: 30px; padding: 0 12px; border-radius: 7px; background: #1A2A26; color: #3DDBB0; font-size: 13px; font-weight: 600; display: flex; align-items: center">Default</span>
+<a href="/terminal/analytics?ui=terminal" data-on-click="{{toTerminal}}" title="Switch to the Terminal interface (t)" style="height: 30px; padding: 0 12px; border-radius: 7px; color: #A9B4C2; font-size: 13px; font-family: 'JetBrains Mono', monospace; text-decoration: none; display: flex; align-items: center">Terminal</a>
+</div>
 <div title="{{tk.title}}" style="display: flex; align-items: center; gap: 10px; height: 40px; padding: 0 14px; border: 1px solid #1C232D; border-radius: 10px; background: #0E131A">
 <span style="font-family: 'Space Grotesk', sans-serif; font-weight: 600; font-size: 13px; color: #A9B4C2">TAO</span>
 <span style="font-family: 'JetBrains Mono', monospace; font-weight: 600; font-size: 15px; color: {{tk.flash}}">{{tk.price}}</span>
@@ -99,7 +111,7 @@ button:focus-visible,input:focus-visible{outline:2px solid #3DDBB0;outline-offse
 
 <div role="tablist" aria-label="Ranking type" class="vr-tabs" style="display: flex; flex-wrap: wrap; gap: 4px; padding: 4px; background: #0E131A; border: 1px solid #1C232D; border-radius: 12px; align-self: flex-start; max-width: 100%; box-sizing: border-box">
 <sc-for list="{{tabs}}" as="tb" hint-placeholder-count="3">
-<button type="button" role="tab" aria-selected="{{tb.on}}" onClick="{{tb.pick}}" style="height: 44px; padding: 0 18px; border: 0; border-radius: 9px; background: {{tb.bg}}; color: {{tb.fg}}; font-weight: 600; font-size: 14px; display: flex; align-items: center; gap: 8px">{{tb.label}}<span style="font-family: 'JetBrains Mono', monospace; font-size: 11px; font-weight: 500; padding: 2px 7px; border-radius: 999px; background: {{tb.countBg}}">{{tb.count}}</span></button>
+<button type="button" role="tab" aria-selected="{{tb.on}}" data-on-click="{{tb.pick}}" style="height: 44px; padding: 0 18px; border: 0; border-radius: 9px; background: {{tb.bg}}; color: {{tb.fg}}; font-weight: 600; font-size: 14px; display: flex; align-items: center; gap: 8px">{{tb.label}}<span style="font-family: 'JetBrains Mono', monospace; font-size: 11px; font-weight: 500; padding: 2px 7px; border-radius: 999px; background: {{tb.countBg}}">{{tb.count}}</span></button>
 </sc-for>
 </div>
 
@@ -131,7 +143,7 @@ button:focus-visible,input:focus-visible{outline:2px solid #3DDBB0;outline-offse
 <path d="{{sc.trend}}" fill="none" stroke="#F59E3B" stroke-width="1.5" stroke-dasharray="4 4" vector-effect="non-scaling-stroke"></path>
 </svg>
 <sc-for list="{{sc.pts}}" as="p" hint-placeholder-count="20">
-<button type="button" tabindex="-1" aria-label="{{p.aria}}" onClick="{{p.open}}" onMouseEnter="{{p.enter}}" onMouseLeave="{{p.leave}}" style="position: absolute; left: calc({{p.x}}% - {{p.half}}px); bottom: calc({{p.y}}% - {{p.half}}px); width: {{p.size}}px; height: {{p.size}}px; border-radius: 50%; padding: 0; border: 1px solid {{p.stroke}}; background: {{p.fill}}"></button>
+<button type="button" tabindex="-1" aria-label="{{p.aria}}" data-on-click="{{p.open}}" data-on-mouseenter="{{p.enter}}" data-on-mouseleave="{{p.leave}}" style="position: absolute; left: calc({{p.x}}% - {{p.half}}px); bottom: calc({{p.y}}% - {{p.half}}px); width: {{p.size}}px; height: {{p.size}}px; border-radius: 50%; padding: 0; border: 1px solid {{p.stroke}}; background: {{p.fill}}"></button>
 </sc-for>
 <sc-if value="{{sc.hasTip}}" hint-placeholder-val="{{ false }}">
 <div style="position: absolute; left: {{sc.tip.x}}%; bottom: calc({{sc.tip.y}}% + 14px); transform: translateX({{sc.tip.shift}}); background: #1A222D; border: 1px solid #2A3442; border-radius: 8px; padding: 8px 10px; pointer-events: none; white-space: nowrap; z-index: 2">
@@ -169,7 +181,7 @@ button:focus-visible,input:focus-visible{outline:2px solid #3DDBB0;outline-offse
 </div>
 <span style="font-size: 11px; color: #8B97A6; text-transform: uppercase; letter-spacing: 0.06em">Inflows</span>
 <sc-for list="{{flows.inn}}" as="f" hint-placeholder-count="4">
-<button type="button" class="vr-card-btn" onClick="{{f.open}}" style="display: grid; grid-template-columns: minmax(0, 1fr) 96px 92px; align-items: center; gap: 10px; padding: 7px 8px; margin: 0 -8px; background: transparent; border: 0; border-radius: 8px; color: inherit; text-align: left">
+<button type="button" class="vr-card-btn" data-on-click="{{f.open}}" style="display: grid; grid-template-columns: minmax(0, 1fr) 96px 92px; align-items: center; gap: 10px; padding: 7px 8px; margin: 0 -8px; background: transparent; border: 0; border-radius: 8px; color: inherit; text-align: left">
 <span style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 500">{{f.name}}</span>
 <span style="height: 6px; border-radius: 3px; background: #18202A; overflow: hidden"><span style="display: block; height: 100%; width: {{f.w}}%; background: {{accent}}; border-radius: 3px"></span></span>
 <span style="text-align: right; font-family: 'JetBrains Mono', monospace; font-size: 12px; color: {{accent}}">{{f.txt}}</span>
@@ -177,7 +189,7 @@ button:focus-visible,input:focus-visible{outline:2px solid #3DDBB0;outline-offse
 </sc-for>
 <span style="font-size: 11px; color: #8B97A6; text-transform: uppercase; letter-spacing: 0.06em; margin-top: 4px">Outflows</span>
 <sc-for list="{{flows.out}}" as="f" hint-placeholder-count="3">
-<button type="button" class="vr-card-btn" onClick="{{f.open}}" style="display: grid; grid-template-columns: minmax(0, 1fr) 96px 92px; align-items: center; gap: 10px; padding: 7px 8px; margin: 0 -8px; background: transparent; border: 0; border-radius: 8px; color: inherit; text-align: left">
+<button type="button" class="vr-card-btn" data-on-click="{{f.open}}" style="display: grid; grid-template-columns: minmax(0, 1fr) 96px 92px; align-items: center; gap: 10px; padding: 7px 8px; margin: 0 -8px; background: transparent; border: 0; border-radius: 8px; color: inherit; text-align: left">
 <span style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 500">{{f.name}}</span>
 <span style="height: 6px; border-radius: 3px; background: #18202A; overflow: hidden"><span style="display: block; height: 100%; width: {{f.w}}%; background: #F59E3B; border-radius: 3px"></span></span>
 <span style="text-align: right; font-family: 'JetBrains Mono', monospace; font-size: 12px; color: #F59E3B">{{f.txt}}</span>
@@ -192,28 +204,28 @@ button:focus-visible,input:focus-visible{outline:2px solid #3DDBB0;outline-offse
 <label style="flex: 1 1 280px; position: relative; display: flex; align-items: center">
 <span style="position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0)">Search validators</span>
 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#8B97A6" stroke-width="2" stroke-linecap="round" style="position: absolute; left: 12px" aria-hidden="true"><circle cx="11" cy="11" r="7"></circle><path d="M20 20l-3.5-3.5"></path></svg>
-<input type="search" aria-label="Search validators by name, hotkey or coldkey" value="{{q}}" onChange="{{onQ}}" placeholder="Search by name, hotkey or coldkey…" style="width: 100%; height: 44px; box-sizing: border-box; padding: 0 14px 0 38px; background: #0A0E13; border: 1px solid #232C38; border-radius: 10px; color: #E6EDF3; font: inherit; font-size: 14px">
+<input type="search" aria-label="Search validators by name, hotkey or coldkey" value="{{q}}" data-on-change="{{onQ}}" placeholder="Search by name, hotkey or coldkey…" style="width: 100%; height: 44px; box-sizing: border-box; padding: 0 14px 0 38px; background: #0A0E13; border: 1px solid #232C38; border-radius: 10px; color: #E6EDF3; font: inherit; font-size: 14px">
 </label>
 <div style="display: flex; align-items: center; gap: 8px"><span style="font-size: 12px; color: #8B97A6">Rank by</span>
 <div role="group" aria-label="APY window used for ranking" style="display: flex; gap: 4px; padding: 4px; background: #0A0E13; border: 1px solid #232C38; border-radius: 10px">
 <sc-for list="{{wins}}" as="w" hint-placeholder-count="3">
-<button type="button" aria-pressed="{{w.on}}" onClick="{{w.pick}}" style="height: 34px; min-width: 46px; padding: 0 10px; border: 0; border-radius: 7px; background: {{w.bg}}; color: {{w.fg}}; font-family: 'JetBrains Mono', monospace; font-size: 12px; font-weight: 600">{{w.label}}</button>
+<button type="button" aria-pressed="{{w.on}}" data-on-click="{{w.pick}}" style="height: 34px; min-width: 46px; padding: 0 10px; border: 0; border-radius: 7px; background: {{w.bg}}; color: {{w.fg}}; font-family: 'JetBrains Mono', monospace; font-size: 12px; font-weight: 600">{{w.label}}</button>
 </sc-for>
 </div></div>
 <sc-if value="{{hasRngs}}" hint-placeholder-val="{{ true }}">
 <div style="display: flex; align-items: center; gap: 8px"><span style="font-size: 12px; color: #8B97A6">Range</span>
 <div role="group" aria-label="Range for trend and stake flow" style="display: flex; gap: 4px; padding: 4px; background: #0A0E13; border: 1px solid #232C38; border-radius: 10px">
 <sc-for list="{{rngs}}" as="w" hint-placeholder-count="3">
-<button type="button" aria-pressed="{{w.on}}" onClick="{{w.pick}}" style="height: 34px; min-width: 46px; padding: 0 10px; border: 0; border-radius: 7px; background: {{w.bg}}; color: {{w.fg}}; font-family: 'JetBrains Mono', monospace; font-size: 12px; font-weight: 600">{{w.label}}</button>
+<button type="button" aria-pressed="{{w.on}}" data-on-click="{{w.pick}}" style="height: 34px; min-width: 46px; padding: 0 10px; border: 0; border-radius: 7px; background: {{w.bg}}; color: {{w.fg}}; font-family: 'JetBrains Mono', monospace; font-size: 12px; font-weight: 600">{{w.label}}</button>
 </sc-for>
 </div></div>
 </sc-if>
 <div role="group" aria-label="Minimum stake" style="display: flex; gap: 6px; flex-wrap: wrap">
 <sc-for list="{{mins}}" as="m" hint-placeholder-count="4">
-<button type="button" class="vr-chip" aria-pressed="{{m.on}}" onClick="{{m.pick}}" style="height: 36px; padding: 0 12px; border-radius: 999px; border: 1px solid {{m.border}}; background: {{m.bg}}; color: {{m.fg}}; font-size: 12px; font-weight: 500">{{m.label}}</button>
+<button type="button" class="vr-chip" aria-pressed="{{m.on}}" data-on-click="{{m.pick}}" style="height: 36px; padding: 0 12px; border-radius: 999px; border: 1px solid {{m.border}}; background: {{m.bg}}; color: {{m.fg}}; font-size: 12px; font-weight: 500">{{m.label}}</button>
 </sc-for>
 </div>
-<button type="button" class="vr-chip" aria-pressed="{{hideTake}}" onClick="{{toggleTake}}" style="height: 36px; padding: 0 12px; border-radius: 999px; border: 1px solid {{takeChip.border}}; background: {{takeChip.bg}}; color: {{takeChip.fg}}; font-size: 12px; font-weight: 500; display: flex; align-items: center; gap: 6px">
+<button type="button" class="vr-chip" aria-pressed="{{hideTake}}" data-on-click="{{toggleTake}}" style="height: 36px; padding: 0 12px; border-radius: 999px; border: 1px solid {{takeChip.border}}; background: {{takeChip.bg}}; color: {{takeChip.fg}}; font-size: 12px; font-weight: 500; display: flex; align-items: center; gap: 6px">
 <span style="width: 14px; height: 14px; border-radius: 4px; border: 1.5px solid {{takeChip.fg}}; display: flex; align-items: center; justify-content: center; font-size: 10px; line-height: 1">{{takeChip.mark}}</span>Hide take &gt; 10%</button>
 </div>
 
@@ -224,7 +236,7 @@ button:focus-visible,input:focus-visible{outline:2px solid #3DDBB0;outline-offse
 
 <div class="vr-narrow">
 <sc-for list="{{rows}}" as="r" hint-placeholder-count="8">
-<button type="button" class="vr-row" onClick="{{r.open}}" aria-label="{{r.aria}}" style="width: 100%; display: flex; align-items: center; gap: 12px; padding: 12px 16px; background: transparent; border: 0; border-bottom: 1px solid #161C25; color: inherit; text-align: left">
+<button type="button" class="vr-row" data-on-click="{{r.open}}" aria-label="{{r.aria}}" style="width: 100%; display: flex; align-items: center; gap: 12px; padding: 12px 16px; background: transparent; border: 0; border-bottom: 1px solid #161C25; color: inherit; text-align: left">
 <span style="flex: none; width: 24px; font-family: 'JetBrains Mono', monospace; font-size: 12px; font-weight: 600; color: {{r.rankColor}}">{{r.rank}}</span>
 <span style="flex: none; width: 32px; height: 32px; border-radius: 8px; background: {{r.monoBg}}; color: {{r.monoFg}}; display: flex; align-items: center; justify-content: center; font-family: 'Space Grotesk', sans-serif; font-weight: 600; font-size: 12px" aria-hidden="true">{{r.ini}}</span>
 <span style="flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 2px">
@@ -248,7 +260,7 @@ button:focus-visible,input:focus-visible{outline:2px solid #3DDBB0;outline-offse
 <sc-for list="{{cols}}" as="c" hint-placeholder-count="11">
 <div style="display: flex; justify-content: {{c.justify}}">
 <sc-if value="{{c.sortable}}" hint-placeholder-val="{{ true }}">
-<button type="button" class="vr-th" onClick="{{c.sort}}" aria-label="{{c.aria}}" style="background: transparent; border: 0; padding: 0; height: 40px; display: flex; align-items: center; gap: 4px; color: {{c.color}}; font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; white-space: nowrap">{{c.label}}<span style="font-family: 'JetBrains Mono', monospace">{{c.arrow}}</span></button>
+<button type="button" class="vr-th" data-on-click="{{c.sort}}" aria-label="{{c.aria}}" style="background: transparent; border: 0; padding: 0; height: 40px; display: flex; align-items: center; gap: 4px; color: {{c.color}}; font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; white-space: nowrap">{{c.label}}<span style="font-family: 'JetBrains Mono', monospace">{{c.arrow}}</span></button>
 </sc-if>
 <sc-if value="{{c.plain}}" hint-placeholder-val="{{ false }}">
 <span style="color: #8B97A6; font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; white-space: nowrap">{{c.label}}</span>
@@ -258,10 +270,13 @@ button:focus-visible,input:focus-visible{outline:2px solid #3DDBB0;outline-offse
 </div>
 
 <sc-for list="{{rows}}" as="r" hint-placeholder-count="12">
-<button type="button" class="vr-row" onClick="{{r.open}}" aria-label="{{r.aria}}" style="width: 100%; display: grid; grid-template-columns: {{grid}}; gap: 12px; align-items: center; padding: 0 20px; height: 60px; background: transparent; border: 0; border-bottom: 1px solid #161C25; color: inherit; text-align: left">
+<button type="button" class="vr-row" data-on-click="{{r.open}}" aria-label="{{r.aria}}" style="width: 100%; display: grid; grid-template-columns: {{grid}}; gap: 12px; align-items: center; padding: 0 20px; height: 60px; background: transparent; border: 0; border-bottom: 1px solid #161C25; color: inherit; text-align: left">
 <span style="font-family: 'JetBrains Mono', monospace; font-size: 13px; color: {{r.rankColor}}; font-weight: 600">{{r.rank}}</span>
 <span style="display: flex; align-items: center; gap: 12px; min-width: 0">
-<span style="flex: none; width: 34px; height: 34px; border-radius: 9px; background: {{r.monoBg}}; color: {{r.monoFg}}; display: flex; align-items: center; justify-content: center; font-family: 'Space Grotesk', sans-serif; font-weight: 600; font-size: 13px" aria-hidden="true">{{r.ini}}</span>
+<span class="vr-ava" style="flex: none; width: 34px; height: 34px; border-radius: 9px; background: {{r.av.bg}}; color: {{r.monoFg}}; display: flex; align-items: center; justify-content: center; font-family: 'Space Grotesk', sans-serif; font-weight: 600; font-size: 13px" aria-hidden="true">
+<sc-if value="{{r.av.img}}" hint-placeholder-val="{{ false }}"><img src="{{r.av.src}}" alt="" referrerpolicy="no-referrer" loading="lazy" decoding="async" data-on-error="{{r.av.err}}"></sc-if>
+<sc-if value="{{r.av.mono}}" hint-placeholder-val="{{ true }}">{{r.ini}}</sc-if>
+</span>
 <span style="display: flex; flex-direction: column; min-width: 0">
 <span style="font-weight: 600; font-size: 14px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: {{r.nameColor}}">{{r.name}}</span>
 <span style="font-family: 'JetBrains Mono', monospace; font-size: 11px; color: #8B97A6">{{r.short}}</span>
@@ -295,7 +310,7 @@ button:focus-visible,input:focus-visible{outline:2px solid #3DDBB0;outline-offse
 </div>
 <sc-if value="{{hasMore}}" hint-placeholder-val="{{ true }}">
 <div style="padding: 14px 20px; display: flex; justify-content: center">
-<button type="button" class="vr-chip" onClick="{{showAll}}" style="height: 44px; padding: 0 20px; border-radius: 10px; border: 1px solid #232C38; background: #0A0E13; color: #A9B4C2; font-weight: 500">Show all {{countTxt}} validators</button>
+<button type="button" class="vr-chip" data-on-click="{{showAll}}" style="height: 44px; padding: 0 20px; border-radius: 10px; border: 1px solid #232C38; background: #0A0E13; color: #A9B4C2; font-weight: 500">Show all {{countTxt}} validators</button>
 </div>
 </sc-if>
 </section>
@@ -320,7 +335,7 @@ button:focus-visible,input:focus-visible{outline:2px solid #3DDBB0;outline-offse
 <label style="position: relative; display: flex; align-items: center">
 <span style="position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0)">Search subnets</span>
 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#8B97A6" stroke-width="2" stroke-linecap="round" style="position: absolute; left: 12px" aria-hidden="true"><circle cx="11" cy="11" r="7"></circle><path d="M20 20l-3.5-3.5"></path></svg>
-<input type="search" aria-label="Search subnets by name, number or validator" value="{{q}}" onChange="{{onQ}}" placeholder="Subnet name, number or validator…" style="width: 100%; height: 44px; box-sizing: border-box; padding: 0 12px 0 36px; background: #0A0E13; border: 1px solid #232C38; border-radius: 10px; color: #E6EDF3; font: inherit; font-size: 13px">
+<input type="search" aria-label="Search subnets by name, number or validator" value="{{q}}" data-on-change="{{onQ}}" placeholder="Subnet name, number or validator…" style="width: 100%; height: 44px; box-sizing: border-box; padding: 0 12px 0 36px; background: #0A0E13; border: 1px solid #232C38; border-radius: 10px; color: #E6EDF3; font: inherit; font-size: 13px">
 </label>
 <sc-if value="{{al.hasCur}}" hint-placeholder-val="{{ true }}">
 <details class="vr-narrow vr-dd" style="position: relative">
@@ -330,7 +345,7 @@ button:focus-visible,input:focus-visible{outline:2px solid #3DDBB0;outline-offse
 </summary>
 <div class="vr-scroll" style="max-height: 340px; overflow-y: auto; margin-top: 6px; padding: 4px; background: #0A0E13; border: 1px solid #232C38; border-radius: 10px">
 <sc-for list="{{al.snRows}}" as="s" hint-placeholder-count="8">
-<button type="button" class="vr-card-btn" onClick="{{s.pickDd}}" aria-pressed="{{s.on}}" style="width: 100%; display: grid; grid-template-columns: minmax(0, 1fr) 64px 64px; gap: 8px; align-items: center; padding: 10px 8px; border: 0; border-radius: 8px; background: {{s.bg}}; color: inherit; text-align: left">
+<button type="button" class="vr-card-btn" data-on-click="{{s.pickDd}}" aria-pressed="{{s.on}}" style="width: 100%; display: grid; grid-template-columns: minmax(0, 1fr) 64px 64px; gap: 8px; align-items: center; padding: 10px 8px; border: 0; border-radius: 8px; background: {{s.bg}}; color: inherit; text-align: left">
 <span style="display: flex; gap: 8px; align-items: baseline; min-width: 0"><span style="font-family: 'JetBrains Mono', monospace; font-size: 11px; color: #8B97A6; flex: none">{{s.sn}}</span><span style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 13px">{{s.name}}</span></span>
 <span style="text-align: right; font-family: 'JetBrains Mono', monospace; font-size: 12px; color: {{accent}}">{{s.ref}}</span>
 <span style="text-align: right; font-family: 'JetBrains Mono', monospace; font-size: 12px; color: #A9B4C2">{{s.dp}}</span>
@@ -345,7 +360,7 @@ button:focus-visible,input:focus-visible{outline:2px solid #3DDBB0;outline-offse
 </div>
 <div class="vr-scroll vr-wide" style="max-height: 760px; overflow-y: auto; padding: 6px">
 <sc-for list="{{al.snRows}}" as="s" hint-placeholder-count="12">
-<button type="button" class="vr-card-btn" onClick="{{s.pick}}" aria-pressed="{{s.on}}" style="width: 100%; display: grid; grid-template-columns: minmax(0, 1fr) 70px 70px; gap: 8px; align-items: center; padding: 9px 8px; border: 0; border-radius: 8px; background: {{s.bg}}; color: inherit; text-align: left; box-shadow: inset 3px 0 0 {{s.mark}}">
+<button type="button" class="vr-card-btn" data-on-click="{{s.pick}}" aria-pressed="{{s.on}}" style="width: 100%; display: grid; grid-template-columns: minmax(0, 1fr) 70px 70px; gap: 8px; align-items: center; padding: 9px 8px; border: 0; border-radius: 8px; background: {{s.bg}}; color: inherit; text-align: left; box-shadow: inset 3px 0 0 {{s.mark}}">
 <span style="display: flex; gap: 8px; align-items: baseline; min-width: 0">
 <span style="font-family: 'JetBrains Mono', monospace; font-size: 11px; color: #8B97A6; flex: none; width: 40px">{{s.sn}}</span>
 <span style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 500; font-size: 13px">{{s.name}}</span>
@@ -375,7 +390,7 @@ button:focus-visible,input:focus-visible{outline:2px solid #3DDBB0;outline-offse
 <div style="display: flex; align-items: center; gap: 8px"><span style="font-size: 12px; color: #8B97A6">Window</span>
 <div role="group" aria-label="APY and efficiency window" style="display: flex; gap: 4px; padding: 4px; background: #0A0E13; border: 1px solid #232C38; border-radius: 10px">
 <sc-for list="{{ewins}}" as="w" hint-placeholder-count="3">
-<button type="button" aria-pressed="{{w.on}}" onClick="{{w.pick}}" style="height: 30px; min-width: 46px; padding: 0 10px; border: 0; border-radius: 7px; background: {{w.bg}}; color: {{w.fg}}; font-family: 'JetBrains Mono', monospace; font-size: 12px; font-weight: 600">{{w.label}}</button>
+<button type="button" aria-pressed="{{w.on}}" data-on-click="{{w.pick}}" style="height: 30px; min-width: 46px; padding: 0 10px; border: 0; border-radius: 7px; background: {{w.bg}}; color: {{w.fg}}; font-family: 'JetBrains Mono', monospace; font-size: 12px; font-weight: 600">{{w.label}}</button>
 </sc-for>
 </div></div>
 </sc-if>
@@ -399,7 +414,7 @@ button:focus-visible,input:focus-visible{outline:2px solid #3DDBB0;outline-offse
 </div>
 <div class="vr-narrow">
 <sc-for list="{{al.rows}}" as="r" hint-placeholder-count="6">
-<button type="button" class="vr-row" onClick="{{r.open}}" aria-label="{{r.aria}}" style="width: 100%; display: flex; align-items: center; gap: 12px; padding: 12px 16px; background: transparent; border: 0; border-bottom: 1px solid #161C25; color: inherit; text-align: left">
+<button type="button" class="vr-row" data-on-click="{{r.open}}" aria-label="{{r.aria}}" style="width: 100%; display: flex; align-items: center; gap: 12px; padding: 12px 16px; background: transparent; border: 0; border-bottom: 1px solid #161C25; color: inherit; text-align: left">
 <span style="flex: none; width: 30px; height: 30px; border-radius: 8px; background: {{r.monoBg}}; color: {{r.monoFg}}; display: flex; align-items: center; justify-content: center; font-family: 'Space Grotesk', sans-serif; font-weight: 600; font-size: 12px" aria-hidden="true">{{r.ini}}</span>
 <span style="flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 2px">
 <span style="font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap">{{r.name}}</span>
@@ -418,7 +433,7 @@ button:focus-visible,input:focus-visible{outline:2px solid #3DDBB0;outline-offse
 <span title="Rank by alpha APY on this subnet">#</span><span>Validator</span><span style="text-align: right">Alpha stake</span><span style="text-align: right">Take</span><sc-for list="{{al.winCols}}" as="wc" hint-placeholder-count="3"><span style="text-align: right; color: {{wc.color}}">{{wc.label}}</span></sc-for><span title="{{al.effTip}}">Yield vs best</span><span style="text-align: right">Child take</span>
 </div>
 <sc-for list="{{al.rows}}" as="r" hint-placeholder-count="8">
-<button type="button" class="vr-row" onClick="{{r.open}}" aria-label="{{r.aria}}" style="width: 100%; display: grid; grid-template-columns: {{al.grid}}; gap: 12px; align-items: center; padding: 0 20px; height: 56px; background: transparent; border: 0; border-bottom: 1px solid #161C25; color: inherit; text-align: left">
+<button type="button" class="vr-row" data-on-click="{{r.open}}" aria-label="{{r.aria}}" style="width: 100%; display: grid; grid-template-columns: {{al.grid}}; gap: 12px; align-items: center; padding: 0 20px; height: 56px; background: transparent; border: 0; border-bottom: 1px solid #161C25; color: inherit; text-align: left">
 <span style="font-family: 'JetBrains Mono', monospace; font-size: 13px; font-weight: 600; color: {{r.rankColor}}">{{r.rank}}</span>
 <span style="display: flex; align-items: center; gap: 10px; min-width: 0">
 <span style="flex: none; width: 30px; height: 30px; border-radius: 8px; background: {{r.monoBg}}; color: {{r.monoFg}}; display: flex; align-items: center; justify-content: center; font-family: 'Space Grotesk', sans-serif; font-weight: 600; font-size: 12px" aria-hidden="true">{{r.ini}}</span>
@@ -464,7 +479,7 @@ button:focus-visible,input:focus-visible{outline:2px solid #3DDBB0;outline-offse
 <path d="{{ef.diag}}" fill="none" stroke="#7AA2F7" stroke-width="1.5" stroke-dasharray="4 4" vector-effect="non-scaling-stroke"></path>
 </svg>
 <sc-for list="{{ef.pts}}" as="p" hint-placeholder-count="8">
-<button type="button" tabindex="-1" aria-label="{{p.aria}}" onClick="{{p.open}}" onMouseEnter="{{p.enter}}" onMouseLeave="{{p.leave}}" style="position: absolute; left: calc({{p.x}}% - {{p.half}}px); bottom: calc({{p.y}}% - {{p.half}}px); width: {{p.size}}px; height: {{p.size}}px; border-radius: 50%; padding: 0; border: 1px solid {{p.stroke}}; background: {{p.fill}}"></button>
+<button type="button" tabindex="-1" aria-label="{{p.aria}}" data-on-click="{{p.open}}" data-on-mouseenter="{{p.enter}}" data-on-mouseleave="{{p.leave}}" style="position: absolute; left: calc({{p.x}}% - {{p.half}}px); bottom: calc({{p.y}}% - {{p.half}}px); width: {{p.size}}px; height: {{p.size}}px; border-radius: 50%; padding: 0; border: 1px solid {{p.stroke}}; background: {{p.fill}}"></button>
 </sc-for>
 <sc-if value="{{ef.hasTip}}" hint-placeholder-val="{{ false }}">
 <div style="position: absolute; left: {{ef.tip.x}}%; bottom: calc({{ef.tip.y}}% + 14px); transform: translateX({{ef.tip.shift}}); background: #1A222D; border: 1px solid #2A3442; border-radius: 8px; padding: 8px 10px; pointer-events: none; white-space: nowrap; z-index: 2">
@@ -482,7 +497,7 @@ button:focus-visible,input:focus-visible{outline:2px solid #3DDBB0;outline-offse
 <span style="font-family: 'JetBrains Mono', monospace; font-size: 11px; color: #8B97A6" title="Gap vs the best pools on the same subnets, minus the listed take">gap − listed take</span>
 </div>
 <sc-for list="{{ef.hidden}}" as="h" hint-placeholder-count="5">
-<button type="button" class="vr-card-btn" onClick="{{h.open}}" style="display: grid; grid-template-columns: minmax(0, 1fr) 110px 70px; align-items: center; gap: 10px; padding: 9px 8px; margin: 0 -8px; background: transparent; border: 0; border-radius: 8px; color: inherit; text-align: left">
+<button type="button" class="vr-card-btn" data-on-click="{{h.open}}" style="display: grid; grid-template-columns: minmax(0, 1fr) 110px 70px; align-items: center; gap: 10px; padding: 9px 8px; margin: 0 -8px; background: transparent; border: 0; border-radius: 8px; color: inherit; text-align: left">
 <span style="display: flex; flex-direction: column; min-width: 0">
 <span style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 500">{{h.name}}</span>
 <span style="font-family: 'JetBrains Mono', monospace; font-size: 11px; color: #8B97A6">listed take {{h.t}} → gap vs best {{h.et}}</span>
@@ -502,19 +517,19 @@ button:focus-visible,input:focus-visible{outline:2px solid #3DDBB0;outline-offse
 <label style="flex: 1 1 280px; position: relative; display: flex; align-items: center">
 <span style="position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0)">Search validators</span>
 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#8B97A6" stroke-width="2" stroke-linecap="round" style="position: absolute; left: 12px" aria-hidden="true"><circle cx="11" cy="11" r="7"></circle><path d="M20 20l-3.5-3.5"></path></svg>
-<input type="search" aria-label="Search validators by name or hotkey" value="{{q}}" onChange="{{onQ}}" placeholder="Search by name or hotkey…" style="width: 100%; height: 44px; box-sizing: border-box; padding: 0 14px 0 38px; background: #0A0E13; border: 1px solid #232C38; border-radius: 10px; color: #E6EDF3; font: inherit; font-size: 14px">
+<input type="search" aria-label="Search validators by name or hotkey" value="{{q}}" data-on-change="{{onQ}}" placeholder="Search by name or hotkey…" style="width: 100%; height: 44px; box-sizing: border-box; padding: 0 14px 0 38px; background: #0A0E13; border: 1px solid #232C38; border-radius: 10px; color: #E6EDF3; font: inherit; font-size: 14px">
 </label>
 <sc-if value="{{hasEw}}" hint-placeholder-val="{{ true }}">
 <div style="display: flex; align-items: center; gap: 8px"><span style="font-size: 12px; color: #8B97A6">Window</span>
 <div role="group" aria-label="Efficiency window" style="display: flex; gap: 4px; padding: 4px; background: #0A0E13; border: 1px solid #232C38; border-radius: 10px">
 <sc-for list="{{ewins}}" as="w" hint-placeholder-count="3">
-<button type="button" aria-pressed="{{w.on}}" onClick="{{w.pick}}" style="height: 34px; min-width: 46px; padding: 0 10px; border: 0; border-radius: 7px; background: {{w.bg}}; color: {{w.fg}}; font-family: 'JetBrains Mono', monospace; font-size: 12px; font-weight: 600">{{w.label}}</button>
+<button type="button" aria-pressed="{{w.on}}" data-on-click="{{w.pick}}" style="height: 34px; min-width: 46px; padding: 0 10px; border: 0; border-radius: 7px; background: {{w.bg}}; color: {{w.fg}}; font-family: 'JetBrains Mono', monospace; font-size: 12px; font-weight: 600">{{w.label}}</button>
 </sc-for>
 </div></div>
 </sc-if>
 <div role="group" aria-label="Minimum alpha stake" style="display: flex; gap: 6px; flex-wrap: wrap">
 <sc-for list="{{ef.mins}}" as="m" hint-placeholder-count="4">
-<button type="button" class="vr-chip" aria-pressed="{{m.on}}" onClick="{{m.pick}}" style="height: 36px; padding: 0 12px; border-radius: 999px; border: 1px solid {{m.border}}; background: {{m.bg}}; color: {{m.fg}}; font-size: 12px; font-weight: 500">{{m.label}}</button>
+<button type="button" class="vr-chip" aria-pressed="{{m.on}}" data-on-click="{{m.pick}}" style="height: 36px; padding: 0 12px; border-radius: 999px; border: 1px solid {{m.border}}; background: {{m.bg}}; color: {{m.fg}}; font-size: 12px; font-weight: 500">{{m.label}}</button>
 </sc-for>
 </div>
 </div>
@@ -524,7 +539,7 @@ button:focus-visible,input:focus-visible{outline:2px solid #3DDBB0;outline-offse
 </sc-if>
 <div class="vr-narrow">
 <sc-for list="{{ef.rows}}" as="r" hint-placeholder-count="6">
-<button type="button" class="vr-row" onClick="{{r.open}}" aria-label="{{r.aria}}" style="width: 100%; display: flex; align-items: center; gap: 12px; padding: 12px 16px; background: transparent; border: 0; border-bottom: 1px solid #161C25; color: inherit; text-align: left">
+<button type="button" class="vr-row" data-on-click="{{r.open}}" aria-label="{{r.aria}}" style="width: 100%; display: flex; align-items: center; gap: 12px; padding: 12px 16px; background: transparent; border: 0; border-bottom: 1px solid #161C25; color: inherit; text-align: left">
 <span style="flex: none; width: 26px; font-family: 'JetBrains Mono', monospace; font-size: 12px; font-weight: 600; color: {{r.rankColor}}">{{r.rank}}</span>
 <span style="flex: none; width: 32px; height: 32px; border-radius: 8px; background: {{r.monoBg}}; color: {{r.monoFg}}; display: flex; align-items: center; justify-content: center; font-family: 'Space Grotesk', sans-serif; font-weight: 600; font-size: 12px" aria-hidden="true">{{r.ini}}</span>
 <span style="flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 2px">
@@ -547,12 +562,12 @@ button:focus-visible,input:focus-visible{outline:2px solid #3DDBB0;outline-offse
 <div style="display: grid; grid-template-columns: {{ef.grid}}; gap: 12px; align-items: center; padding: 0 20px; height: 40px; background: #0B1016; border-bottom: 1px solid #1C232D">
 <sc-for list="{{ef.cols}}" as="c" hint-placeholder-count="10">
 <div style="display: flex; justify-content: {{c.justify}}">
-<button type="button" class="vr-th" onClick="{{c.sort}}" aria-label="{{c.aria}}" title="{{c.title}}" style="background: transparent; border: 0; padding: 0; height: 40px; display: flex; align-items: center; gap: 4px; color: {{c.color}}; font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; white-space: nowrap">{{c.label}}<span style="font-family: 'JetBrains Mono', monospace">{{c.arrow}}</span></button>
+<button type="button" class="vr-th" data-on-click="{{c.sort}}" aria-label="{{c.aria}}" title="{{c.title}}" style="background: transparent; border: 0; padding: 0; height: 40px; display: flex; align-items: center; gap: 4px; color: {{c.color}}; font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; white-space: nowrap">{{c.label}}<span style="font-family: 'JetBrains Mono', monospace">{{c.arrow}}</span></button>
 </div>
 </sc-for>
 </div>
 <sc-for list="{{ef.rows}}" as="r" hint-placeholder-count="8">
-<button type="button" class="vr-row" onClick="{{r.open}}" aria-label="{{r.aria}}" style="width: 100%; display: grid; grid-template-columns: {{ef.grid}}; gap: 12px; align-items: center; padding: 0 20px; height: 58px; background: transparent; border: 0; border-bottom: 1px solid #161C25; color: inherit; text-align: left">
+<button type="button" class="vr-row" data-on-click="{{r.open}}" aria-label="{{r.aria}}" style="width: 100%; display: grid; grid-template-columns: {{ef.grid}}; gap: 12px; align-items: center; padding: 0 20px; height: 58px; background: transparent; border: 0; border-bottom: 1px solid #161C25; color: inherit; text-align: left">
 <span style="font-family: 'JetBrains Mono', monospace; font-size: 13px; font-weight: 600; color: {{r.rankColor}}">{{r.rank}}</span>
 <span style="display: flex; align-items: center; gap: 10px; min-width: 0">
 <span style="flex: none; width: 32px; height: 32px; border-radius: 8px; background: {{r.monoBg}}; color: {{r.monoFg}}; display: flex; align-items: center; justify-content: center; font-family: 'Space Grotesk', sans-serif; font-weight: 600; font-size: 12px" aria-hidden="true">{{r.ini}}</span>
@@ -595,7 +610,7 @@ button:focus-visible,input:focus-visible{outline:2px solid #3DDBB0;outline-offse
 <sc-if value="{{detailView}}" hint-placeholder-val="{{ false }}">
 <main style="max-width: 1360px; margin: 0 auto; padding: 20px 24px 64px; display: flex; flex-direction: column; gap: 20px">
 <div>
-<button type="button" class="vr-chip" onClick="{{back}}" style="height: 40px; padding: 0 14px 0 10px; border-radius: 10px; border: 1px solid #232C38; background: #0E131A; color: #A9B4C2; display: inline-flex; align-items: center; gap: 6px; font-weight: 500">
+<button type="button" class="vr-chip" data-on-click="{{back}}" style="height: 40px; padding: 0 14px 0 10px; border-radius: 10px; border: 1px solid #232C38; background: #0E131A; color: #A9B4C2; display: inline-flex; align-items: center; gap: 6px; font-weight: 500">
 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 18l-6-6 6-6"></path></svg>Rankings</button>
 </div>
 
@@ -610,7 +625,7 @@ button:focus-visible,input:focus-visible{outline:2px solid #3DDBB0;outline-offse
 </div>
 <div style="display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px; font-family: 'JetBrains Mono', monospace; font-size: 12px; color: #8B97A6">
 <span>hotkey <span style="color: #C9D1D9; word-break: break-all">{{d.hk}}</span></span>
-<button type="button" class="vr-chip" onClick="{{d.copy}}" style="height: 30px; padding: 0 10px; border-radius: 7px; border: 1px solid #232C38; background: transparent; color: #A9B4C2; font-size: 11px">{{d.copyTxt}}</button>
+<button type="button" class="vr-chip" data-on-click="{{d.copy}}" style="height: 30px; padding: 0 10px; border-radius: 7px; border: 1px solid #232C38; background: transparent; color: #A9B4C2; font-size: 11px">{{d.copyTxt}}</button>
 </div>
 <div style="font-family: 'JetBrains Mono', monospace; font-size: 12px; color: #8B97A6">coldkey <span style="color: #A9B4C2; word-break: break-all">{{d.ck}}</span></div>
 </div>
@@ -634,7 +649,7 @@ button:focus-visible,input:focus-visible{outline:2px solid #3DDBB0;outline-offse
 <div style="display: flex; align-items: center; gap: 8px"><span style="font-size: 12px; color: #8B97A6">Range</span>
 <div role="group" aria-label="Chart range" style="display: flex; gap: 4px; padding: 4px; background: #0A0E13; border: 1px solid #232C38; border-radius: 10px">
 <sc-for list="{{d.ch.rngs}}" as="w" hint-placeholder-count="3">
-<button type="button" aria-pressed="{{w.on}}" onClick="{{w.pick}}" style="height: 30px; min-width: 46px; padding: 0 10px; border: 0; border-radius: 7px; background: {{w.bg}}; color: {{w.fg}}; font-family: 'JetBrains Mono', monospace; font-size: 12px; font-weight: 600">{{w.label}}</button>
+<button type="button" aria-pressed="{{w.on}}" data-on-click="{{w.pick}}" style="height: 30px; min-width: 46px; padding: 0 10px; border: 0; border-radius: 7px; background: {{w.bg}}; color: {{w.fg}}; font-family: 'JetBrains Mono', monospace; font-size: 12px; font-weight: 600">{{w.label}}</button>
 </sc-for>
 </div></div>
 </sc-if>
@@ -646,7 +661,7 @@ button:focus-visible,input:focus-visible{outline:2px solid #3DDBB0;outline-offse
 </sc-if>
 <span style="display: flex; align-items: center; gap: 6px"><span style="width: 14px; height: 0; border-top: 2px dashed #7AA2F7"></span>Median 7D (≥1K τ)</span>
 </div>
-<div style="position: relative; height: 280px; margin: 6px 0 22px 40px" onMouseLeave="{{d.ch.leave}}">
+<div style="position: relative; height: 280px; margin: 6px 0 22px 40px" data-on-mouseleave="{{d.ch.leave}}">
 <sc-if value="{{d.ch.hasPause}}" hint-placeholder-val="{{ true }}">
 <div style="position: absolute; top: 0; bottom: 0; left: {{d.ch.pauseL}}%; width: {{d.ch.pauseW}}%; background: #141B24; border-radius: 4px; overflow: hidden">
 <span style="position: absolute; top: 6px; left: 8px; right: 4px; font-size: 11px; color: #8B97A6; line-height: 1.3">Basket updates paused</span>
@@ -668,7 +683,7 @@ button:focus-visible,input:focus-visible{outline:2px solid #3DDBB0;outline-offse
 </svg>
 <div style="position: absolute; inset: 0; display: flex">
 <sc-for list="{{d.ch.cols}}" as="hc" hint-placeholder-count="24">
-<div onMouseEnter="{{hc.enter}}" style="flex: 1 1 0; height: 100%"></div>
+<div data-on-mouseenter="{{hc.enter}}" style="flex: 1 1 0; height: 100%"></div>
 </sc-for>
 </div>
 <sc-if value="{{d.ch.hasTip}}" hint-placeholder-val="{{ false }}">
@@ -695,7 +710,7 @@ button:focus-visible,input:focus-visible{outline:2px solid #3DDBB0;outline-offse
 <h2 style="margin: 0; font-family: 'Space Grotesk', sans-serif; font-weight: 600; font-size: 16px">Earnings calculator</h2>
 <label style="display: flex; flex-direction: column; gap: 6px; font-size: 12px; color: #A9B4C2">τ staked on root
 <span style="position: relative; display: flex; align-items: center">
-<input type="text" inputmode="decimal" value="{{amt}}" onChange="{{onAmt}}" style="width: 100%; height: 48px; box-sizing: border-box; padding: 0 40px 0 14px; background: #0A0E13; border: 1px solid #232C38; border-radius: 10px; color: #E6EDF3; font-family: 'JetBrains Mono', monospace; font-size: 18px">
+<input type="text" inputmode="decimal" value="{{amt}}" data-on-change="{{onAmt}}" style="width: 100%; height: 48px; box-sizing: border-box; padding: 0 40px 0 14px; background: #0A0E13; border: 1px solid #232C38; border-radius: 10px; color: #E6EDF3; font-family: 'JetBrains Mono', monospace; font-size: 18px">
 <span style="position: absolute; right: 14px; color: #8B97A6; font-family: 'JetBrains Mono', monospace">τ</span>
 </span>
 </label>
@@ -797,7 +812,7 @@ button:focus-visible,input:focus-visible{outline:2px solid #3DDBB0;outline-offse
 </div>
 <div class="vr-narrow">
 <sc-for list="{{d.alpha.rows}}" as="r" hint-placeholder-count="6">
-<button type="button" class="vr-row" onClick="{{r.go}}" style="width: 100%; display: flex; align-items: center; gap: 12px; padding: 12px 16px; background: transparent; border: 0; border-bottom: 1px solid #161C25; color: inherit; text-align: left">
+<button type="button" class="vr-row" data-on-click="{{r.go}}" style="width: 100%; display: flex; align-items: center; gap: 12px; padding: 12px 16px; background: transparent; border: 0; border-bottom: 1px solid #161C25; color: inherit; text-align: left">
 <span style="flex: none; width: 44px; font-family: 'JetBrains Mono', monospace; font-size: 11px; color: #8B97A6">{{r.sn}}</span>
 <span style="flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 2px">
 <span style="font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap">{{r.name}}</span>
@@ -816,7 +831,7 @@ button:focus-visible,input:focus-visible{outline:2px solid #3DDBB0;outline-offse
 <span>Subnet</span><span style="text-align: right">Alpha stake</span><span style="text-align: right">{{d.alpha.hA}}</span><span style="text-align: right">Rank</span><span title="{{d.alpha.effTip}}">Yield vs best</span><span style="text-align: right" title="Alpha price change against τ, the same for every validator on that subnet">{{d.alpha.hP}}</span>
 </div>
 <sc-for list="{{d.alpha.rows}}" as="r" hint-placeholder-count="8">
-<button type="button" class="vr-row" onClick="{{r.go}}" style="width: 100%; display: grid; grid-template-columns: minmax(200px, 2fr) 120px 90px 90px 160px 90px; gap: 12px; align-items: center; padding: 0 20px; height: 48px; background: transparent; border: 0; border-bottom: 1px solid #161C25; color: inherit; text-align: left">
+<button type="button" class="vr-row" data-on-click="{{r.go}}" style="width: 100%; display: grid; grid-template-columns: minmax(200px, 2fr) 120px 90px 90px 160px 90px; gap: 12px; align-items: center; padding: 0 20px; height: 48px; background: transparent; border: 0; border-bottom: 1px solid #161C25; color: inherit; text-align: left">
 <span style="display: flex; gap: 8px; align-items: baseline; min-width: 0">
 <span style="font-family: 'JetBrains Mono', monospace; font-size: 11px; color: #8B97A6; width: 44px; flex: none">{{r.sn}}</span>
 <span style="font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap">{{r.name}}</span>
@@ -847,7 +862,7 @@ button:focus-visible,input:focus-visible{outline:2px solid #3DDBB0;outline-offse
 <sc-if value="{{alphaView}}" hint-placeholder-val="{{ false }}">
 <main style="max-width: 1360px; margin: 0 auto; padding: 20px 24px 64px; display: flex; flex-direction: column; gap: 20px">
 <div>
-<button type="button" class="vr-chip" onClick="{{back}}" style="height: 40px; padding: 0 14px 0 10px; border-radius: 10px; border: 1px solid #232C38; background: #0E131A; color: #A9B4C2; display: inline-flex; align-items: center; gap: 6px; font-weight: 500">
+<button type="button" class="vr-chip" data-on-click="{{back}}" style="height: 40px; padding: 0 14px 0 10px; border-radius: 10px; border: 1px solid #232C38; background: #0E131A; color: #A9B4C2; display: inline-flex; align-items: center; gap: 6px; font-weight: 500">
 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 18l-6-6 6-6"></path></svg>Rankings</button>
 </div>
 
@@ -865,14 +880,14 @@ button:focus-visible,input:focus-visible{outline:2px solid #3DDBB0;outline-offse
 </div>
 <div style="display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px; font-family: 'JetBrains Mono', monospace; font-size: 12px; color: #8B97A6">
 <span>hotkey <span style="color: #C9D1D9; word-break: break-all">{{ad.hk}}</span></span>
-<button type="button" class="vr-chip" onClick="{{ad.copy}}" style="height: 30px; padding: 0 10px; border-radius: 7px; border: 1px solid #232C38; background: transparent; color: #A9B4C2; font-size: 11px">{{ad.copyTxt}}</button>
+<button type="button" class="vr-chip" data-on-click="{{ad.copy}}" style="height: 30px; padding: 0 10px; border-radius: 7px; border: 1px solid #232C38; background: transparent; color: #A9B4C2; font-size: 11px">{{ad.copyTxt}}</button>
 </div>
 <div style="font-size: 12px; color: #8B97A6">Alpha stake only: this validator has no root basket, so it has no root APY.</div>
 <sc-if value="{{hasEw}}" hint-placeholder-val="{{ true }}">
 <div style="display: flex; align-items: center; gap: 8px"><span style="font-size: 12px; color: #8B97A6">Window</span>
 <div role="group" aria-label="APY and efficiency window" style="display: flex; gap: 4px; padding: 4px; background: #0A0E13; border: 1px solid #232C38; border-radius: 10px">
 <sc-for list="{{ewins}}" as="w" hint-placeholder-count="3">
-<button type="button" aria-pressed="{{w.on}}" onClick="{{w.pick}}" style="height: 30px; min-width: 46px; padding: 0 10px; border: 0; border-radius: 7px; background: {{w.bg}}; color: {{w.fg}}; font-family: 'JetBrains Mono', monospace; font-size: 12px; font-weight: 600">{{w.label}}</button>
+<button type="button" aria-pressed="{{w.on}}" data-on-click="{{w.pick}}" style="height: 30px; min-width: 46px; padding: 0 10px; border: 0; border-radius: 7px; background: {{w.bg}}; color: {{w.fg}}; font-family: 'JetBrains Mono', monospace; font-size: 12px; font-weight: 600">{{w.label}}</button>
 </sc-for>
 </div></div>
 </sc-if>
@@ -922,7 +937,7 @@ button:focus-visible,input:focus-visible{outline:2px solid #3DDBB0;outline-offse
 </div>
 <div class="vr-narrow">
 <sc-for list="{{ad.rows}}" as="r" hint-placeholder-count="6">
-<button type="button" class="vr-row" onClick="{{r.go}}" aria-label="{{r.aria}}" style="width: 100%; display: flex; align-items: center; gap: 12px; padding: 12px 16px; background: transparent; border: 0; border-bottom: 1px solid #161C25; color: inherit; text-align: left">
+<button type="button" class="vr-row" data-on-click="{{r.go}}" aria-label="{{r.aria}}" style="width: 100%; display: flex; align-items: center; gap: 12px; padding: 12px 16px; background: transparent; border: 0; border-bottom: 1px solid #161C25; color: inherit; text-align: left">
 <span style="flex: none; width: 44px; font-family: 'JetBrains Mono', monospace; font-size: 11px; color: #8B97A6">{{r.sn}}</span>
 <span style="flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 2px">
 <span style="font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap">{{r.name}}</span>
@@ -941,7 +956,7 @@ button:focus-visible,input:focus-visible{outline:2px solid #3DDBB0;outline-offse
 <span>Subnet</span><span style="text-align: right">Alpha stake</span><sc-for list="{{ad.winCols}}" as="wc" hint-placeholder-count="3"><span style="text-align: right; color: {{wc.color}}">{{wc.label}}</span></sc-for><span style="text-align: right">{{ad.hdrRef}}</span><span title="{{ad.effTip}}">Yield vs best</span><span style="text-align: right">Rank</span><span style="text-align: right">Child take</span><span style="text-align: right" title="{{ad.pxTip}}">{{ad.hdrDp}}</span>
 </div>
 <sc-for list="{{ad.rows}}" as="r" hint-placeholder-count="8">
-<button type="button" class="vr-row" onClick="{{r.go}}" aria-label="{{r.aria}}" style="width: 100%; display: grid; grid-template-columns: {{ad.grid}}; gap: 12px; align-items: center; padding: 0 20px; height: 48px; background: transparent; border: 0; border-bottom: 1px solid #161C25; color: inherit; text-align: left">
+<button type="button" class="vr-row" data-on-click="{{r.go}}" aria-label="{{r.aria}}" style="width: 100%; display: grid; grid-template-columns: {{ad.grid}}; gap: 12px; align-items: center; padding: 0 20px; height: 48px; background: transparent; border: 0; border-bottom: 1px solid #161C25; color: inherit; text-align: left">
 <span style="display: flex; gap: 8px; align-items: baseline; min-width: 0">
 <span style="font-family: 'JetBrains Mono', monospace; font-size: 11px; color: #8B97A6; width: 44px; flex: none">{{r.sn}}</span>
 <span style="font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap">{{r.name}}</span>
@@ -966,7 +981,7 @@ button:focus-visible,input:focus-visible{outline:2px solid #3DDBB0;outline-offse
 <div style="padding: 24px 20px; text-align: center; font-size: 13px; color: #8B97A6">No pool worth at least 1 τ.</div>
 </sc-if>
 <sc-if value="{{ad.more}}" hint-placeholder-val="{{ false }}">
-<div style="padding: 12px 20px"><button type="button" class="vr-chip" onClick="{{ad.showAll}}" style="height: 36px; padding: 0 14px; border-radius: 9px; border: 1px solid #232C38; background: transparent; color: #A9B4C2">{{ad.moreTxt}}</button></div>
+<div style="padding: 12px 20px"><button type="button" class="vr-chip" data-on-click="{{ad.showAll}}" style="height: 36px; padding: 0 14px; border-radius: 9px; border: 1px solid #232C38; background: transparent; color: #A9B4C2">{{ad.moreTxt}}</button></div>
 </sc-if>
 </section>
 
@@ -975,8 +990,7 @@ button:focus-visible,input:focus-visible{outline:2px solid #3DDBB0;outline-offse
 </sc-if>
 </div>
 </template>
-<script src="/dc-lite.js?v=5f681ab05352"></script>
-<script src="/analytics.js?v=da87e049d059"></script>
-<script>DCMount(Component, document.getElementById('tpl'), document.getElementById('app'), {});</script>
+<script src="/dc-lite.js?v=0ced284fd338"></script>
+<script src="/analytics.js?v=594e1bed3536"></script>
 </body>
 </html>

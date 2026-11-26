@@ -4254,6 +4254,8 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "axum",
+ "bytes",
+ "flate2",
  "serde",
  "serde_json",
  "sqlx",

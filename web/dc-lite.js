@@ -9,6 +9,10 @@
  *
  * Each render builds a light vnode tree from the <template> and patches the live DOM
  * by position, so focused inputs, scroll and hover survive re-renders.
+ *
+ * Safety: text goes in as text nodes, attributes through setAttribute; on* / data-on-*
+ * attributes are never written to the DOM (only {{fn}} bindings become listeners), and URL attributes keep
+ * only safe schemes (see safeUrl), so data from the chain can't become script.
  */
 (function () {
   'use strict';
@@ -59,9 +63,28 @@
     return m ? lookup(scope, m[1]) : raw;
   }
 
-  // HTML parsing lower-cases attribute names: onClick → onclick.
+  // URL-valued attributes: links may be relative, #fragment, http(s) or mailto; resources
+  // (src, poster…) only relative or https. Anything else (javascript:, data:, vbscript:…) is
+  // dropped.
+  const LINK_ATTRS = { href: 1, action: 1, formaction: 1, 'xlink:href': 1 };
+  const RES_ATTRS = { src: 1, poster: 1, srcset: 1 };
+  function safeUrl(name, value) {
+    if (!LINK_ATTRS[name] && !RES_ATTRS[name]) return value;
+    const v = String(value).trim();
+    // strip whitespace/control chars browsers ignore inside a scheme, then read the scheme
+    const m = v.replace(/[\u0000-\u0020]/g, '').match(/^([a-zA-Z][a-zA-Z0-9+.-]*):/);
+    if (!m) return v; // relative, #fragment, ?query
+    const scheme = m[1].toLowerCase();
+    if (RES_ATTRS[name]) return scheme === 'https' ? v : null;
+    return scheme === 'http' || scheme === 'https' || scheme === 'mailto' ? v : null;
+  }
+
+  // HTML parsing lower-cases attribute names: onClick → onclick. tools/dc2web.py writes event
+  // bindings as data-on-click (Chrome reports even inert on* attributes in a <template> as CSP
+  // violations); both spellings bind the same way.
+  const EVENT_ATTR = /^(?:data-)?on-?([a-z]+)$/;
   function eventType(attr, tag) {
-    const t = attr.slice(2);
+    const t = attr.match(EVENT_ATTR)[1];
     if (t === 'change' && (tag === 'input' || tag === 'textarea')) return 'input'; // React onChange semantics
     return t;
   }
@@ -95,9 +118,12 @@
         const name = a.name, val = a.value;
         if (name.startsWith('hint-')) continue;
         const whole = val.match(WHOLE);
-        if (/^on[a-z]+$/.test(name) && whole) {
-          const fn = lookup(scope, whole[1]);
-          if (typeof fn === 'function') vn.on[eventType(name, tag)] = fn;
+        if (/^on[a-z]+$/.test(name) || /^data-on-[a-z]+$/.test(name)) {
+          // only {{fn}} bindings become listeners; inline handler code is never written
+          if (whole) {
+            const fn = lookup(scope, whole[1]);
+            if (typeof fn === 'function') vn.on[eventType(name, tag)] = fn;
+          }
           continue;
         }
         if (whole) {
@@ -108,9 +134,11 @@
             continue;
           }
           if (v == null || (v === false && !name.startsWith('aria-'))) continue;
-          vn.attrs[name] = String(v);
+          const safe = safeUrl(name, String(v));
+          if (safe != null) vn.attrs[name] = safe;
         } else {
-          vn.attrs[name] = val.indexOf('{{') >= 0 ? interp(val, scope) : val;
+          const safe = safeUrl(name, val.indexOf('{{') >= 0 ? interp(val, scope) : val);
+          if (safe != null) vn.attrs[name] = safe;
         }
       }
       build(n.childNodes, scope, vn.children);

@@ -12,11 +12,17 @@ const BADGE = {
   'Not earning': { bg: '#3A1716', fg: '#FF8A80', tip: 'No rewards reached stakers over the window' },
   'High fee': { bg: '#33210F', fg: '#F5A524', tip: 'Keeps 15% or more of rewards (take + childkey take)' },
   'Unstable': { bg: '#2E2814', fg: '#E8C35A', tip: 'Its 7-day and 30-day payout differ by more than 15 points' },
-  'Thin benchmark': { bg: '#1A212B', fg: '#A9B4C2', tip: 'Few comparable validators here, so the comparison is rough' },
+  // a warning like the ones above (hidden by "Hide warnings"), so it gets a warning colour
+  'Thin benchmark': { bg: '#2E2814', fg: '#E8C35A', tip: 'Few comparable validators here, so the comparison is rough' },
   'New': { bg: '#1A212B', fg: '#A9B4C2', tip: 'Not enough history to grade yet' },
   'Small': { bg: '#1A212B', fg: '#A9B4C2', tip: 'Under 1,000 τ staked: not graded' },
 };
+// Rows "with warnings" (hidden by "Hide warnings"); the Terminal UI uses the same list.
 const WARN_BADGES = new Set(['Not earning', 'High fee', 'Unstable', 'Thin benchmark']);
+const hasWarn = (b) => (b || []).some((x) => WARN_BADGES.has(x));
+const NARROW = '(max-width: 899px)';
+const PX_EVERY = 2000;
+const REDUCED = () => typeof window !== 'undefined' && !!window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 const OK = { icon: '✓', bg: '#123327', fg: '#3DDBB0' };
 const WARN = { icon: '!', bg: '#33210F', fg: '#F5A524' };
 const BAD = { icon: '×', bg: '#3A1716', fg: '#FF8A80' };
@@ -26,12 +32,34 @@ const PRICE_WS = 'wss://data-stream.binance.vision/ws/taousdt@ticker';
 const PRICE_SNAPSHOT = { c: 185.10, P: 3.989, h: 186.10, l: 169.10, q: 16169472.5, E: 1795663101480 };
 const HASH_RE = /^#v\/([1-9A-HJ-NP-Za-km-z]{40,60})(?:\/(\d+))?$/;
 const PAGE = 40;
+const STAKE_US = '5FFSBkNiymQWHaxc8dTmfTT7iHoz6YDexVG4xR2yLrffVR86';
+// sortable columns: `best` = direction that puts the best first (1 = high values first)
+const SORTS = {
+  g: { label: 'Grade', best: 1, val: (r) => (r.g ? 5 - 'ABCDF'.indexOf(r.g) : null), word: ['A first', 'F first'] },
+  a30: { label: 'APY 30D', best: 1, val: (r) => (r.g === 'F' ? 0 : r.a30), word: ['highest first', 'lowest first'] },
+  pr: { label: 'Payout vs best', best: 1, val: (r) => (r.g === 'F' ? 0 : r.pr), word: ['highest first', 'lowest first'] },
+  fee: { label: 'Total fee', best: -1, val: (r) => r.fee, word: ['lowest first', 'highest first'] },
+  stake: { label: 'Stake', best: 1, val: (r) => r.stake, word: ['largest first', 'smallest first'] },
+};
 const TABS = 8;
 const PLACES = 12;
 const fmtInt = (n) => n == null ? '—' : Math.round(n).toLocaleString('en-US');
 const fmtK = (n) => n == null ? '—' : n >= 1e6 ? (n / 1e6).toFixed(2) + 'M' : n >= 1e3 ? (n / 1e3).toFixed(1) + 'K' : String(Math.round(n));
 const pct = (n, d) => n == null ? '—' : n.toFixed(d == null ? 1 : d) + '%';
 const sgn = (n, d) => { if (n == null) return '—'; const t = Math.abs(n).toFixed(d == null ? 1 : d); return (+t === 0 ? '' : n > 0 ? '+' : '−') + t + '%'; };
+// subnet search: "51", "sn51", "SN 51" match the netuid (exact first, then prefix); anything else
+// matches the subnet name, case-insensitive
+function matchSubnets(subs, raw) {
+  const q = String(raw || '').trim().toLowerCase();
+  if (!q) return subs.slice();
+  const n = q.replace(/\s+/g, '').replace(/^sn/, '');
+  if (n === '') return subs.slice(); // just "sn"
+  if (/^\d+$/.test(n)) {
+    const exact = subs.filter((s) => String(s.nu) === n);
+    return exact.concat(subs.filter((s) => String(s.nu) !== n && String(s.nu).startsWith(n)));
+  }
+  return subs.filter((s) => (s.name || '').toLowerCase().includes(q));
+}
 const short = (hk) => hk ? hk.slice(0, 6) + '…' + hk.slice(-4) : '';
 function usd(n) {
   if (n == null || !isFinite(n)) return '—';
@@ -43,15 +71,25 @@ function usd(n) {
 }
 function hue(s) { let h = 0; for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) % 360; return h; }
 function modified(e) { return !!(e && (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || e.button === 1)); }
+// Remember the chosen interface (per viewer) and go to its page, keeping the current view (the hash).
+function switchUI(to, e) {
+  if (modified(e)) return;
+  if (e) e.preventDefault();
+  try { localStorage.setItem('vy.ui', to); } catch (err) { /* storage blocked: the link still works */ }
+  window.location.href = (to === 'terminal' ? '/terminal' : '/') + (window.location.hash || '');
+}
 
 class Component extends DCLogic {
   constructor(props) {
     super(props);
     this.state = {
-      data: null, err: null, mode: 'root', sn: null, q: '', grade: 'all', hideWarn: false, all: false, calcHk: null, amt: '1,000',
+      data: null, err: null, mode: 'root', sn: null, q: '', snQ: '', snOpen: false, snAct: 0, grade: 'all', hideWarn: false, all: false, calcHk: null, amt: '1,000',
       view: 'list', hk: null, wantNu: null, det: null, detErr: null, loc: null, amtD: '1,000', copied: null, allPlaces: false,
-      px: null, pxLive: false, pxDir: 0,
+      px: null, pxLive: false, pxDir: 0, sortKey: null, sortDir: 1, badImg: 0,
+      // one layout at a time: the table, or cards below 900px
+      narrow: typeof window !== 'undefined' && !!window.matchMedia && window.matchMedia(NARROW).matches,
     };
+    this.badImg = new Set();
   }
 
   componentDidMount() {
@@ -60,6 +98,11 @@ class Component extends DCLogic {
       this.winBound = true;
       window.addEventListener('pageshow', (e) => this.onPageShow(e));
       window.addEventListener('popstate', () => this.route());
+      if (window.matchMedia) {
+        const mq = window.matchMedia(NARROW);
+        const onMq = () => { if (mq.matches !== this.state.narrow) this.setState({ narrow: mq.matches }); };
+        if (mq.addEventListener) mq.addEventListener('change', onMq); else if (mq.addListener) mq.addListener(onMq);
+      }
       this.route();
     }
     fetch(DATA_URL)
@@ -71,6 +114,8 @@ class Component extends DCLogic {
   componentWillUnmount() {
     this.dead = true;
     clearTimeout(this.wsTimer);
+    clearTimeout(this.pxTimer);
+    this.pxTimer = null;
     if (this.ws) { const w = this.ws; this.ws = null; try { w.close(); } catch (e) { /* ignore */ } }
   }
 
@@ -85,11 +130,26 @@ class Component extends DCLogic {
       let m; try { m = JSON.parse(ev.data); } catch (e) { return; }
       const c = parseFloat(m.c);
       if (!isFinite(c)) return;
-      const prev = this.state.px ? this.state.px.c : null;
-      this.setState({ pxLive: true, pxDir: prev == null || c === prev ? 0 : c > prev ? 1 : -1, px: { c, P: parseFloat(m.P), h: parseFloat(m.h), l: parseFloat(m.l), q: parseFloat(m.q), E: m.E } });
+      this.pxNext = { c, P: parseFloat(m.P), h: parseFloat(m.h), l: parseFloat(m.l), q: parseFloat(m.q), E: m.E };
+      this.flushPrice();
     };
     ws.onclose = () => { if (this.ws === ws) { this.ws = null; this.setState({ pxLive: false }); this.retryPrice(); } };
     ws.onerror = () => { try { ws.close(); } catch (e) { /* ignore */ } };
+  }
+  // At most one price render every PX_EVERY ms, and none when nothing visible changed:
+  // every render rebuilds the whole page, and Binance sends ticks about once a second.
+  flushPrice() {
+    if (this.pxTimer) return;
+    const wait = Math.max(0, (this.pxAt || 0) + PX_EVERY - Date.now());
+    this.pxTimer = setTimeout(() => {
+      this.pxTimer = null;
+      const n = this.pxNext, S = this.state, p = S.px;
+      this.pxNext = null;
+      if (!n || this.dead) return;
+      if (S.pxLive && p && p.c === n.c && p.P === n.P) return;
+      this.pxAt = Date.now();
+      this.setState({ pxLive: true, pxDir: !p || n.c === p.c ? 0 : n.c > p.c ? 1 : -1, px: n });
+    }, wait);
   }
   retryPrice() {
     if (this.dead) return;
@@ -164,7 +224,7 @@ class Component extends DCLogic {
     if (e) e.preventDefault();
     try { if (window.location.hash) window.history.pushState(null, '', window.location.pathname + window.location.search); } catch (err) { /* ignore */ }
     this.listY = 0;
-    this.setState({ view: 'list', mode: 'root', sn: null, q: '', grade: 'all', hideWarn: false, all: false, calcHk: null });
+    this.setState({ view: 'list', mode: 'root', sn: null, q: '', grade: 'all', hideWarn: false, all: false, calcHk: null, sortKey: null, sortDir: 1 });
     if (typeof window !== 'undefined' && window.scrollTo) window.scrollTo(0, 0);
   }
   copyHk(hk) {
@@ -179,18 +239,49 @@ class Component extends DCLogic {
     } catch (e) { done(false); }
   }
 
+  // ---- avatars: identity image / subnet logo, monogram when missing or broken ----
+  ava(url, seed, label) {
+    const h = hue(seed || label || '?');
+    const ok = !!url && !this.badImg.has(url);
+    const ini = (String(label || '').replace(/[^A-Za-z0-9]/g, '').slice(0, 2) || String(seed || '').slice(1, 3) || '?').toUpperCase();
+    return {
+      img: ok, mono: !ok, src: ok ? url : '', ini,
+      bg: ok ? '#0E131A' : 'hsl(' + h + ' 34% 20%)', fg: 'hsl(' + h + ' 70% 78%)',
+      err: () => { if (!this.badImg.has(url)) { this.badImg.add(url); this.setState({ badImg: this.badImg.size }); } },
+    };
+  }
+  sortRows(list) {
+    const S = this.state, def = SORTS[S.sortKey];
+    if (!def) return list;
+    const dir = S.sortDir; // 1 = the column's best-first order, -1 = reversed
+    const idx = new Map(list.map((r, i) => [r, i]));
+    return list.slice().sort((a, b) => {
+      const x = def.val(a), y = def.val(b);
+      if (x == null && y == null) return idx.get(a) - idx.get(b);
+      if (x == null) return 1; // nulls last either way
+      if (y == null) return -1;
+      const d = (y - x) * def.best * dir;
+      return d !== 0 ? d : idx.get(a) - idx.get(b);
+    });
+  }
+  sortBy(k) {
+    const S = this.state;
+    if (S.sortKey === k) this.setState({ sortDir: -S.sortDir, all: false });
+    else this.setState({ sortKey: k, sortDir: 1, all: false });
+  }
+
   // ---- data ----
   rowsFor(D, alpha, sn) {
     if (!alpha) {
       return D.root.rows.map((r) => ({
         name: r.n || short(r.hk), hk: r.hk, g: r.g, a30: r.a30, a7: r.a7, pr: r.pr, fee: r.t * 100, take: r.t * 100, ck: 0,
-        stake: r.s, stakeSub: r.nom != null ? fmtInt(r.nom) + ' nominators' : '', b: r.b || [], nu: null,
+        stake: r.s, stakeSub: r.nom != null ? fmtInt(r.nom) + ' nominators' : '', b: r.b || [], nu: null, img: r.img || null,
       }));
     }
     const C = D.pcols, ix = (k) => C.indexOf(k);
     return (D.pools[String(sn)] || []).map((p) => ({
       name: p[ix('n')], hk: p[ix('hk')], g: p[ix('g')], a30: p[ix('a30')], a7: p[ix('a7')], pr: p[ix('pr')], fee: p[ix('fee')], take: p[ix('take')], ck: p[ix('ck')],
-      stake: p[ix('tao')], stakeSub: 'alpha staked, in τ', b: p[ix('b')] || [], nu: sn,
+      stake: p[ix('tao')], stakeSub: 'alpha staked, in τ', b: p[ix('b')] || [], nu: sn, img: ix('img') >= 0 ? p[ix('img')] : null,
     }));
   }
 
@@ -199,6 +290,8 @@ class Component extends DCLogic {
     const S = this.state, D = S.data;
     const base = {
       accent, tk: this.ticker(accent), home: (e) => this.home(e), back: (e) => this.back(e),
+      stakeUs: (e) => this.open(STAKE_US, null, e),
+      toTerminal: (e) => switchUI('terminal', e),
       // the hash is the route, so the skip link moves focus instead of changing it
       skip: (e) => { if (e) e.preventDefault(); const el = document.getElementById('validators'); if (el) { el.setAttribute('tabindex', '-1'); el.focus(); el.scrollIntoView({ block: 'start' }); } },
       loading: !D && !S.err, failed: !D && !!S.err, err: S.err, skel: [1, 2, 3, 4, 5, 6, 7, 8],
@@ -207,7 +300,7 @@ class Component extends DCLogic {
     };
     if (S.view === 'detail') return Object.assign(base, { loading: false, failed: false, isDetail: true, d: this.detail(D, accent) });
     if (!D) return base;
-    return Object.assign(base, { isList: true }, this.list(D, accent));
+    return Object.assign(base, { isList: true, wide: !S.narrow, narrow: !!S.narrow }, this.list(D, accent));
   }
 
   list(D, accent) {
@@ -223,10 +316,12 @@ class Component extends DCLogic {
     let all = this.rowsFor(D, alpha, sn);
     const q = S.q.trim().toLowerCase();
     if (q) all = all.filter((r) => (r.name || '').toLowerCase().includes(q) || r.hk.toLowerCase().includes(q));
+    // chip counts follow the search and "hide warnings" (same rule as the Terminal UI)
+    if (S.hideWarn) all = all.filter((r) => !hasWarn(r.b));
     const counts = { all: all.length };
     'ABCDF'.split('').forEach((g) => { counts[g] = all.filter((r) => r.g === g).length; });
     let list = S.grade === 'all' ? all : all.filter((r) => r.g === S.grade);
-    if (S.hideWarn) list = list.filter((r) => !r.b.some((b) => WARN_BADGES.has(b)));
+    list = this.sortRows(list);
     const total = list.length;
     const shown = S.all ? list : list.slice(0, PAGE);
     const best = alpha ? (cur && cur.best) : D.root.bench;
@@ -237,16 +332,16 @@ class Component extends DCLogic {
       const barC = pr == null ? '#4A5565' : pr >= 95 ? accent : pr >= 85 ? '#8FB0FF' : pr >= 70 ? '#E8C35A' : '#F5A524';
       const href = '#v/' + r.hk + (r.nu != null ? '/' + r.nu : '');
       return {
-        name: r.name, hkShort: short(r.hk), grade: r.g || '—', gBg: G ? G.bg : '#1A212B', gFg: G ? G.fg : '#8B97A6',
+        name: r.name, hkShort: short(r.hk), av: this.ava(r.img, r.hk, r.name), grade: r.g || '—', gBg: G ? G.bg : '#1A212B', gFg: G ? G.fg : '#8B97A6',
         gradeTip: G ? G.tip : 'Not graded yet',
         badges: r.b.map((b) => Object.assign({ label: b }, BADGE[b] || { bg: '#1A212B', fg: '#A9B4C2', tip: '' })),
         earn: F ? 'Not earning' : pct(r.a30, alpha ? 1 : 2), earnShort: F ? '0%' : pct(r.a30, alpha ? 1 : 2), earn7: pct(r.a7, alpha ? 1 : 2), earnColor: F ? '#FF8A80' : '#E6EDF3',
-        payout: pr == null ? '—' : Math.round(pr) + '%', barW: pr == null ? '0%' : Math.min(100, pr) + '%', barC,
+        payout: pr == null ? '—' : Math.round(pr) + '%', barW: pr == null ? '0%' : Math.min(100, pr) + '%', barC, payC: pr == null ? '#8B97A6' : barC,
         fee: pct(r.fee, 1), feeColor: r.fee >= 15 ? '#F5A524' : '#E6EDF3',
         feeSub: r.ck > 0.05 ? 'take ' + pct(r.take, 0) + ' + childkey ' + pct(r.ck, 1) : 'take only',
         stake: fmtK(r.stake) + ' τ', stakeSub: r.stakeSub,
         cardSub: 'fee ' + pct(r.fee, 1) + ' · ' + fmtK(r.stake) + ' τ' + (r.b.length ? ' · ' + r.b.join(', ') : ''),
-        cardSubColor: r.fee >= 15 || r.b.some((b) => WARN_BADGES.has(b)) ? '#F5A524' : '#8B97A6',
+        cardSubColor: r.fee >= 15 || hasWarn(r.b) ? '#F5A524' : '#8B97A6',
         href, aria: r.name + ', grade ' + (r.g || 'not graded') + ', earns ' + (F ? 'nothing' : pct(r.a30, 1)) + ', fee ' + pct(r.fee, 1),
         open: (e) => this.open(r.hk, r.nu, e),
       };
@@ -261,7 +356,7 @@ class Component extends DCLogic {
 
     let sumKicker, sumTitle, sumStats, sumNote = '';
     if (alpha && cur) {
-      sumKicker = 'SN' + cur.nu;
+      sumKicker = '';
       sumTitle = cur.name;
       sumStats = [
         { label: 'Best APY · 30D', value: pct(cur.best, 1), sub: 'in alpha, median of the top 3', color: accent, tip: 'What the best validators here paid stakers, in alpha' },
@@ -269,7 +364,8 @@ class Component extends DCLogic {
         { label: 'Net in τ · 30D', value: sgn(cur.net30, 1), sub: 'best validator, rewards + price', color: '#A9B4C2', tip: 'What staking with the best validator here returned in τ over 30 days, not annualized' },
         { label: 'Validators', value: fmtInt(cur.nv), sub: 'with 10 τ or more', color: '#E6EDF3', tip: '' },
       ];
-      sumNote = cur.nbest < 3 ? 'Few large validators on this subnet, so grades here compare against smaller pools and are rougher.' : '';
+      sumNote = !cur.nbest ? 'Not graded yet: no pool of 100 τ or more has earned over 30 days here.'
+        : cur.nbest < 3 ? 'Few large validators on this subnet, so grades here compare against smaller pools and are rougher.' : '';
     } else if (alpha) {
       sumKicker = 'Subnet'; sumTitle = 'No subnet data yet'; sumStats = [];
     } else {
@@ -288,17 +384,42 @@ class Component extends DCLogic {
     const amt = parseFloat(String(S.amt).replace(/,/g, '')) || 0;
     const unit = alpha ? ' α/yr' : ' τ/yr';
     const px = (S.px || PRICE_SNAPSHOT).c;
-    const yr = calcRow ? (calcRow.g === 'F' ? 0 : amt * (calcRow.a30 || 0) / 100) : 0;
+    // no 30D yield yet (new, not graded) → no made-up "0 τ/yr"
+    const yr = !calcRow ? null : calcRow.g === 'F' ? 0 : calcRow.a30 == null ? null : amt * calcRow.a30 / 100;
     const calc = calcRow ? {
       hk: calcRow.hk, name: calcRow.name,
-      perYear: fmtInt(yr) + unit,
-      usd: alpha ? '' : '(' + usd(yr * px) + ')',
+      perYear: yr == null ? '— (no 30D yield yet)' : fmtInt(yr) + unit,
+      usd: alpha || yr == null ? '' : '(' + usd(yr * px) + ')',
       vs: best != null && calcRow.a30 != null ? (best - calcRow.a30 > 0.005 ? '· the best here would pay +' + fmtInt(amt * (best - calcRow.a30) / 100) + unit.replace('/yr', ' more a year') : '· on par with the best here') : '',
       href: '#v/' + calcRow.hk + (calcRow.nu != null ? '/' + calcRow.nu : ''), open: (e) => this.open(calcRow.hk, calcRow.nu, e),
     } : { hk: '', name: '—', perYear: '—', usd: '', vs: '', href: '#', open: () => {} };
     const calcOpts = list.slice(0, 200).map((r) => ({ v: r.hk, label: (r.g ? r.g + ' · ' : '') + r.name }));
 
+    const sh = {};
+    Object.keys(SORTS).forEach((k) => {
+      const on = S.sortKey === k, def = SORTS[k];
+      const words = def.word;
+      sh[k] = {
+        on, color: on ? accent : '#8B97A6',
+        arrow: on ? (S.sortDir === 1 ? (def.best === 1 ? ' ↓' : ' ↑') : (def.best === 1 ? ' ↑' : ' ↓')) : ' ↕',
+        aria: on ? 'Sorted by ' + def.label + ', ' + (S.sortDir === 1 ? words[0] : words[1]) + '. Activate to reverse.' : 'Sort by ' + def.label + ', ' + words[0],
+        pick: () => this.sortBy(k),
+      };
+    });
+    const msortOpts = [{ v: '', label: 'Default order' }];
+    Object.keys(SORTS).forEach((k) => { msortOpts.push({ v: k + ':1', label: SORTS[k].label + ' · ' + SORTS[k].word[0] }); msortOpts.push({ v: k + ':-1', label: SORTS[k].label + ' · ' + SORTS[k].word[1] }); });
+    const sumAva = alpha && cur ? this.ava(cur.logo, 'SN' + cur.nu, cur.name) : null;
+    // the validator search found nothing but looks like a subnet: offer to go there
+    let snHint = null;
+    if (q && list.length === 0) {
+      const hit = matchSubnets(subs, S.q)[0];
+      if (hit && !(alpha && hit.nu === sn)) snHint = { label: 'Go to SN' + hit.nu + ' · ' + hit.name, go: () => this.pickSubnet(hit.nu) };
+    }
+
     return {
+      sh, msortOpts, msortVal: S.sortKey ? S.sortKey + ':' + S.sortDir : '',
+      pickMsort: (e) => { const v = e.target.value; if (!v) this.setState({ sortKey: null, sortDir: 1, all: false }); else { const [k, d] = v.split(':'); this.setState({ sortKey: k, sortDir: +d, all: false }); } },
+      sumAva, sumSn: alpha && cur ? 'SN' + cur.nu : '',
       rootOn: !alpha, alphaOn: alpha,
       rootBorder: !alpha ? accent : '#1C232D', rootBg: !alpha ? '#0F1A17' : '#0E131A',
       alphaBorder: alpha ? accent : '#1C232D', alphaBg: alpha ? '#0F1A17' : '#0E131A',
@@ -311,16 +432,64 @@ class Component extends DCLogic {
       showAll: () => this.setState({ all: true }),
       clearFilters: () => this.setState({ q: '', grade: 'all', hideWarn: false, all: false }),
       earnTip: alpha ? 'Yearly yield in this subnet’s alpha, after all fees, from the last 30 days. Alpha price moves are not included.' : 'Yearly yield in τ after all fees, from the last 30 days.',
-      rootBench: (D.root.bench || 0).toFixed(1),
+      rootBench: D.root.bench == null ? '—' : D.root.bench.toFixed(1),
       alphaRange: bests.length ? Math.round(med(bests)) + '% median APY' : '—', medDp: sgn(med(dps), 1),
-      snOpts: subs.map((s) => ({ v: String(s.nu), label: 'SN' + s.nu + ' · ' + s.name + (s.best != null ? ' · ' + Math.round(s.best) + '% APY' : '') })),
-      snVal: String(sn), pickSn: (e) => this.setState({ sn: +e.target.value, all: false, calcHk: null, grade: 'all' }),
+      ...this.snPicker(subs, cur, accent),
+      snHint,
       sumKicker, sumTitle, sumStats, sumNote,
       gradeChips, rows, noRows: rows.length === 0,
       noRowsTxt: q ? 'No validator matches “' + S.q.trim() + '” here.' : 'No validator matches these filters.',
       more: !S.all && total > shown.length, total,
       hasCalc: !!calcRow, calc, calcOpts, pickCalc: (e) => this.setState({ calcHk: e.target.value }),
       priceFoot: alpha ? 'Alpha APY is paid in alpha; the alpha price line above shows what that alpha did against τ.' : 'Root APY is paid as basket alpha valued at today’s price.',
+    };
+  }
+
+  pickSubnet(nu) {
+    this.setState({ mode: 'alpha', sn: nu, snQ: '', snOpen: false, snAct: 0, q: '', all: false, calcHk: null, grade: 'all' });
+  }
+
+  // searchable subnet picker (combobox + listbox)
+  snPicker(subs, cur, accent) {
+    const S = this.state;
+    const matches = matchSubnets(subs, S.snQ);
+    const act = Math.min(S.snAct, Math.max(0, matches.length - 1));
+    const scrollAct = () => {
+      if (typeof window === 'undefined') return;
+      window.requestAnimationFrame(() => { const el = document.getElementById('ch-sn-o' + this.state.snAct); if (el) el.scrollIntoView({ block: 'nearest' }); });
+    };
+    const move = (d) => {
+      const n = matches.length;
+      if (!n) return;
+      this.setState({ snOpen: true, snAct: S.snOpen ? (act + d + n) % n : (d > 0 ? 0 : n - 1) });
+      scrollAct();
+    };
+    return {
+      snCur: cur ? { sn: 'SN' + cur.nu, av: this.ava(cur.logo, 'SN' + cur.nu, cur.name) } : null,
+      snPh: cur ? cur.name + ' — search by number or name' : 'Search subnets — number or name',
+      snQ: S.snQ, snOpen: S.snOpen, snBorder: S.snOpen ? accent : '#1C232D',
+      snActId: S.snOpen && matches.length ? 'ch-sn-o' + act : '',
+      onSnQ: (e) => this.setState({ snQ: e.target.value, snOpen: true, snAct: 0 }),
+      openSn: () => { if (!this.state.snOpen) this.setState({ snOpen: true, snAct: 0 }); },
+      closeSn: () => this.setState({ snOpen: false, snQ: '', snAct: 0 }),
+      snKey: (e) => {
+        if (e.key === 'ArrowDown') { e.preventDefault(); move(1); }
+        else if (e.key === 'ArrowUp') { e.preventDefault(); move(-1); }
+        else if (e.key === 'Enter') { e.preventDefault(); if (S.snOpen && matches[act]) this.pickSubnet(matches[act].nu); else this.setState({ snOpen: true }); }
+        else if (e.key === 'Escape') { if (S.snOpen || S.snQ) { e.preventDefault(); this.setState({ snOpen: false, snQ: '', snAct: 0 }); } }
+        else if (e.key === 'Home' && S.snOpen) { e.preventDefault(); this.setState({ snAct: 0 }); scrollAct(); }
+        else if (e.key === 'End' && S.snOpen) { e.preventDefault(); this.setState({ snAct: Math.max(0, matches.length - 1) }); scrollAct(); }
+      },
+      snMatches: matches.map((s, i) => ({
+        id: 'ch-sn-o' + i, act: i === act, bg: i === act ? '#151C26' : 'transparent',
+        sn: 'SN' + s.nu, snC: cur && s.nu === cur.nu ? accent : '#A9B4C2', name: s.name,
+        av: this.ava(s.logo, 'SN' + s.nu, s.name),
+        best: s.best != null ? Math.round(s.best) + '% APY' : 'not graded',
+        dp: s.dp30 != null ? sgn(s.dp30, 1) : '—',
+        // mousedown (not click) so the pick happens before the input's blur closes the list
+        pick: (e) => { if (e) e.preventDefault(); this.pickSubnet(s.nu); },
+      })),
+      snNone: matches.length === 0, snNoneTxt: 'No subnet matches “' + S.snQ.trim() + '”.',
     };
   }
 
@@ -386,7 +555,7 @@ class Component extends DCLogic {
 
     const amt = parseFloat(String(S.amtD).replace(/,/g, '')) || 0;
     const unit = isRoot ? ' τ' : ' α';
-    const yr = L.g === 'F' ? 0 : amt * (L.a30 || 0) / 100;
+    const yr = L.g === 'F' ? 0 : L.a30 == null ? null : amt * L.a30 / 100;
     const gap = best != null && L.a30 != null ? amt * (best - L.a30) / 100 : null;
     const px = (S.px || PRICE_SNAPSHOT).c;
 
@@ -394,12 +563,14 @@ class Component extends DCLogic {
     const tabIdx = locs.map((_, i) => i).filter((i) => i < TABS || i === li);
     const tabOf = (i) => {
       const l = locs[i], on = i === li, g = GRADE[l.g];
-      return { label: l.label, grade: l.g || '—', gFg: g ? g.fg : '#8B97A6', on, border: on ? accent : '#1C232D', bg: on ? '#0F1A17' : '#0E131A', fg: on ? '#E6EDF3' : '#A9B4C2', pick: () => this.pickLoc(i) };
+      return { label: l.label, title: l.kind === 'root' ? 'Root' : l.label + (l.sname ? ' · ' + l.sname : ''), av: l.kind === 'root' ? null : this.ava(l.logo, l.label, l.sname || l.label),
+        grade: l.g || '—', gFg: g ? g.fg : '#8B97A6', on, border: on ? accent : '#1C232D', bg: on ? '#0F1A17' : '#0E131A', fg: on ? '#E6EDF3' : '#A9B4C2', pick: () => this.pickLoc(i) };
     };
     const placesAll = locs.map((l, i) => {
       const g = GRADE[l.g];
       return {
         label: l.label, sname: l.sname || (l.kind === 'root' ? 'principal in τ' : ''), grade: l.g || '—', gFg: g ? g.fg : '#8B97A6',
+        isSn: l.kind !== 'root', isRoot: l.kind === 'root', av: l.kind === 'root' ? null : this.ava(l.logo, l.label, l.sname || l.label),
         apy: l.g === 'F' ? '0%' : pct(l.a30, l.kind === 'root' ? 2 : 1), pr: l.g === 'F' ? '0%' : l.pr == null ? '—' : Math.round(l.pr) + '%',
         fee: pct(l.fee, 1), feeColor: l.fee >= 15 ? '#F5A524' : '#E6EDF3', stake: fmtK(l.stake) + ' τ',
         on: i === li, bg: i === li ? '#111A1F' : 'transparent', pick: () => { this.pickLoc(i); if (window.scrollTo) window.scrollTo(0, 0); },
@@ -407,12 +578,10 @@ class Component extends DCLogic {
     });
     const places = S.allPlaces ? placesAll : placesAll.slice(0, PLACES);
     const ngraded = locs.filter((l) => l.g).length;
-    const h = hue(V.hk);
 
     return {
       ready: true,
-      name: V.n, ini: (V.n.replace(/[^A-Za-z0-9]/g, '').slice(0, 2) || V.hk.slice(1, 3)).toUpperCase(),
-      monoBg: 'hsl(' + h + ' 34% 20%)', monoFg: 'hsl(' + h + ' 70% 78%)',
+      name: V.n, av: this.ava(V.img, V.hk, V.n),
       grade: L.g || '—', gBg: G ? G.bg : '#1A212B', gFg: G ? G.fg : '#8B97A6', gTip: G ? G.tip : 'Not graded yet',
       locLabel: L.label, locLong: where, feeTxt: pct(L.fee, 1), nomTxt: V.nom != null ? fmtInt(V.nom) + ' nominators' : '',
       hk: V.hk, copyTxt: S.copied === 'ok' ? 'Copied' : S.copied === 'fail' ? 'Copy failed: select the key' : 'Copy',
@@ -423,15 +592,15 @@ class Component extends DCLogic {
       line90: (90 / top * H + 1) + 'px', chartNote,
       chartAria: 'Payout vs best: ' + bars.map((b) => (b.label || '') + ' ' + b.txt).join(', '),
       amt: S.amtD, onAmt: (e) => this.setState({ amtD: e.target.value }),
-      calcYear: fmtInt(yr) + unit, calcMonth: fmtInt(yr / 12) + unit,
-      calcVs: (gap == null ? '' : gap > 0.5 ? 'The best validators here would pay about ' + fmtInt(gap) + unit + ' more a year on the same stake.' : 'On par with the best validators here.') + (isRoot && yr > 0 ? ' About ' + usd(yr * px) + ' a year at today’s TAO price.' : ''),
+      calcYear: yr == null ? '—' : fmtInt(yr) + unit, calcMonth: yr == null ? '—' : fmtInt(yr / 12) + unit,
+      calcVs: (gap == null ? '' : gap > 0.5 ? 'The best validators here would pay about ' + fmtInt(gap) + unit + ' more a year on the same stake.' : 'On par with the best validators here.') + (yr == null ? 'No 30-day yield yet, so no estimate.' : '') + (isRoot && yr > 0 ? ' About ' + usd(yr * px) + ' a year at today’s TAO price.' : ''),
       calcNote: isRoot ? 'Based on the 30-day APY. Rewards arrive as basket alpha; their τ value moves with alpha prices.' : 'Based on the 30-day APY, paid in alpha. What that alpha is worth in τ depends on the subnet’s price.',
       places, placesMore: !S.allPlaces && placesAll.length > places.length, placesTotal: placesAll.length,
       showAllPlaces: () => this.setState({ allPlaces: true }),
       // a button, not an #anchor: the hash is the route (#v/<hk>), so changing it would leave the page
       goPlaces: () => {
         this.setState({ allPlaces: true });
-        if (typeof window !== 'undefined') window.requestAnimationFrame(() => window.requestAnimationFrame(() => { const el = document.getElementById('places'); if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' }); }));
+        if (typeof window !== 'undefined') window.requestAnimationFrame(() => window.requestAnimationFrame(() => { const el = document.getElementById('places'); if (el) el.scrollIntoView({ behavior: REDUCED() ? 'auto' : 'smooth', block: 'start' }); }));
       },
       placesNote: locs.length + (locs.length === 1 ? ' place' : ' places') + ', ' + ngraded + ' graded · pools of 10 τ or more',
     };
@@ -445,3 +614,4 @@ class Component extends DCLogic {
     try { if (window.location.hash !== h) window.history.replaceState(window.history.state, '', h); } catch (e) { /* ignore */ }
   }
 }
+DCMount(Component, document.getElementById('tpl'), document.getElementById('app'), {});

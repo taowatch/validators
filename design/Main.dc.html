@@ -24,6 +24,7 @@ button:focus-visible,input:focus-visible{outline:2px solid #3DDBB0;outline-offse
 .vr-scroll{scrollbar-width:thin;scrollbar-color:#2A3340 transparent}
 @keyframes vrpulse{0%,100%{opacity:.45}50%{opacity:.9}}
 .vr-skel{animation:vrpulse 1.4s ease-in-out infinite}
+@media (prefers-reduced-motion:reduce){.vr-skel{animation:none}}
 .vr-skip{position:absolute;left:-9999px;top:8px;z-index:20;padding:10px 16px;border-radius:8px;background:#3DDBB0;color:#0A0E13 !important;font-weight:600;text-decoration:none}
 .vr-skip:focus{left:16px}
 .vr-kpis{background:#0E131A !important}
@@ -34,6 +35,10 @@ button:focus-visible,input:focus-visible{outline:2px solid #3DDBB0;outline-offse
 @media (max-width:900px){.vr-wide{display:none !important}.vr-analysis{order:5}.vr-rank{order:4}.vr-foot{order:6}}
 @media (min-width:901px){.vr-narrow{display:none !important}}
 @media (max-width:600px){.vr-kpis{grid-template-columns:repeat(2,minmax(0,1fr)) !important}.vr-kpis>div:last-child:nth-child(odd){grid-column:1/-1}.vr-kpis>div span:last-child{font-size:11px !important}.vr-mini{grid-template-columns:repeat(2,minmax(0,1fr)) !important}.vr-tabs{flex-wrap:nowrap !important;overflow-x:auto;align-self:stretch !important}.vr-tabs button{height:40px !important;padding:0 12px !important;font-size:13px !important;white-space:nowrap;flex:none}.vr-hdr{align-items:flex-start !important}.vr-kpis>div{padding:12px 14px !important}.vr-kv{font-size:20px !important}.vr-avatar{width:44px !important;height:44px !important;font-size:17px !important;border-radius:12px !important}.vr-h1{font-size:26px !important}.vr-hdr{gap:14px !important}}
+.vr-swu{height:36px;padding:0 14px;border-radius:999px;background:#F5C542;color:#0A0E13 !important;text-decoration:none;display:flex;align-items:center;font-weight:600;white-space:nowrap}
+.vr-swu:hover{background:#FFD866}
+.vr-ava{overflow:hidden}
+.vr-ava img{width:100%;height:100%;object-fit:cover;display:block}
 </style>
 </helmet>
 <div style="min-height: 100vh; background: #0A0E13; color: #E6EDF3; font-family: Inter, system-ui, sans-serif; font-size: 14px; line-height: 1.45; -webkit-font-smoothing: antialiased">
@@ -50,8 +55,14 @@ button:focus-visible,input:focus-visible{outline:2px solid #3DDBB0;outline-offse
 <nav aria-label="Sections" style="display: flex; gap: 6px; flex-wrap: wrap">
 <a href="/" style="height: 36px; padding: 0 14px; border-radius: 9px; color: #A9B4C2; text-decoration: none; display: flex; align-items: center">‹ Choose a validator</a>
 <a href="/analytics" aria-current="page" style="height: 36px; padding: 0 14px; border-radius: 9px; background: #151C26; color: #E6EDF3; text-decoration: none; display: flex; align-items: center; font-weight: 500">Analytics</a>
+<a href="/#v/5FFSBkNiymQWHaxc8dTmfTT7iHoz6YDexVG4xR2yLrffVR86" class="vr-swu" title="Kooltek68: the validator behind this site">Stake with us</a>
 </nav>
 <div style="flex: 1 1 auto"></div>
+<div role="group" aria-label="Interface" style="display: flex; align-items: center; gap: 2px; padding: 3px; border: 1px solid #1C232D; border-radius: 10px; background: #0E131A">
+<span style="font-size: 11px; color: #8B97A6; padding: 0 6px; text-transform: uppercase; letter-spacing: 0.08em">UI</span>
+<span aria-current="true" style="height: 30px; padding: 0 12px; border-radius: 7px; background: #1A2A26; color: #3DDBB0; font-size: 13px; font-weight: 600; display: flex; align-items: center">Default</span>
+<a href="/terminal/analytics?ui=terminal" onClick="{{toTerminal}}" title="Switch to the Terminal interface (t)" style="height: 30px; padding: 0 12px; border-radius: 7px; color: #A9B4C2; font-size: 13px; font-family: 'JetBrains Mono', monospace; text-decoration: none; display: flex; align-items: center">Terminal</a>
+</div>
 <div title="{{tk.title}}" style="display: flex; align-items: center; gap: 10px; height: 40px; padding: 0 14px; border: 1px solid #1C232D; border-radius: 10px; background: #0E131A">
 <span style="font-family: 'Space Grotesk', sans-serif; font-weight: 600; font-size: 13px; color: #A9B4C2">TAO</span>
 <span style="font-family: 'JetBrains Mono', monospace; font-weight: 600; font-size: 15px; color: {{tk.flash}}">{{tk.price}}</span>
@@ -260,7 +271,10 @@ button:focus-visible,input:focus-visible{outline:2px solid #3DDBB0;outline-offse
 <button type="button" class="vr-row" onClick="{{r.open}}" aria-label="{{r.aria}}" style="width: 100%; display: grid; grid-template-columns: {{grid}}; gap: 12px; align-items: center; padding: 0 20px; height: 60px; background: transparent; border: 0; border-bottom: 1px solid #161C25; color: inherit; text-align: left">
 <span style="font-family: 'JetBrains Mono', monospace; font-size: 13px; color: {{r.rankColor}}; font-weight: 600">{{r.rank}}</span>
 <span style="display: flex; align-items: center; gap: 12px; min-width: 0">
-<span style="flex: none; width: 34px; height: 34px; border-radius: 9px; background: {{r.monoBg}}; color: {{r.monoFg}}; display: flex; align-items: center; justify-content: center; font-family: 'Space Grotesk', sans-serif; font-weight: 600; font-size: 13px" aria-hidden="true">{{r.ini}}</span>
+<span class="vr-ava" style="flex: none; width: 34px; height: 34px; border-radius: 9px; background: {{r.av.bg}}; color: {{r.monoFg}}; display: flex; align-items: center; justify-content: center; font-family: 'Space Grotesk', sans-serif; font-weight: 600; font-size: 13px" aria-hidden="true">
+<sc-if value="{{r.av.img}}" hint-placeholder-val="{{ false }}"><img src="{{r.av.src}}" alt="" referrerpolicy="no-referrer" loading="lazy" decoding="async" onError="{{r.av.err}}"></sc-if>
+<sc-if value="{{r.av.mono}}" hint-placeholder-val="{{ true }}">{{r.ini}}</sc-if>
+</span>
 <span style="display: flex; flex-direction: column; min-width: 0">
 <span style="font-weight: 600; font-size: 14px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: {{r.nameColor}}">{{r.name}}</span>
 <span style="font-family: 'JetBrains Mono', monospace; font-size: 11px; color: #8B97A6">{{r.short}}</span>
@@ -997,6 +1011,13 @@ function usd(n) {
   return '$' + n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 const ORANGE = '#F59E3B', BLUE = '#7AA2F7', MUTED = '#8B97A6', TEXT = '#E6EDF3';
+// Remember the Terminal interface (per viewer) and open its analytics page.
+function toTerminalUI(e) {
+  if (e && (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || e.button === 1)) return;
+  if (e) e.preventDefault();
+  try { localStorage.setItem('vy.ui', 'terminal'); } catch (err) { /* storage blocked: the link still works */ }
+  window.location.href = '/terminal/analytics';
+}
 
 function fmtInt(n) { return n == null ? '—' : Math.round(n).toLocaleString('en-US'); }
 function fmtK(n) {
@@ -1098,6 +1119,14 @@ function consCell(v, A, accent) {
 const MINS = [[0, 'All'], [1000, '≥ 1K τ'], [10000, '≥ 10K τ'], [100000, '≥ 100K τ']];
 
 class Component extends DCLogic {
+  // identity image when the chain has one and it loads; otherwise the monogram
+  ava(url, monoBg) {
+    this.badImg = this.badImg || new Set();
+    const ok = !!url && !this.badImg.has(url);
+    return { img: ok, mono: !ok, src: ok ? url : '', bg: ok ? '#0E131A' : monoBg,
+      err: () => { if (!this.badImg.has(url)) { this.badImg.add(url); this.setState({ badImg: this.badImg.size }); } } };
+  }
+
   constructor(props) {
     super(props);
     this.state = { data: null, err: null, q: '', win: null, rng: 30, crng: null, ew: null, min: 1000, sortKey: 'rank', dir: -1, hideTake: false, sel: null, hov: null, hovIdx: null, amt: '1,000', showAll: false, copied: false, px: null, pxLive: false, pxDir: 0, tab: 'root', sn: null, effMin: 1000, effSort: 'tao', effDir: -1, ehov: null, alpha: null, alphaErr: null };
@@ -1113,11 +1142,27 @@ class Component extends DCLogic {
       let m; try { m = JSON.parse(ev.data); } catch (e) { return; }
       const c = parseFloat(m.c);
       if (!isFinite(c)) return;
-      const prev = this.state.px ? this.state.px.c : null;
-      this.setState({ pxLive: true, pxDir: prev == null || c === prev ? 0 : c > prev ? 1 : -1, px: { c, P: parseFloat(m.P), h: parseFloat(m.h), l: parseFloat(m.l), q: parseFloat(m.q), E: m.E } });
+      this.pxNext = { c, P: parseFloat(m.P), h: parseFloat(m.h), l: parseFloat(m.l), q: parseFloat(m.q), E: m.E };
+      this.flushPrice();
     };
     ws.onclose = () => { if (this.ws === ws) { this.ws = null; this.setState({ pxLive: false }); this.retryPrice(); } };
     ws.onerror = () => { try { ws.close(); } catch (e) { /* ignore */ } };
+  }
+
+  // At most one price render every 2 s, and none when nothing visible changed: every
+  // render rebuilds the whole page, and Binance sends ticks about once a second.
+  flushPrice() {
+    if (this.pxTimer) return;
+    const wait = Math.max(0, (this.pxAt || 0) + 2000 - Date.now());
+    this.pxTimer = setTimeout(() => {
+      this.pxTimer = null;
+      const n = this.pxNext, S = this.state, p = S.px;
+      this.pxNext = null;
+      if (!n || this.dead) return;
+      if (S.pxLive && p && p.c === n.c && p.P === n.P) return;
+      this.pxAt = Date.now();
+      this.setState({ pxLive: true, pxDir: !p || n.c === p.c ? 0 : n.c > p.c ? 1 : -1, px: n });
+    }, wait);
   }
 
   retryPrice() {
@@ -1149,6 +1194,8 @@ class Component extends DCLogic {
   componentWillUnmount() {
     this.dead = true;
     clearTimeout(this.wsTimer);
+    clearTimeout(this.pxTimer);
+    this.pxTimer = null;
     if (this.ws) { const w = this.ws; this.ws = null; try { w.close(); } catch (e) { /* ignore */ } }
   }
 
@@ -1296,7 +1343,7 @@ class Component extends DCLogic {
   renderVals() {
     const accent = this.props.accent ?? '#3DDBB0';
     const S = this.state, D = S.data, A = S.alpha;
-    const base = { accent, home: (e) => this.home(e), tk: this.ticker(accent), loading: !D && !S.err, failed: !!S.err, err: S.err, ready: !!D, skel: [1, 2, 3, 4, 5, 6, 7, 8] };
+    const base = { accent, home: (e) => this.home(e), toTerminal: (e) => toTerminalUI(e), tk: this.ticker(accent), loading: !D && !S.err, failed: !!S.err, err: S.err, ready: !!D, skel: [1, 2, 3, 4, 5, 6, 7, 8] };
     this.px = (S.px || PRICE_SNAPSHOT).c;
     // efficiency window chips, shared by the alpha tab, the efficiency tab and alpha pages
     if (A) {
@@ -1343,6 +1390,7 @@ class Component extends DCLogic {
       return {
         rank: r || '—', rankColor: r && r <= 3 ? accent : MUTED,
         name: x.name, nameColor: x.named ? TEXT : '#A9B4C2', short: x.short, ini: x.ini, monoBg: x.monoBg, monoFg: x.monoFg,
+        av: this.ava(x.img, x.monoBg),
         aria: x.name + ', APY ' + winLabel + ' ' + pct(x[win]) + ', view details',
         stake: fmtInt(x.s), stakeUsd: '≈ ' + usd(x.s * this.px), stakeBar: x.s >= 1 ? Math.max(2, Math.log10(x.s) / logMax * 100).toFixed(1) : '0',
         take: pct(x.t * 100, 0), takeBg: x.t >= 0.15 ? '#2A1D0E' : x.t === 0 ? '#12281F' : '#161C25', takeFg: x.t >= 0.15 ? ORANGE : x.t === 0 ? accent : '#C9D1D9',

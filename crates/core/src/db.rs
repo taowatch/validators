@@ -17,8 +17,23 @@ pub fn ss58(a: &Acc) -> String {
 
 pub async fn connect(url: &str) -> Result<PgPool> {
     let pool = PgPoolOptions::new().max_connections(8).connect(url).await.context("connect database")?;
-    sqlx::migrate!("../../migrations").run(&pool).await.context("run migrations")?;
+    let mut migrator = sqlx::migrate!("../../migrations");
+    // An older image must still start against a database a newer image migrated (rollback):
+    // migrations are additive, so unknown applied versions are fine.
+    migrator.set_ignore_missing(true);
+    migrator.run(&pool).await.context("run migrations")?;
     Ok(pool)
+}
+
+/// Bump the data version inside a write transaction; the API recomputes when it changes.
+async fn bump(tx: &mut sqlx::PgConnection) -> Result<()> {
+    sqlx::query("UPDATE meta SET value = value + 1 WHERE key = 'data_version'").execute(&mut *tx).await?;
+    Ok(())
+}
+
+/// Current data version (see [`bump`]).
+pub async fn data_version(pool: &PgPool) -> Result<i64> {
+    Ok(sqlx::query_scalar::<_, i64>("SELECT value FROM meta WHERE key = 'data_version'").fetch_optional(pool).await?.unwrap_or(0))
 }
 
 fn ts_of(ms: u64) -> f64 {
@@ -115,6 +130,7 @@ pub async fn write_samples(pool: &PgPool, maps: &Maps, kind: Kind, tracked: &Tra
     .execute(&mut *tx)
     .await?;
 
+    bump(&mut tx).await?;
     tx.commit().await?;
     Ok(true)
 }
@@ -210,6 +226,7 @@ pub async fn gaps(pool: &PgPool, head: u32) -> Result<Vec<Gap>> {
 pub async fn fill_gap(pool: &PgPool, maps: &Maps, g: &Gap) -> Result<()> {
     let mut tx = pool.begin().await?;
     insert_rows(&mut tx, maps, &g.pairs, &g.root).await?;
+    bump(&mut tx).await?;
     tx.commit().await?;
     Ok(())
 }
@@ -227,6 +244,7 @@ pub async fn write_meta(pool: &PgPool, block: u32, meta: &Meta, tracked: &Tracke
         hk: Vec<String>,
         ck: Vec<Option<String>>,
         name: Vec<Option<String>>,
+        image: Vec<Option<String>>,
         take: Vec<f64>,
         nom: Vec<Option<i32>>,
         has: Vec<bool>,
@@ -244,6 +262,7 @@ pub async fn write_meta(pool: &PgPool, block: u32, meta: &Meta, tracked: &Tracke
         c.hk.push(ss58(h));
         c.ck.push(ck.map(ss58));
         c.name.push(ck.and_then(|k| meta.identity.get(k)).cloned());
+        c.image.push(ck.and_then(|k| meta.identity_image.get(k)).cloned());
         c.take.push(meta.take.get(h).copied().unwrap_or(0.0));
         c.nom.push(meta.nominators.as_ref().and_then(|m| m.get(h)).map(|n| *n as i32));
         c.has.push(b.is_some_and(|b| b.shares > 0));
@@ -255,11 +274,11 @@ pub async fn write_meta(pool: &PgPool, block: u32, meta: &Meta, tracked: &Tracke
         c.hold.push(b.map(|b| json!(b.holdings.iter().map(|x| json!([x.netuid, x.alpha, x.spot_tao, x.realizable_tao])).collect::<Vec<_>>())));
     }
     sqlx::query(
-        "INSERT INTO validator (hotkey, coldkey, name, take, nominators, has_basket, nav, spot_nav, shares, deposited, redeemed, holdings, block, updated_at)
-         SELECT *, $13, now() FROM UNNEST($1::text[], $2::text[], $3::text[], $4::float8[], $5::int4[], $6::bool[],
-                                         $7::float8[], $8::float8[], $9::float8[], $10::float8[], $11::float8[], $12::jsonb[])
+        "INSERT INTO validator (hotkey, coldkey, name, take, nominators, has_basket, nav, spot_nav, shares, deposited, redeemed, holdings, image, block, updated_at)
+         SELECT *, $14, now() FROM UNNEST($1::text[], $2::text[], $3::text[], $4::float8[], $5::int4[], $6::bool[],
+                                         $7::float8[], $8::float8[], $9::float8[], $10::float8[], $11::float8[], $12::jsonb[], $13::text[])
          ON CONFLICT (hotkey) DO UPDATE SET
-           coldkey = EXCLUDED.coldkey, name = EXCLUDED.name, take = EXCLUDED.take,
+           coldkey = EXCLUDED.coldkey, name = EXCLUDED.name, take = EXCLUDED.take, image = EXCLUDED.image,
            nominators = COALESCE(EXCLUDED.nominators, validator.nominators),
            has_basket = EXCLUDED.has_basket, nav = EXCLUDED.nav, spot_nav = EXCLUDED.spot_nav, shares = EXCLUDED.shares,
            deposited = EXCLUDED.deposited, redeemed = EXCLUDED.redeemed, holdings = EXCLUDED.holdings,
@@ -277,21 +296,33 @@ pub async fn write_meta(pool: &PgPool, block: u32, meta: &Meta, tracked: &Tracke
     .bind(&c.dep)
     .bind(&c.red)
     .bind(&c.hold)
+    .bind(&c.image)
     .bind(block as i64)
     .execute(&mut *tx)
     .await?;
     // validators that dropped out of every set lose their basket flag
     sqlx::query("UPDATE validator SET has_basket = false WHERE block < $1").bind(block as i64).execute(&mut *tx).await?;
 
-    let (nu, names): (Vec<i32>, Vec<String>) = meta.subnet_names.iter().map(|(n, s)| (*n as i32, s.clone())).unzip();
+    let mut nets: Vec<u16> = meta.subnet_names.keys().chain(meta.subnet_logos.keys()).copied().collect();
+    nets.sort();
+    nets.dedup();
+    let nu: Vec<i32> = nets.iter().map(|n| *n as i32).collect();
+    let names: Vec<Option<String>> = nets.iter().map(|n| meta.subnet_names.get(n).cloned()).collect();
+    let logos: Vec<Option<String>> = nets.iter().map(|n| meta.subnet_logos.get(n).cloned()).collect();
     sqlx::query(
-        "INSERT INTO subnet (netuid, name) SELECT * FROM UNNEST($1::int4[], $2::text[])
-         ON CONFLICT (netuid) DO UPDATE SET name = EXCLUDED.name",
+        "INSERT INTO subnet (netuid, name, logo) SELECT * FROM UNNEST($1::int4[], $2::text[], $3::text[])
+         ON CONFLICT (netuid) DO UPDATE SET name = EXCLUDED.name, logo = EXCLUDED.logo",
     )
     .bind(&nu)
     .bind(&names)
+    .bind(&logos)
     .execute(&mut *tx)
     .await?;
+    // subnets whose identity was removed on chain lose their stale name and logo
+    sqlx::query("UPDATE subnet SET name = NULL, logo = NULL WHERE NOT (netuid = ANY($1)) AND (name IS NOT NULL OR logo IS NOT NULL)")
+        .bind(&nu)
+        .execute(&mut *tx)
+        .await?;
 
     sqlx::query("DELETE FROM childkey").execute(&mut *tx).await?;
     let (mut hk, mut nu, mut ch) = (vec![], vec![], vec![]);
@@ -318,6 +349,7 @@ pub async fn write_meta(pool: &PgPool, block: u32, meta: &Meta, tracked: &Tracke
     .execute(&mut *tx)
     .await?;
 
+    bump(&mut tx).await?;
     tx.commit().await?;
     Ok(())
 }
@@ -325,16 +357,44 @@ pub async fn write_meta(pool: &PgPool, block: u32, meta: &Meta, tracked: &Tracke
 /// Drop hourly snapshots older than `keep_hours` (the day's kept sample stays) and every
 /// snapshot older than `keep_days`.
 pub async fn prune(pool: &PgPool, keep_hours: i64, keep_days: i64) -> Result<u64> {
-    Ok(sqlx::query(
+    let mut tx = pool.begin().await?;
+    let n = sqlx::query(
         "DELETE FROM snapshot
          WHERE (NOT keep_daily AND ts < now() - make_interval(hours => $1::int))
             OR ts < now() - make_interval(days => $2::int)",
     )
     .bind(keep_hours as i32)
     .bind(keep_days as i32)
-    .execute(pool)
+    .execute(&mut *tx)
     .await?
-    .rows_affected())
+    .rows_affected();
+    if n > 0 {
+        bump(&mut tx).await?;
+    }
+    tx.commit().await?;
+    Ok(n)
+}
+
+/// Make an already stored snapshot the kept sample of `day` (when that day has none), e.g.
+/// when a backfill target block was stored earlier as an extra or hourly sample.
+/// Returns whether it was promoted.
+pub async fn keep_for_day(pool: &PgPool, block: u32, day: i64) -> Result<bool> {
+    let mut tx = pool.begin().await?;
+    let n = sqlx::query(
+        "UPDATE snapshot SET keep_daily = true, day = date '1970-01-01' + $2::int
+         WHERE block = $1 AND NOT keep_daily
+           AND NOT EXISTS (SELECT 1 FROM snapshot WHERE keep_daily AND day = date '1970-01-01' + $2::int)",
+    )
+    .bind(block as i64)
+    .bind(day as i32)
+    .execute(&mut *tx)
+    .await?
+    .rows_affected();
+    if n > 0 {
+        bump(&mut tx).await?;
+    }
+    tx.commit().await?;
+    Ok(n > 0)
 }
 
 /// UTC days that already have their kept sample.

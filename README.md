@@ -13,9 +13,12 @@ You need Docker with the Compose plugin. The server needs only two files, `docke
 mkdir -p validators && cd validators
 base=https://raw.githubusercontent.com/taowatch/validators/main
 curl -fsSLO $base/docker-compose.yml
-curl -fsSL $base/.env.example -o .env
-# set a random database password
-sed -i.bak "s/^POSTGRES_PASSWORD=.*/POSTGRES_PASSWORD=$(openssl rand -hex 16)/" .env && rm .env.bak
+# only on the first run: an existing .env (and its password) is never overwritten
+if [ ! -e .env ]; then
+  curl -fsSL $base/.env.example -o .env
+  # set a random database password
+  sed -i.bak "s/^POSTGRES_PASSWORD=.*/POSTGRES_PASSWORD=$(openssl rand -hex 16)/" .env && rm .env.bak
+fi
 docker compose pull
 docker compose up -d
 curl -s http://127.0.0.1:8080/api/health
@@ -47,6 +50,7 @@ When `docker-compose.yml` itself changes in the repo, fetch it again first:
 
 `latest` follows `main`. To pin a version, set `IMAGE` in `.env`, for example `IMAGE=ghcr.io/taowatch/validators:1.2.0` or `:sha-abc1234`.
 Database migrations run automatically when the `api` container starts.
+They only add tables and columns, so rolling back to an older image is safe: it starts against a database a newer image migrated and ignores what it doesn't know.
 
 ## Configuration (`.env`)
 
@@ -61,6 +65,7 @@ Database migrations run automatically when the `api` container starts.
 | `BACKFILL_DAYS` | `30` | Days of history to backfill and keep. The UI follows it: 90 adds the 90D window, 180 adds 180D, 365 adds 365D |
 | `MIN_ALPHA` | `100` | Track a delegate's alpha pool from this much alpha |
 | `KEEP_HOURS` | `72` | Hourly samples kept; older ones thin to one per UTC day |
+| `KEEP_DAYS` | `400` | Days of history kept (at least `BACKFILL_DAYS` + 2). Lowering `BACKFILL_DAYS` does not delete history; lowering `KEEP_DAYS` does |
 | `NOMINATORS_EVERY` | `24` | Refresh nominator counts every N cycles |
 | `RUST_LOG` | `info` | Log level |
 
@@ -99,6 +104,7 @@ docker compose down -v   # deletes the database volume; the next start backfills
 | `collector` | Rust. Takes one head snapshot per `INTERVAL_SECS` and backfills missing UTC days from an archive node. It also fills history for pools that joined later, and prunes old samples. |
 
 Every service runs under `init`, rotates its logs (5 × 10 MB) and restarts unless stopped.
+`api` and `collector` run with a read-only filesystem (only `/tmp` is writable), no Linux capabilities and `no-new-privileges`; Postgres gets 60 s to shut down cleanly.
 The collector's healthcheck passes while a head snapshot is less than 2.5 cycles old.
 
 ### What the collector does each cycle
@@ -110,10 +116,14 @@ The collector's healthcheck passes while a head snapshot is less than 2.5 cycles
    - **Nominators**, from `get_delegate` per basket validator every `NOMINATORS_EVERY` cycles. `get_delegates` exceeds the RPC message limit.
 2. **Backfill.** Each UTC day in the window without a kept sample gets the maps at ≈00:30 UTC that day, newest first.
    - Backfill gets a time budget of one interval per cycle, so a long first run doesn't hold up the hourly head sample. It resumes in the next cycle.
+   - The target block is estimated at 12 s per block, then corrected once from `Timestamp.Now` at that block, so samples land on the right day even months back.
+   - If the target block is already stored (for example as the 24h point), that snapshot becomes the day's sample instead of being read again.
    - A day that fails 3 cycles in a row is skipped until the collector restarts.
    - On a fresh start the collector also stores one exact point 24 hours back, so the 1D window is right before hourly samples build up.
-3. **Gaps.** Pools and validators that entered the tracked set after older snapshots were taken get their values at those blocks through keyed reads. Their 7D and 30D history is therefore complete.
-4. **Prune.** Hourly samples older than `KEEP_HOURS` are deleted, except for each UTC day's kept sample. Anything older than `BACKFILL_DAYS` + 2 days is deleted too.
+3. **Gaps.** Pools and validators that entered the tracked set after older snapshots were taken get their values at those blocks through keyed reads. Their 7D and 30D history is therefore complete. A block that fails 3 cycles is skipped until the collector restarts, and the step stops when the cycle's time budget is used.
+4. **Prune.** Hourly samples older than `KEEP_HOURS` are deleted, except for each UTC day's kept sample. Anything older than `KEEP_DAYS` (at least `BACKFILL_DAYS` + 2) is deleted too. `collector once` never prunes.
+
+Every write bumps a data version in the database; the API recomputes only when it changes.
 
 Every chain call has a 15-minute timeout and up to 3–4 attempts with backoff, switching endpoints between attempts.
 
@@ -132,7 +142,8 @@ Measured on mainnet:
 
 - **Root APY.** yield = Δ`BasketRate.bits` / 2³² × NAV / shares between two samples. APY = (1 + yield)^(365 / days) − 1, with days taken from the blocks' `Timestamp.Now`. The detail charts use a rolling 7-day APY.
 - **Alpha APY.** pps = `TotalHotkeyAlpha` / `TotalHotkeySharesV2` per (hotkey, subnet) pool. yield = pps(t₁) / pps(t₀) − 1, annualized the same way. It is undefined when `AlphaSharePoolEpoch` changed or pps went down. The netuid 0 entry is root stake and is excluded.
-- **Subnet reference APY.** The median 30D APY of the top 3 pools worth at least 100 τ.
+- **Subnet reference APY.** For each window: among earning pools worth at least 100 τ, the median APY of the top 3 when there are at least 3, otherwise the single best. Pools earning nothing (APY < 0.01%) never set it.
+- **1D window.** Uses an hourly sample within 3 hours of 24 hours before head; without one, 1D is empty rather than computed over a wrong span.
 - **Efficiency.** Pool APY ÷ reference, capped at 120%. Effective take = 1 − efficiency. It is computed for every window of 7 days or more.
 - **Consistency.** The history is cut into 30-day periods, newest first. For each one, the validator's stake-weighted efficiency is computed against that period's own subnet references. Consistency is the share of periods in which efficiency reached at least 90%. It needs at least 2 periods, so 60 or more days of history.
 
@@ -143,7 +154,8 @@ The API serves as much history as is stored: the daily grid reaches back to the 
 - 90D, 180D and 365D appear once the data reaches that far.
 - Raising `BACKFILL_DAYS` on a running deployment only backfills the extra days. Each cycle spends up to one interval on backfill.
 - Rough storage cost: about 2 MB per stored day, so 365 days is under 1 GB.
-- **Configured take.** 1 − (1 − take)(1 − Σ proportion × childkey take). `ChildKeys` proportions are u64 / 2⁶⁴; `ChildkeyTake` and `Delegates` takes are u16 / 65535.
+
+**Configured take.** 1 − (1 − take)(1 − Σ proportion × childkey take). `ChildKeys` proportions are u64 / 2⁶⁴; `ChildkeyTake` and `Delegates` takes are u16 / 65535.
 
 ## How validators are graded
 
@@ -151,7 +163,7 @@ The home page ("Choose a validator") gives each validator a grade per place it o
 It answers one question: *how much of the best available payout does a staker get here?*
 
 - **Payout vs best (PR):** the validator's daily yield ÷ a benchmark daily yield, capped at 120%. Daily yields are compared rather than APYs, so a short burst cannot inflate the ratio.
-  - **Root:** the benchmark is the median of the top 3 APY 30D among rated validators (≥ 1K τ, ≥ 21 days of data).
+  - **Root:** the benchmark is the median of the top 3 APY 30D among rated, earning validators (≥ 1K τ, ≥ 21 days of data). A rated validator earning nothing gets F.
   - **Alpha pool:** the benchmark is the median of the top 3 earning pools on the same subnet, **excluding the validator's own pool** (leave-one-out), so nobody is compared with itself.
     - Pools of ≥ 100 τ are used. If there are fewer than 3, pools of ≥ 10 τ are used instead and the pool gets a "Thin benchmark" badge.
     - The grade uses the weaker of PR 7D and PR 30D: a validator must be good in both windows.
@@ -175,6 +187,7 @@ It answers one question: *how much of the best available payout does a staker ge
 - **Total fee** = 1 − (1 − take)(1 − childkey take), shown next to the grade. It is not folded into the grade, since yields are already net of it.
 
 On a subnet, the alpha price move is the same for every validator, so it is shown once in the subnet header rather than on each row.
+The subnet header's "best APY" follows the subnet reference rule above (no leave-one-out); per-pool grades use the leave-one-out benchmark.
 
 ## API
 
@@ -187,6 +200,8 @@ On a subnet, the alpha price move is the same for every validator, so it is show
 | `GET /api/health` | Database reachable, newest block and its age |
 
 The API computes every response from one consistent database snapshot.
+JSON is served gzipped when the client accepts it (`Cache-Control: public, max-age=60`); unknown `/api/*` paths and missing files return 404 with `Cache-Control: no-store`, and paths without a file extension get the app's `index.html`.
+Every response carries a Content-Security-Policy (scripts only from the site itself; fonts from Google Fonts; images from any https host; the live price from `wss://data-stream.binance.vision`), `X-Content-Type-Options: nosniff`, `Referrer-Policy: strict-origin-when-cross-origin` and `X-Frame-Options: DENY`.
 The JSON shapes match the design's data files, so the frontend logic is shared.
 
 In `/api/validators`, `days` and `sh` have one point per day of history, and `sh` is `null` for leading days with no sample.
@@ -199,8 +214,8 @@ crates/core       chain client (subxt 0.51, LegacyBackend) + Postgres access
 crates/collector  periodic job
 crates/api        HTTP API + APY math (compute.rs)
 migrations/       schema
-web/              frontend (dc-lite.js + index.html/app.js generated from the design)
-design/           design source (.dc.html) the UI is generated from
+web/              frontend (dc-lite.js + pages generated from the designs)
+design/           design sources (.dc.html): App (default UI), Terminal, Main (analytics), TerminalAnalytics
 tools/dc2web.py   design → web
 ```
 
@@ -221,10 +236,26 @@ cargo run --bin api          # http://127.0.0.1:8080
 
 ### Changing the UI
 
-The source of the UI is `design/Main.dc.html`. After editing it, regenerate and commit `web/`. CI fails if `web/` is out of date.
+The UI is generated from four design sources in `design/`:
+
+| Source | Page | Served at |
+|---|---|---|
+| `design/App.dc.html` | Default interface: choose a validator, validator pages | `/` |
+| `design/Terminal.dc.html` | Terminal interface: same data and views, keyboard-driven | `/terminal` |
+| `design/Main.dc.html` | Analytics | `/analytics` |
+| `design/TerminalAnalytics.dc.html` | Analytics in the Terminal interface | `/terminal/analytics` |
+
+The default and Terminal pages share the same API (`/api/choose`, `/api/validator/{hotkey}`) and the same validator links (`#v/<hotkey>[/<netuid>]`), so switching keeps the current view.
+Viewers switch with the "UI Default | Terminal" control in the header. The Terminal pages also accept the `t` key.
+- The choice is remembered per browser in `localStorage` (`vy.ui`). With `terminal` stored, `/` redirects to `/terminal` and `/analytics` to `/terminal/analytics`.
+- `?ui=terminal` or `?ui=default` in a link sets the choice.
+
+Terminal keys: `j`/`k` move, `enter` opens, `/` focuses the command line, `s` cycles the sort, `g` cycles the grade filter, `esc` clears or goes back, `h`/`l` step through a validator's places, `c` copies the hotkey, `t` switches UI. On the Terminal analytics page: `1`/`2`/`3` switch tabs, `w` cycles the window, `j`/`k` + `enter` open a validator. Single-key shortcuts can be turned off with the "keys: on/off" button in the status bar or the `keys off` command (stored in `localStorage` `vy.keys`).
+
+After editing a design, regenerate and commit `web/`. CI fails if `web/` is out of date.
 
 ```bash
-python3 tools/dc2web.py     # rewrites web/index.html + web/app.js
+python3 tools/dc2web.py     # rewrites web/index.html, terminal.html, analytics.html, terminal-analytics.html and their scripts
 ```
 
 Then check the result locally with `docker-compose.build.yml`, as shown above.

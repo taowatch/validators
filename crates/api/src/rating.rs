@@ -76,7 +76,15 @@ fn grade(pr: Option<f64>) -> Option<&'static str> {
     })
 }
 fn short(hk: &str) -> String {
-    if hk.len() > 10 { format!("{}…{}", &hk[..6], &hk[hk.len() - 4..]) } else { hk.to_string() }
+    let c: Vec<char> = hk.chars().collect();
+    if c.len() > 10 { format!("{}…{}", c[..6].iter().collect::<String>(), c[c.len() - 4..].iter().collect::<String>()) } else { hk.to_string() }
+}
+
+/// Subnet reference APY: the median of the top 3 earning pools when there are at least 3,
+/// else the single best. Same rule as `compute.rs` (`ref{w}` in /api/alpha).
+fn subnet_ref(mut xs: Vec<f64>) -> Option<f64> {
+    xs.sort_by(|a, b| b.total_cmp(a));
+    if xs.len() >= 3 { median(xs[..3].to_vec()) } else { xs.first().copied() }
 }
 
 pub struct Rated {
@@ -113,26 +121,31 @@ pub fn build(vals: &Value, alpha: &Value) -> Rated {
     let empty = vec![];
     // ---------------- root ----------------
     let rv = vals.get("v").and_then(Value::as_array).unwrap_or(&empty);
-    let series = |x: &Value| -> Vec<Option<f64>> { x.get("d").and_then(Value::as_array).map(|a| a.iter().map(Value::as_f64).collect()).unwrap_or_default() };
+    // each rolling series parsed once
+    let series: Vec<Vec<Option<f64>>> =
+        rv.iter().map(|x| x.get("d").and_then(Value::as_array).map(|a| a.iter().map(Value::as_f64).collect()).unwrap_or_default()).collect();
     let last = |d: &[Option<f64>]| -> Vec<Option<f64>> { d[d.len().saturating_sub(ROOT_WINDOW)..].to_vec() };
-    let rated = |x: &Value| -> bool {
-        f(x, "s").unwrap_or(0.0) >= ROOT_MIN_STAKE && f(x, "a30").is_some() && last(&series(x)).iter().flatten().count() >= ROOT_MIN_DAYS
-    };
-    let eligible: Vec<&Value> = rv.iter().filter(|x| rated(x)).collect();
-    let bench = top3_median(eligible.iter().filter_map(|x| f(x, "a30")).collect());
-    let len = rv.first().map(|x| series(x).len()).unwrap_or(0);
-    let bench_d: Vec<Option<f64>> = (0..len).map(|i| top3_median(eligible.iter().filter_map(|x| series(x).get(i).copied().flatten()).collect())).collect();
+    let rated: Vec<bool> = rv
+        .iter()
+        .zip(&series)
+        .map(|(x, d)| f(x, "s").unwrap_or(0.0) >= ROOT_MIN_STAKE && f(x, "a30").is_some() && last(d).iter().flatten().count() >= ROOT_MIN_DAYS)
+        .collect();
+    let eligible: Vec<usize> = (0..rv.len()).filter(|&i| rated[i]).collect();
+    let bench = top3_median(eligible.iter().filter_map(|&i| f(&rv[i], "a30")).filter(|a| *a >= MIN_EARNING).collect());
+    let len = series.first().map(Vec::len).unwrap_or(0);
+    let bench_d: Vec<Option<f64>> = (0..len).map(|k| top3_median(eligible.iter().filter_map(|&i| series[i].get(k).copied().flatten()).collect())).collect();
 
     let mut roots: Vec<RootRow> = Vec::new();
-    for x in rv {
+    for (xi, x) in rv.iter().enumerate() {
         let hk = s(x, "hk").unwrap_or_default().to_string();
-        let d = series(x);
-        let is_rated = rated(x);
+        let d = &series[xi];
+        let is_rated = rated[xi];
         let pr = match (f(x, "a30"), bench) {
+            (Some(a), _) if a < MIN_EARNING => Some(0.0),
             (Some(a), Some(b)) => ratio(a, b),
             _ => None,
         };
-        let hits: Vec<bool> = last(&d).iter().zip(last(&bench_d)).filter_map(|(d, b)| Some(d.as_ref()? >= &(0.9 * b?))).collect();
+        let hits: Vec<bool> = last(d).iter().zip(last(&bench_d)).filter_map(|(d, b)| Some(d.as_ref()? >= &(0.9 * b?))).collect();
         let hit = (!hits.is_empty()).then(|| hits.iter().filter(|h| **h).count() as f64 / hits.len() as f64);
         let mut g = if is_rated { grade(pr) } else { None };
         if g == Some("A") && hit.is_some_and(|h| h < 2.0 / 3.0) {
@@ -143,7 +156,10 @@ pub fn build(vals: &Value, alpha: &Value) -> Rated {
             badges.push("High fee");
         }
         if !is_rated {
-            badges.push(if last(&d).iter().flatten().count() < ROOT_MIN_DAYS { "New" } else { "Small" });
+            // unrated because of size, or because history is too short (incl. no 30D value yet)
+            badges.push(if f(x, "s").unwrap_or(0.0) < ROOT_MIN_STAKE { "Small" } else { "New" });
+        } else if pr == Some(0.0) {
+            badges.push("Not earning");
         } else if hit.is_some_and(|h| h < 0.5) {
             badges.push("Unstable");
         }
@@ -162,7 +178,7 @@ pub fn build(vals: &Value, alpha: &Value) -> Rated {
         roots.push(RootRow {
             hk: hk.clone(),
             v: json!({
-                "n": x.get("n"), "hk": hk, "ck": x.get("ck"), "s": round(f(x, "s").unwrap_or(0.0), 0), "nom": x.get("nom"), "t": x.get("t"),
+                "n": x.get("n"), "hk": hk, "img": x.get("img"), "ck": x.get("ck"), "s": round(f(x, "s").unwrap_or(0.0), 0), "nom": x.get("nom"), "t": x.get("t"),
                 "a7": x.get("a7"), "a30": x.get("a30"), "r30": x.get("r30"),
                 "pr": ro(pr.map(|p| p * 100.0), 1), "hit": ro(hit.map(|h| h * 100.0), 0), "g": g, "b": badges,
                 "d": x.get("d"), "per": per,
@@ -297,7 +313,7 @@ pub fn build(vals: &Value, alpha: &Value) -> Rated {
                 let p = &pools[i];
                 let take = f(&av[p.v], "t").unwrap_or(0.0) * 100.0;
                 json!([vname(p.v), s(&av[p.v], "hk"), round(p.tao, 0), round(take, 1), round(p.ct, 1), round(p.cfg, 1), ro(p.a30, 2), ro(p.a7, 2),
-                       ro(p.pr.map(|x| x * 100.0), 1), p.g, p.badges, p.rk])
+                       ro(p.pr.map(|x| x * 100.0), 1), p.g, p.badges, p.rk, av[p.v].get("img")])
             })
             .collect();
         pool_rows.insert(nu.to_string(), Value::Array(rows));
@@ -305,9 +321,9 @@ pub fn build(vals: &Value, alpha: &Value) -> Rated {
         subnets.push((
             tao,
             json!({
-                "nu": nu, "name": s(sm, "name").map(str::to_string).unwrap_or_else(|| format!("Subnet {nu}")),
+                "nu": nu, "name": s(sm, "name").map(str::to_string).unwrap_or_else(|| format!("Subnet {nu}")), "logo": sm.get("logo"),
                 "price": sm.get("price"), "dp7": sm.get("dp7"), "dp30": sm.get("dp30"),
-                "best": ro(top3_median(best_pools), 2), "nbest": nbest, "nv": ps.len(), "net30": sm.get("r30"), "tao": tao,
+                "best": ro(subnet_ref(best_pools), 2), "nbest": nbest, "nv": ps.len(), "net30": sm.get("r30"), "tao": tao,
             }),
         ));
     }
@@ -357,7 +373,7 @@ pub fn build(vals: &Value, alpha: &Value) -> Rated {
                 let sm = sn_meta.get(&p.nu);
                 let (rk, of) = rank.get(&i).map_or((Value::Null, Value::Null), |(a, b)| (json!(a), json!(b)));
                 locs.push(json!({
-                    "kind": "alpha", "nu": p.nu, "label": format!("SN{}", p.nu), "sname": sm.and_then(|s| s.get("name")),
+                    "kind": "alpha", "nu": p.nu, "label": format!("SN{}", p.nu), "sname": sm.and_then(|s| s.get("name")), "logo": sm.and_then(|s| s.get("logo")),
                     "a30": ro(p.a30, 2), "a7": ro(p.a7, 2), "pr": ro(p.pr.map(|x| x * 100.0), 1),
                     "pr7": ro(p.pr7.map(|x| x * 100.0), 1), "pr30": ro(p.pr30.map(|x| x * 100.0), 1),
                     "g": p.g, "b": p.badges, "fee": round(p.cfg, 1), "take": round(f(&av[vi], "t").unwrap_or(0.0) * 100.0, 1), "ck": round(p.ct, 1),
@@ -366,15 +382,88 @@ pub fn build(vals: &Value, alpha: &Value) -> Rated {
                 }));
             }
         }
-        details.insert(hk.to_string(), json!({ "n": name, "hk": hk, "nom": r.and_then(|r| r.get("nom")), "locs": locs }));
+        let img = r.and_then(|r| r.get("img")).or_else(|| vi.and_then(|v| av[v].get("img")));
+        details.insert(hk.to_string(), json!({ "n": name, "hk": hk, "img": img, "nom": r.and_then(|r| r.get("nom")), "locs": locs }));
     }
 
     let choose = json!({
         "block": vals.get("block"), "ts": vals.get("ts"),
         "root": { "bench": ro(bench, 2), "rows": roots.into_iter().map(|r| r.v).collect::<Vec<_>>() },
         "subnets": subnets.into_iter().map(|x| x.1).collect::<Vec<_>>(),
-        "pcols": ["n", "hk", "tao", "take", "ck", "fee", "a30", "a7", "pr", "g", "b", "rk"],
+        "pcols": ["n", "hk", "tao", "take", "ck", "fee", "a30", "a7", "pr", "g", "b", "rk", "img"],
         "pools": pool_rows,
     });
     Rated { choose, details }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn daily_ratio_and_cap() {
+        // same APY → 1; ratio of daily yields, not of APYs
+        assert!((ratio(30.0, 30.0).unwrap() - 1.0).abs() < 1e-12);
+        let r = ratio(20.0, 40.0).unwrap();
+        let expect = ((1.2f64).powf(1.0 / 365.0) - 1.0) / ((1.4f64).powf(1.0 / 365.0) - 1.0);
+        assert!((r - expect).abs() < 1e-12 && r > 0.5, "{r}");
+        assert_eq!(ratio(500.0, 10.0), Some(1.2));
+        assert_eq!(ratio(10.0, 0.0), None);
+    }
+
+    #[test]
+    fn grade_thresholds() {
+        assert_eq!(grade(Some(0.0)), Some("F"));
+        assert_eq!(grade(Some(0.95)), Some("A"));
+        assert_eq!(grade(Some(0.9499)), Some("B"));
+        assert_eq!(grade(Some(0.85)), Some("B"));
+        assert_eq!(grade(Some(0.70)), Some("C"));
+        assert_eq!(grade(Some(0.69)), Some("D"));
+        assert_eq!(grade(None), None);
+    }
+
+    #[test]
+    fn subnet_reference_rule() {
+        assert_eq!(subnet_ref(vec![10.0, 50.0, 40.0, 30.0]), Some(40.0));
+        assert_eq!(subnet_ref(vec![10.0, 50.0]), Some(50.0));
+        assert_eq!(subnet_ref(vec![]), None);
+    }
+
+    #[test]
+    fn short_is_char_safe() {
+        assert_eq!(short("5GP7c3fFazW9GXK8Up3qgu2DJBk8inu4aK9TZy3RuoSWVCMi"), "5GP7c3…VCMi");
+        assert_eq!(short("ééééééééééééé"), "éééééé…éééé");
+        assert_eq!(short("abc"), "abc");
+    }
+
+    /// One subnet with four validators; the self-referencing big pool must not set its own
+    /// benchmark (leave-one-out), and a zero-yield pool grades F.
+    #[test]
+    fn leave_one_out_benchmark() {
+        let v = |hk: &str, t: f64| json!({"hk": hk, "n": hk, "t": t});
+        let alpha = json!({
+            "v": [v("big", 0.18), v("a", 0.0), v("b", 0.0), v("c", 0.0), v("dead", 0.18)],
+            "pf": ["v", "nu", "tao", "a7", "a30", "ct", "rk30"],
+            "p": [
+                [0, 1, 5000.0, 30.0, 30.0, 0.0, 4],
+                [1, 1, 50.0, 40.0, 40.0, 0.0, 1],
+                [2, 1, 40.0, 40.0, 40.0, 0.0, 2],
+                [3, 1, 30.0, 40.0, 40.0, 0.0, 3],
+                [4, 1, 20.0, 0.0, 0.0, 0.0, null],
+            ],
+            "subnets": [{"nu": 1, "name": "one", "tao": 5140.0}],
+        });
+        let vals = json!({"v": []});
+        let r = build(&vals, &alpha);
+        let rows = r.choose["pools"]["1"].as_array().unwrap();
+        let row = |name: &str| rows.iter().find(|x| x[0] == name).unwrap().clone();
+        // "big" (only pool ≥100 τ) is compared with the others (thin benchmark 40%), not itself
+        let big = row("big");
+        assert_eq!(big[9], "C", "{big}");
+        assert!(big[10].as_array().unwrap().iter().any(|b| b == "Thin benchmark"));
+        assert_eq!(row("a")[9], "A");
+        let dead = row("dead");
+        assert_eq!(dead[9], "F");
+        assert!(dead[10].as_array().unwrap().iter().any(|b| b == "Not earning"));
+    }
 }

@@ -6,6 +6,7 @@
 <title>Choose a validator · Validator Yield · Bittensor</title>
 <meta name="description" content="Pick a Bittensor validator: every root and subnet validator graded on what it pays stakers, after fees, from on-chain data.">
 <meta name="color-scheme" content="dark">
+<script src="/ui.js?v=0cdf1daf7c8a" data-page="index"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&amp;family=JetBrains+Mono:wght@400;500;600&amp;family=Space+Grotesk:wght@500;600;700&amp;display=swap" rel="stylesheet">
@@ -22,11 +23,23 @@ button:focus-visible,input:focus-visible,select:focus-visible,a:focus-visible{ou
 .ch-skip:focus{left:16px}
 @keyframes chpulse{0%,100%{opacity:.45}50%{opacity:.9}}
 .ch-skel{animation:chpulse 1.4s ease-in-out infinite}
+@media (prefers-reduced-motion:reduce){.ch-skel{animation:none}}
 .ch-cards{display:none}
 .ch-short{display:none}
+.ch-sorth{all:unset;cursor:pointer;display:inline-flex;align-items:center;gap:4px;border-radius:4px;font:inherit;letter-spacing:inherit;text-transform:inherit;color:inherit}
+.ch-sorth:hover{color:#E6EDF3}
+.ch-sorth:focus-visible{outline:2px solid #3DDBB0;outline-offset:2px}
+.ch-ava{flex:none;display:flex;align-items:center;justify-content:center;overflow:hidden;font-family:'Space Grotesk',sans-serif;font-weight:700}
+.ch-ava img{width:100%;height:100%;object-fit:cover;display:block}
+.ch-sn{flex:none;display:inline-flex;align-items:center;height:22px;padding:0 7px;border-radius:6px;background:#16223A;color:#8FB0FF;font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:600}
+.ch-swu{height:36px;padding:0 14px;border-radius:999px;background:#F5C542;color:#0A0E13 !important;text-decoration:none;display:flex;align-items:center;font-weight:600;white-space:nowrap}
+.ch-swu:hover{background:#FFD866}
+.ch-msort{display:none}
+@media (max-width:1499px){.ch-block{display:none !important}}
 @media (max-width:899px){
 .ch-table{display:none !important}
 .ch-cards{display:block}
+.ch-msort{display:flex}
 .ch-main{padding:18px 16px 40px !important;gap:14px !important}
 .ch-hdr{padding:12px 16px !important;gap:10px 14px !important}
 .ch-sub,.ch-block{display:none !important}
@@ -46,6 +59,7 @@ button:focus-visible,input:focus-visible,select:focus-visible,a:focus-visible{ou
 .vd-kv{font-size:20px !important}
 .vd-h1{font-size:22px !important}
 .vd-ava{display:none !important}
+.ch-ui-l{display:none !important}
 .ch-sum>div{min-width:0 !important;flex:1 1 40%}
 }
 </style>
@@ -54,11 +68,11 @@ button:focus-visible,input:focus-visible,select:focus-visible,a:focus-visible{ou
 <div id="app"></div>
 <template id="tpl">
 <div style="min-height: 100vh; background: #0A0E13; color: #E6EDF3; font-family: Inter, system-ui, sans-serif; font-size: 14px; line-height: 1.45; -webkit-font-smoothing: antialiased">
-<a href="#validators" class="ch-skip" onClick="{{skip}}">Skip to validators</a>
+<a href="#validators" class="ch-skip" data-on-click="{{skip}}">Skip to validators</a>
 
 <header style="border-bottom: 1px solid #1C232D">
 <div class="ch-hdr" style="max-width: 1280px; margin: 0 auto; padding: 16px 24px; display: flex; flex-wrap: wrap; align-items: center; gap: 12px 24px">
-<a href="/" onClick="{{home}}" aria-label="Validator Yield, back to choosing a validator" style="display: flex; align-items: center; gap: 12px; color: inherit; text-decoration: none; border-radius: 10px">
+<a href="/" data-on-click="{{home}}" aria-label="Validator Yield, back to choosing a validator" style="display: flex; align-items: center; gap: 12px; color: inherit; text-decoration: none; border-radius: 10px">
 <span style="width: 34px; height: 34px; border-radius: 9px; background: {{accent}}; color: #0A0E13; display: flex; align-items: center; justify-content: center; font-family: 'Space Grotesk', sans-serif; font-weight: 700; font-size: 20px" aria-hidden="true">τ</span>
 <span style="display: flex; flex-direction: column">
 <span style="font-family: 'Space Grotesk', sans-serif; font-weight: 600; font-size: 17px">Validator Yield</span>
@@ -66,10 +80,16 @@ button:focus-visible,input:focus-visible,select:focus-visible,a:focus-visible{ou
 </span>
 </a>
 <nav aria-label="Sections" style="display: flex; gap: 6px; flex-wrap: wrap">
-<a href="/" onClick="{{home}}" aria-current="page" style="height: 36px; padding: 0 14px; border-radius: 9px; background: #151C26; color: #E6EDF3; text-decoration: none; display: flex; align-items: center; font-weight: 500">Choose a validator</a>
+<a href="/" data-on-click="{{home}}" aria-current="page" style="height: 36px; padding: 0 14px; border-radius: 9px; background: #151C26; color: #E6EDF3; text-decoration: none; display: flex; align-items: center; font-weight: 500">Choose a validator</a>
 <a href="/analytics" style="height: 36px; padding: 0 14px; border-radius: 9px; color: #A9B4C2; text-decoration: none; display: flex; align-items: center">Analytics ›</a>
+<a href="#v/5FFSBkNiymQWHaxc8dTmfTT7iHoz6YDexVG4xR2yLrffVR86" class="ch-swu" data-on-click="{{stakeUs}}" title="Kooltek68: the validator behind this site">Stake with us</a>
 </nav>
 <div style="flex: 1 1 auto"></div>
+<div role="group" aria-label="Interface" class="ch-ui" style="display: flex; align-items: center; gap: 2px; padding: 3px; border: 1px solid #1C232D; border-radius: 10px; background: #0E131A">
+<span class="ch-ui-l" style="font-size: 11px; color: #8B97A6; padding: 0 6px; text-transform: uppercase; letter-spacing: 0.08em">UI</span>
+<span aria-current="true" style="height: 30px; padding: 0 12px; border-radius: 7px; background: #1A2A26; color: #3DDBB0; font-size: 13px; font-weight: 600; display: flex; align-items: center">Default</span>
+<a href="/terminal?ui=terminal" data-on-click="{{toTerminal}}" title="Switch to the Terminal interface (t)" style="height: 30px; padding: 0 12px; border-radius: 7px; color: #A9B4C2; font-size: 13px; font-family: 'JetBrains Mono', monospace; text-decoration: none; display: flex; align-items: center">Terminal</a>
+</div>
 <div title="{{tk.title}}" style="display: flex; align-items: center; gap: 10px; height: 36px; padding: 0 12px; border: 1px solid #1C232D; border-radius: 10px; background: #0E131A">
 <span style="font-family: 'Space Grotesk', sans-serif; font-weight: 600; font-size: 13px; color: #A9B4C2">TAO</span>
 <span style="font-family: 'JetBrains Mono', monospace; font-weight: 600; font-size: 14px; color: {{tk.flash}}">{{tk.price}}</span>
@@ -105,7 +125,7 @@ button:focus-visible,input:focus-visible,select:focus-visible,a:focus-visible{ou
 </section>
 
 <section aria-label="Where to stake" class="ch-modes" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(min(300px, 100%), 1fr)); gap: 12px">
-<button type="button" class="ch-mode" onClick="{{pickRoot}}" aria-pressed="{{rootOn}}" style="text-align: left; padding: 18px 20px; border-radius: 14px; border: 1.5px solid {{rootBorder}}; background: {{rootBg}}; color: #E6EDF3; display: flex; flex-direction: column; gap: 6px">
+<button type="button" class="ch-mode" data-on-click="{{pickRoot}}" aria-pressed="{{rootOn}}" style="text-align: left; padding: 18px 20px; border-radius: 14px; border: 1.5px solid {{rootBorder}}; background: {{rootBg}}; color: #E6EDF3; display: flex; flex-direction: column; gap: 6px">
 <span style="display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 4px 12px">
 <span class="ch-mode-title" style="font-family: 'Space Grotesk', sans-serif; font-size: 18px; font-weight: 600">Keep τ (Root)</span>
 <span class="ch-long" style="font-family: 'JetBrains Mono', monospace; font-size: 15px; color: {{accent}}">~{{rootBench}}% APY</span>
@@ -113,7 +133,7 @@ button:focus-visible,input:focus-visible,select:focus-visible,a:focus-visible{ou
 <span class="ch-long" style="color: #A9B4C2; font-size: 13px">Your principal stays in TAO. Rewards arrive as basket alpha. Lower yield, no alpha price risk.</span>
 <span class="ch-short" style="color: #A9B4C2; font-size: 12px">~{{rootBench}}% · no price risk</span>
 </button>
-<button type="button" class="ch-mode" onClick="{{pickAlpha}}" aria-pressed="{{alphaOn}}" style="text-align: left; padding: 18px 20px; border-radius: 14px; border: 1.5px solid {{alphaBorder}}; background: {{alphaBg}}; color: #E6EDF3; display: flex; flex-direction: column; gap: 6px">
+<button type="button" class="ch-mode" data-on-click="{{pickAlpha}}" aria-pressed="{{alphaOn}}" style="text-align: left; padding: 18px 20px; border-radius: 14px; border: 1.5px solid {{alphaBorder}}; background: {{alphaBg}}; color: #E6EDF3; display: flex; flex-direction: column; gap: 6px">
 <span style="display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 4px 12px">
 <span class="ch-mode-title" style="font-family: 'Space Grotesk', sans-serif; font-size: 18px; font-weight: 600">Stake in a subnet</span>
 <span class="ch-long" style="font-family: 'JetBrains Mono', monospace; font-size: 15px; color: #E6EDF3">{{alphaRange}}</span>
@@ -126,19 +146,56 @@ button:focus-visible,input:focus-visible,select:focus-visible,a:focus-visible{ou
 <sc-if value="{{alphaOn}}" hint-placeholder-val="{{ false }}">
 <section aria-label="Subnet" style="display: flex; flex-wrap: wrap; align-items: center; gap: 10px">
 <label for="ch-sn" style="font-size: 13px; color: #A9B4C2">Subnet</label>
-<select id="ch-sn" class="ch-snsel" value="{{snVal}}" onChange="{{pickSn}}" style="height: 40px; min-width: 320px; padding: 0 12px; border-radius: 10px; border: 1px solid #1C232D; background: #0E131A; color: #E6EDF3">
-<sc-for list="{{snOpts}}" as="o" hint-placeholder-count="6">
-<option value="{{o.v}}">{{o.label}}</option>
+<div class="ch-snsel" style="position: relative; min-width: 380px; display: flex; align-items: center; gap: 8px; height: 40px; padding: 0 10px; border-radius: 10px; border: 1px solid {{snBorder}}; background: #0E131A">
+<sc-if value="{{snCur}}" hint-placeholder-val="{{ false }}">
+<span class="ch-ava" aria-hidden="true" style="width: 22px; height: 22px; border-radius: 6px; background: {{snCur.av.bg}}; color: {{snCur.av.fg}}; font-size: 9px">
+<sc-if value="{{snCur.av.img}}" hint-placeholder-val="{{ false }}"><img src="{{snCur.av.src}}" alt="" referrerpolicy="no-referrer" loading="lazy" decoding="async" data-on-error="{{snCur.av.err}}"></sc-if>
+<sc-if value="{{snCur.av.mono}}" hint-placeholder-val="{{ true }}">{{snCur.av.ini}}</sc-if>
+</span>
+<span style="flex: none; padding: 2px 7px; border-radius: 6px; background: #12281F; color: #3DDBB0; font-family: 'JetBrains Mono', monospace; font-size: 12px; font-weight: 700">{{snCur.sn}}</span>
+</sc-if>
+<input id="ch-sn" type="text" role="combobox" autocomplete="off" spellcheck="false" aria-autocomplete="list" aria-expanded="{{snOpen}}" aria-controls="ch-snlist" aria-activedescendant="{{snActId}}" aria-label="Search subnets by number or name" placeholder="{{snPh}}" value="{{snQ}}" data-on-change="{{onSnQ}}" data-on-focus="{{openSn}}" data-on-blur="{{closeSn}}" data-on-keydown="{{snKey}}" style="flex: 1; min-width: 0; height: 36px; border: 0; outline: none; background: transparent; color: #E6EDF3; font-size: 14px">
+<sc-if value="{{snOpen}}" hint-placeholder-val="{{ false }}">
+<ul id="ch-snlist" role="listbox" aria-label="Subnets" style="position: absolute; top: 44px; left: 0; right: 0; z-index: 30; margin: 0; padding: 4px; list-style: none; max-height: 360px; overflow-y: auto; border-radius: 10px; border: 1px solid #2A3340; background: #0E131A; box-shadow: 0 12px 32px rgba(0,0,0,0.45)">
+<sc-for list="{{snMatches}}" as="o" hint-placeholder-count="6">
+<li id="{{o.id}}" role="option" aria-selected="{{o.act}}" data-on-mousedown="{{o.pick}}" style="display: flex; align-items: center; gap: 10px; padding: 7px 8px; border-radius: 8px; cursor: pointer; background: {{o.bg}}">
+<span class="ch-ava" aria-hidden="true" style="width: 22px; height: 22px; border-radius: 6px; background: {{o.av.bg}}; color: {{o.av.fg}}; font-size: 9px">
+<sc-if value="{{o.av.img}}" hint-placeholder-val="{{ false }}"><img src="{{o.av.src}}" alt="" referrerpolicy="no-referrer" loading="lazy" decoding="async" data-on-error="{{o.av.err}}"></sc-if>
+<sc-if value="{{o.av.mono}}" hint-placeholder-val="{{ true }}">{{o.av.ini}}</sc-if>
+</span>
+<span style="flex: none; min-width: 52px; font-family: 'JetBrains Mono', monospace; font-size: 12px; font-weight: 700; color: {{o.snC}}">{{o.sn}}</span>
+<span style="flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: #E6EDF3; font-size: 14px">{{o.name}}</span>
+<span style="flex: none; font-family: 'JetBrains Mono', monospace; font-size: 12px; color: #A9B4C2">{{o.best}}</span>
+<span style="flex: none; min-width: 62px; text-align: right; font-family: 'JetBrains Mono', monospace; font-size: 12px; color: #8B97A6">{{o.dp}}</span>
+</li>
 </sc-for>
-</select>
-<span class="ch-long" style="font-size: 12px; color: #8B97A6">Sorted by alpha staked. Best APY shown next to each.</span>
+<sc-if value="{{snNone}}" hint-placeholder-val="{{ false }}">
+<li role="option" aria-disabled="true" aria-selected="false" style="padding: 10px 8px; color: #A9B4C2; font-size: 13px">{{snNoneTxt}}</li>
+</sc-if>
+</ul>
+</sc-if>
+</div>
+<span class="ch-long" style="font-size: 12px; color: #8B97A6">Type a number (51, sn51) or a name. Up/Down to move, Enter to pick.</span>
 </section>
 </sc-if>
 
 <section aria-label="Summary" class="ch-sum" style="padding: 18px 20px; border-radius: 14px; border: 1px solid #1C232D; background: #0E131A; display: flex; flex-wrap: wrap; gap: 16px 40px; align-items: flex-start">
-<div style="display: flex; flex-direction: column; gap: 2px; min-width: 200px">
+<div style="display: flex; align-items: center; gap: 12px; min-width: 200px">
+<sc-if value="{{sumAva}}" hint-placeholder-val="{{ false }}">
+<span class="ch-ava" aria-hidden="true" style="width: 44px; height: 44px; border-radius: 12px; background: {{sumAva.bg}}; color: {{sumAva.fg}}; font-size: 15px">
+<sc-if value="{{sumAva.img}}" hint-placeholder-val="{{ false }}"><img src="{{sumAva.src}}" alt="" referrerpolicy="no-referrer" loading="lazy" decoding="async" data-on-error="{{sumAva.err}}"></sc-if>
+<sc-if value="{{sumAva.mono}}" hint-placeholder-val="{{ true }}">{{sumAva.ini}}</sc-if>
+</span>
+</sc-if>
+<div style="display: flex; flex-direction: column; gap: 4px; min-width: 0">
+<sc-if value="{{sumSn}}" hint-placeholder-val="{{ false }}">
+<span class="ch-sn" style="align-self: flex-start; height: 24px; font-size: 13px">{{sumSn}}</span>
+</sc-if>
+<sc-if value="{{sumKicker}}" hint-placeholder-val="{{ true }}">
 <span style="font-size: 12px; color: #8B97A6">{{sumKicker}}</span>
+</sc-if>
 <span style="font-family: 'Space Grotesk', sans-serif; font-size: 20px; font-weight: 600">{{sumTitle}}</span>
+</div>
 </div>
 <sc-for list="{{sumStats}}" as="st" hint-placeholder-count="3">
 <div style="display: flex; flex-direction: column; gap: 2px" title="{{st.tip}}">
@@ -156,33 +213,38 @@ button:focus-visible,input:focus-visible,select:focus-visible,a:focus-visible{ou
 <div style="padding: 14px 20px; display: flex; flex-wrap: wrap; gap: 10px; align-items: center; border-bottom: 1px solid #1C232D">
 <label style="position: relative; flex: 1 1 220px; display: flex">
 <span style="position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0)">Search validators</span>
-<input type="search" value="{{q}}" onInput="{{onQ}}" aria-label="Search validators by name or hotkey" placeholder="Search by name or hotkey…" style="flex: 1; min-width: 0; height: 40px; padding: 0 14px; border-radius: 10px; border: 1px solid #1C232D; background: #0A0E13; color: #E6EDF3">
+<input type="search" value="{{q}}" data-on-input="{{onQ}}" aria-label="Search validators by name or hotkey" placeholder="Search by name or hotkey…" style="flex: 1; min-width: 0; height: 40px; padding: 0 14px; border-radius: 10px; border: 1px solid #1C232D; background: #0A0E13; color: #E6EDF3">
 </label>
 <div role="group" aria-label="Filter by grade" class="ch-chips" style="display: flex; gap: 6px; flex-wrap: wrap">
 <sc-for list="{{gradeChips}}" as="c" hint-placeholder-count="6">
-<button type="button" class="ch-chip" onClick="{{c.pick}}" aria-pressed="{{c.on}}" title="{{c.tip}}" style="height: 36px; padding: 0 12px; border-radius: 999px; border: 1px solid {{c.border}}; background: {{c.bg}}; color: {{c.fg}}; font-size: 12px; font-weight: 600; display: flex; align-items: center; gap: 6px">{{c.label}}<span style="font-weight: 400; color: #8B97A6">{{c.count}}</span></button>
+<button type="button" class="ch-chip" data-on-click="{{c.pick}}" aria-pressed="{{c.on}}" title="{{c.tip}}" style="height: 36px; padding: 0 12px; border-radius: 999px; border: 1px solid {{c.border}}; background: {{c.bg}}; color: {{c.fg}}; font-size: 12px; font-weight: 600; display: flex; align-items: center; gap: 6px">{{c.label}}<span style="font-weight: 400; color: #8B97A6">{{c.count}}</span></button>
 </sc-for>
-<button type="button" class="ch-chip" onClick="{{toggleWarn}}" aria-pressed="{{hideWarn}}" title="Hide validators flagged Not earning, High fee, Unstable or Thin benchmark" style="height: 36px; padding: 0 12px; border-radius: 999px; border: 1px solid {{warnBorder}}; background: transparent; color: {{warnFg}}; font-size: 12px">Hide warnings</button>
+<button type="button" class="ch-chip" data-on-click="{{toggleWarn}}" aria-pressed="{{hideWarn}}" title="Hide validators flagged Not earning, High fee, Unstable or Thin benchmark" style="height: 36px; padding: 0 12px; border-radius: 999px; border: 1px solid {{warnBorder}}; background: transparent; color: {{warnFg}}; font-size: 12px">Hide warnings</button>
 </div>
 </div>
 
+<sc-if value="{{wide}}" hint-placeholder-val="{{ true }}">
 <div class="ch-table" style="overflow-x: auto">
 <div style="min-width: 900px">
-<div aria-hidden="true" style="display: grid; grid-template-columns: minmax(260px, 2.2fr) 140px minmax(190px, 1.4fr) 150px 130px; gap: 16px; padding: 0 20px; height: 40px; align-items: center; background: #0B1016; border-bottom: 1px solid #1C232D; font-size: 11px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: #8B97A6">
-<span title="Who you delegate to. The grade sums up the checks on the right.">Validator</span>
-<span style="text-align: right" title="{{earnTip}}">You earn · 30D</span>
-<span title="How much of the best validators' payout here you would get. 100% matches the best; 80% means you get a fifth less.">Payout vs best</span>
-<span style="text-align: right" title="Everything the validator keeps: its own take plus any childkey take.">Total fee</span>
-<span style="text-align: right" title="How much others have staked here.">Stake</span>
+<div role="group" aria-label="Sort validators" style="display: grid; grid-template-columns: minmax(260px, 2.2fr) 140px minmax(190px, 1.4fr) 150px 130px; gap: 16px; padding: 0 20px; height: 40px; align-items: center; background: #0B1016; border-bottom: 1px solid #1C232D; font-size: 11px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: #8B97A6">
+<span style="display: flex; align-items: center; gap: 10px"><button type="button" class="ch-sorth" data-on-click="{{sh.g.pick}}" aria-pressed="{{sh.g.on}}" aria-label="{{sh.g.aria}}" title="Who you delegate to. The grade sums up the checks on the right." style="color: {{sh.g.color}}">Grade<span aria-hidden="true">{{sh.g.arrow}}</span></button><span aria-hidden="true">· Validator</span></span>
+<span style="display: flex; justify-content: flex-end"><button type="button" class="ch-sorth" data-on-click="{{sh.a30.pick}}" aria-pressed="{{sh.a30.on}}" aria-label="{{sh.a30.aria}}" title="{{earnTip}}" style="color: {{sh.a30.color}}; white-space: nowrap">You earn · 30D<span aria-hidden="true">{{sh.a30.arrow}}</span></button></span>
+<span style="display: flex"><button type="button" class="ch-sorth" data-on-click="{{sh.pr.pick}}" aria-pressed="{{sh.pr.on}}" aria-label="{{sh.pr.aria}}" title="How much of the best validators' payout here you would get. 100% matches the best; 80% means you get a fifth less." style="color: {{sh.pr.color}}">Payout vs best<span aria-hidden="true">{{sh.pr.arrow}}</span></button></span>
+<span style="display: flex; justify-content: flex-end"><button type="button" class="ch-sorth" data-on-click="{{sh.fee.pick}}" aria-pressed="{{sh.fee.on}}" aria-label="{{sh.fee.aria}}" title="Everything the validator keeps: its own take plus any childkey take." style="color: {{sh.fee.color}}">Total fee<span aria-hidden="true">{{sh.fee.arrow}}</span></button></span>
+<span style="display: flex; justify-content: flex-end"><button type="button" class="ch-sorth" data-on-click="{{sh.stake.pick}}" aria-pressed="{{sh.stake.on}}" aria-label="{{sh.stake.aria}}" title="How much others have staked here." style="color: {{sh.stake.color}}">Stake<span aria-hidden="true">{{sh.stake.arrow}}</span></button></span>
 </div>
 <sc-for list="{{rows}}" as="r" hint-placeholder-count="8">
-<a href="{{r.href}}" class="ch-row" onClick="{{r.open}}" aria-label="{{r.aria}}" style="color: inherit; text-decoration: none; border-bottom: 1px solid #141A22; display: grid; grid-template-columns: minmax(260px, 2.2fr) 140px minmax(190px, 1.4fr) 150px 130px; gap: 16px; padding: 10px 20px; min-height: 60px; box-sizing: border-box; align-items: center; background: transparent">
+<a href="{{r.href}}" class="ch-row" data-on-click="{{r.open}}" aria-label="{{r.aria}}" style="color: inherit; text-decoration: none; border-bottom: 1px solid #141A22; display: grid; grid-template-columns: minmax(260px, 2.2fr) 140px minmax(190px, 1.4fr) 150px 130px; gap: 16px; padding: 10px 20px; min-height: 60px; box-sizing: border-box; align-items: center; background: transparent">
 <span style="display: flex; align-items: center; gap: 12px; min-width: 0">
 <span title="{{r.gradeTip}}" style="flex: none; width: 34px; height: 34px; border-radius: 9px; background: {{r.gBg}}; color: {{r.gFg}}; display: flex; align-items: center; justify-content: center; font-family: 'Space Grotesk', sans-serif; font-weight: 700; font-size: 16px">{{r.grade}}</span>
+<span class="ch-ava" aria-hidden="true" style="width: 30px; height: 30px; border-radius: 8px; background: {{r.av.bg}}; color: {{r.av.fg}}; font-size: 11px">
+<sc-if value="{{r.av.img}}" hint-placeholder-val="{{ false }}"><img src="{{r.av.src}}" alt="" referrerpolicy="no-referrer" loading="lazy" decoding="async" data-on-error="{{r.av.err}}"></sc-if>
+<sc-if value="{{r.av.mono}}" hint-placeholder-val="{{ true }}">{{r.av.ini}}</sc-if>
+</span>
 <span style="display: flex; flex-direction: column; gap: 3px; min-width: 0">
 <span style="font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis">{{r.name}}</span>
 <span style="display: flex; flex-wrap: wrap; gap: 4px">
-<span style="font-family: 'JetBrains Mono', monospace; font-size: 11px; color: #6B7684">{{r.hkShort}}</span>
+<span style="font-family: 'JetBrains Mono', monospace; font-size: 11px; color: #8B97A6">{{r.hkShort}}</span>
 <sc-for list="{{r.badges}}" as="b" hint-placeholder-count="1">
 <span title="{{b.tip}}" style="font-size: 11px; padding: 0 6px; border-radius: 999px; background: {{b.bg}}; color: {{b.fg}}">{{b.label}}</span>
 </sc-for>
@@ -195,7 +257,7 @@ button:focus-visible,input:focus-visible,select:focus-visible,a:focus-visible{ou
 </span>
 <span style="display: flex; align-items: center; gap: 10px">
 <span style="flex: 1; height: 8px; border-radius: 4px; background: #1A212B; overflow: hidden"><span style="display: block; height: 100%; width: {{r.barW}}; background: {{r.barC}}"></span></span>
-<span style="font-family: 'JetBrains Mono', monospace; font-size: 13px; width: 52px; text-align: right; color: {{r.barC}}">{{r.payout}}</span>
+<span style="font-family: 'JetBrains Mono', monospace; font-size: 13px; width: 52px; text-align: right; color: {{r.payC}}">{{r.payout}}</span>
 </span>
 <span style="display: flex; flex-direction: column; align-items: flex-end">
 <span style="font-family: 'JetBrains Mono', monospace; font-size: 14px; color: {{r.feeColor}}">{{r.fee}}</span>
@@ -209,11 +271,25 @@ button:focus-visible,input:focus-visible,select:focus-visible,a:focus-visible{ou
 </sc-for>
 </div>
 </div>
+</sc-if>
 
+<sc-if value="{{narrow}}" hint-placeholder-val="{{ false }}">
 <div class="ch-cards">
+<div class="ch-msort" style="align-items: center; gap: 8px; padding: 10px 16px; border-bottom: 1px solid #1C232D">
+<label for="ch-msort" style="font-size: 12px; color: #8B97A6">Sort by</label>
+<select id="ch-msort" value="{{msortVal}}" data-on-change="{{pickMsort}}" style="flex: 1; min-width: 0; height: 36px; padding: 0 10px; border-radius: 9px; border: 1px solid #1C232D; background: #0A0E13; color: #E6EDF3">
+<sc-for list="{{msortOpts}}" as="o" hint-placeholder-count="6">
+<option value="{{o.v}}">{{o.label}}</option>
+</sc-for>
+</select>
+</div>
 <sc-for list="{{rows}}" as="r" hint-placeholder-count="6">
-<a href="{{r.href}}" onClick="{{r.open}}" aria-label="{{r.aria}}" style="display: flex; align-items: center; gap: 12px; padding: 12px 16px; border-bottom: 1px solid #141A22; color: inherit; text-decoration: none; min-height: 64px; box-sizing: border-box">
+<a href="{{r.href}}" data-on-click="{{r.open}}" aria-label="{{r.aria}}" style="display: flex; align-items: center; gap: 12px; padding: 12px 16px; border-bottom: 1px solid #141A22; color: inherit; text-decoration: none; min-height: 64px; box-sizing: border-box">
 <span style="flex: none; width: 34px; height: 34px; border-radius: 9px; background: {{r.gBg}}; color: {{r.gFg}}; display: flex; align-items: center; justify-content: center; font-family: 'Space Grotesk', sans-serif; font-weight: 700">{{r.grade}}</span>
+<span class="ch-ava" aria-hidden="true" style="width: 30px; height: 30px; border-radius: 8px; background: {{r.av.bg}}; color: {{r.av.fg}}; font-size: 11px">
+<sc-if value="{{r.av.img}}" hint-placeholder-val="{{ false }}"><img src="{{r.av.src}}" alt="" referrerpolicy="no-referrer" loading="lazy" decoding="async" data-on-error="{{r.av.err}}"></sc-if>
+<sc-if value="{{r.av.mono}}" hint-placeholder-val="{{ true }}">{{r.av.ini}}</sc-if>
+</span>
 <span style="flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px">
 <span style="font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis">{{r.name}}</span>
 <span style="font-size: 12px; color: {{r.cardSubColor}}; white-space: nowrap; overflow: hidden; text-overflow: ellipsis">{{r.cardSub}}</span>
@@ -225,16 +301,20 @@ button:focus-visible,input:focus-visible,select:focus-visible,a:focus-visible{ou
 </a>
 </sc-for>
 </div>
+</sc-if>
 
 <sc-if value="{{noRows}}" hint-placeholder-val="{{ false }}">
 <div style="padding: 32px 20px; display: flex; flex-direction: column; align-items: center; gap: 10px; color: #8B97A6">
 <p style="margin: 0; text-align: center">{{noRowsTxt}}</p>
-<button type="button" class="ch-chip" onClick="{{clearFilters}}" style="height: 36px; padding: 0 14px; border-radius: 999px; border: 1px solid #2A3340; background: transparent; color: #E6EDF3">Clear filters</button>
+<sc-if value="{{snHint}}" hint-placeholder-val="{{ false }}">
+<button type="button" class="ch-chip" data-on-click="{{snHint.go}}" style="height: 36px; padding: 0 14px; border-radius: 999px; border: 1px solid #3DDBB0; background: #0F1A17; color: #3DDBB0">{{snHint.label}}</button>
+</sc-if>
+<button type="button" class="ch-chip" data-on-click="{{clearFilters}}" style="height: 36px; padding: 0 14px; border-radius: 999px; border: 1px solid #2A3340; background: transparent; color: #E6EDF3">Clear filters</button>
 </div>
 </sc-if>
 <sc-if value="{{more}}" hint-placeholder-val="{{ false }}">
 <div style="padding: 12px 20px; display: flex; justify-content: center; border-top: 1px solid #1C232D">
-<button type="button" class="ch-chip" onClick="{{showAll}}" style="height: 36px; padding: 0 16px; border-radius: 999px; border: 1px solid #2A3340; background: transparent; color: #E6EDF3">Show all {{total}}</button>
+<button type="button" class="ch-chip" data-on-click="{{showAll}}" style="height: 36px; padding: 0 16px; border-radius: 999px; border: 1px solid #2A3340; background: transparent; color: #E6EDF3">Show all {{total}}</button>
 </div>
 </sc-if>
 </section>
@@ -242,9 +322,9 @@ button:focus-visible,input:focus-visible,select:focus-visible,a:focus-visible{ou
 <sc-if value="{{hasCalc}}" hint-placeholder-val="{{ true }}">
 <section aria-label="What you would earn" style="padding: 16px 20px; border-radius: 14px; border: 1px solid #1C232D; background: #0E131A; display: flex; flex-wrap: wrap; align-items: center; gap: 10px 14px">
 <label for="ch-amt" style="color: #A9B4C2">Stake</label>
-<input id="ch-amt" inputmode="decimal" value="{{amt}}" onInput="{{onAmt}}" style="width: 120px; height: 40px; padding: 0 12px; border-radius: 10px; border: 1px solid #1C232D; background: #0A0E13; color: #E6EDF3; font-family: 'JetBrains Mono', monospace">
+<input id="ch-amt" inputmode="decimal" value="{{amt}}" data-on-input="{{onAmt}}" style="width: 120px; height: 40px; padding: 0 12px; border-radius: 10px; border: 1px solid #1C232D; background: #0A0E13; color: #E6EDF3; font-family: 'JetBrains Mono', monospace">
 <label for="ch-calc" style="color: #A9B4C2">τ with</label>
-<select id="ch-calc" value="{{calc.hk}}" onChange="{{pickCalc}}" style="height: 40px; max-width: 260px; padding: 0 10px; border-radius: 10px; border: 1px solid #1C232D; background: #0A0E13; color: #E6EDF3">
+<select id="ch-calc" value="{{calc.hk}}" data-on-change="{{pickCalc}}" style="height: 40px; max-width: 260px; padding: 0 10px; border-radius: 10px; border: 1px solid #1C232D; background: #0A0E13; color: #E6EDF3">
 <sc-for list="{{calcOpts}}" as="o" hint-placeholder-count="5">
 <option value="{{o.v}}">{{o.label}}</option>
 </sc-for>
@@ -253,7 +333,7 @@ button:focus-visible,input:focus-visible,select:focus-visible,a:focus-visible{ou
 <span style="font-family: 'JetBrains Mono', monospace; font-size: 16px; color: {{accent}}">{{calc.perYear}}</span>
 <span style="color: #8B97A6">{{calc.usd}}</span>
 <span style="color: #8B97A6">{{calc.vs}}</span>
-<a href="{{calc.href}}" onClick="{{calc.open}}" style="margin-left: auto; font-weight: 500">Open {{calc.name}} ›</a>
+<a href="{{calc.href}}" data-on-click="{{calc.open}}" style="margin-left: auto; font-weight: 500">Open {{calc.name}} ›</a>
 </section>
 </sc-if>
 
@@ -263,7 +343,7 @@ button:focus-visible,input:focus-visible,select:focus-visible,a:focus-visible{ou
 
 <sc-if value="{{isDetail}}" hint-placeholder-val="{{ false }}">
 <main class="ch-main" style="max-width: 1280px; margin: 0 auto; padding: 24px 24px 56px; display: flex; flex-direction: column; gap: 20px">
-<a href="/" onClick="{{back}}" style="align-self: flex-start; display: flex; align-items: center; gap: 6px; height: 36px; padding: 0 12px; border-radius: 10px; border: 1px solid #1C232D; color: #E6EDF3; text-decoration: none">‹ All validators</a>
+<a href="/" data-on-click="{{back}}" style="align-self: flex-start; display: flex; align-items: center; gap: 6px; height: 36px; padding: 0 12px; border-radius: 10px; border: 1px solid #1C232D; color: #E6EDF3; text-decoration: none">‹ All validators</a>
 
 <sc-if value="{{d.loading}}" hint-placeholder-val="{{ false }}">
 <div class="ch-skel" style="height: 72px; border-radius: 14px; background: #121821"></div>
@@ -277,7 +357,10 @@ button:focus-visible,input:focus-visible,select:focus-visible,a:focus-visible{ou
 
 <sc-if value="{{d.ready}}" hint-placeholder-val="{{ true }}">
 <section aria-label="Validator" style="display: flex; flex-wrap: wrap; align-items: center; gap: 16px">
-<span aria-hidden="true" class="vd-ava" style="width: 56px; height: 56px; border-radius: 14px; background: {{d.monoBg}}; color: {{d.monoFg}}; display: flex; align-items: center; justify-content: center; font-family: 'Space Grotesk', sans-serif; font-weight: 700; font-size: 20px">{{d.ini}}</span>
+<span class="ch-ava vd-ava" aria-hidden="true" style="width: 56px; height: 56px; border-radius: 14px; background: {{d.av.bg}}; color: {{d.av.fg}}; font-size: 20px">
+<sc-if value="{{d.av.img}}" hint-placeholder-val="{{ false }}"><img src="{{d.av.src}}" alt="" referrerpolicy="no-referrer" loading="lazy" decoding="async" data-on-error="{{d.av.err}}"></sc-if>
+<sc-if value="{{d.av.mono}}" hint-placeholder-val="{{ true }}">{{d.av.ini}}</sc-if>
+</span>
 <div style="display: flex; flex-direction: column; gap: 6px; min-width: 0; flex: 1 1 280px">
 <div style="display: flex; flex-wrap: wrap; align-items: center; gap: 10px">
 <h1 class="vd-h1" style="margin: 0; font-family: 'Space Grotesk', sans-serif; font-size: 28px; font-weight: 600; overflow-wrap: anywhere">{{d.name}}</h1>
@@ -290,17 +373,22 @@ button:focus-visible,input:focus-visible,select:focus-visible,a:focus-visible{ou
 <div style="display: flex; flex-wrap: wrap; align-items: center; gap: 8px">
 <span style="font-size: 12px; color: #8B97A6">hotkey</span>
 <span style="font-family: 'JetBrains Mono', monospace; font-size: 12px; color: #C9D1D9; word-break: break-all">{{d.hk}}</span>
-<button type="button" class="ch-chip" onClick="{{d.copy}}" style="height: 28px; padding: 0 10px; border-radius: 8px; border: 1px solid #1C232D; background: transparent; color: #A9B4C2; font-size: 12px">{{d.copyTxt}}</button>
+<button type="button" class="ch-chip" data-on-click="{{d.copy}}" style="height: 28px; padding: 0 10px; border-radius: 8px; border: 1px solid #1C232D; background: transparent; color: #A9B4C2; font-size: 12px">{{d.copyTxt}}</button>
 </div>
 </div>
 </section>
 
 <nav aria-label="Where this validator operates" class="vd-tabs" style="display: flex; flex-wrap: wrap; gap: 6px">
 <sc-for list="{{d.tabs}}" as="t" hint-placeholder-count="4">
-<button type="button" class="ch-chip" onClick="{{t.pick}}" aria-pressed="{{t.on}}" style="height: 40px; padding: 0 14px; border-radius: 10px; border: 1px solid {{t.border}}; background: {{t.bg}}; color: {{t.fg}}; display: flex; align-items: center; gap: 8px"><span style="font-weight: 600">{{t.label}}</span><span style="font-size: 12px; color: {{t.gFg}}">{{t.grade}}</span></button>
+<button type="button" class="ch-chip" data-on-click="{{t.pick}}" aria-pressed="{{t.on}}" title="{{t.title}}" style="height: 40px; padding: 0 12px; border-radius: 10px; border: 1px solid {{t.border}}; background: {{t.bg}}; color: {{t.fg}}; display: flex; align-items: center; gap: 8px">
+<sc-if value="{{t.av}}" hint-placeholder-val="{{ false }}"><span class="ch-ava" aria-hidden="true" style="width: 20px; height: 20px; border-radius: 5px; background: {{t.av.bg}}; color: {{t.av.fg}}; font-size: 9px">
+<sc-if value="{{t.av.img}}" hint-placeholder-val="{{ false }}"><img src="{{t.av.src}}" alt="" referrerpolicy="no-referrer" loading="lazy" decoding="async" data-on-error="{{t.av.err}}"></sc-if>
+<sc-if value="{{t.av.mono}}" hint-placeholder-val="{{ true }}">{{t.av.ini}}</sc-if>
+</span></sc-if>
+<span style="font-weight: 600">{{t.label}}</span><span style="font-size: 12px; color: {{t.gFg}}">{{t.grade}}</span></button>
 </sc-for>
 <sc-if value="{{d.moreLocs}}" hint-placeholder-val="{{ false }}">
-<button type="button" class="ch-chip" onClick="{{d.goPlaces}}" aria-controls="places" style="height: 40px; padding: 0 14px; border-radius: 10px; border: 1px dashed #2A3340; background: transparent; color: #A9B4C2; font: inherit; display: flex; align-items: center; flex: none; cursor: pointer">+{{d.moreLocs}} more subnets</button>
+<button type="button" class="ch-chip" data-on-click="{{d.goPlaces}}" aria-controls="places" style="height: 40px; padding: 0 14px; border-radius: 10px; border: 1px dashed #2A3340; background: transparent; color: #A9B4C2; font: inherit; display: flex; align-items: center; flex: none; cursor: pointer">+{{d.moreLocs}} more subnets</button>
 </sc-if>
 </nav>
 
@@ -352,7 +440,7 @@ button:focus-visible,input:focus-visible,select:focus-visible,a:focus-visible{ou
 <section aria-label="Calculator" style="flex: 1 1 300px; padding: 18px 20px; border-radius: 14px; border: 1px solid #1C232D; background: #0E131A; display: flex; flex-direction: column; gap: 12px">
 <h2 style="margin: 0; font-family: 'Space Grotesk', sans-serif; font-size: 16px; font-weight: 600">What you would earn</h2>
 <label for="vd-amt" style="font-size: 12px; color: #8B97A6">τ staked here</label>
-<input id="vd-amt" inputmode="decimal" value="{{d.amt}}" onInput="{{d.onAmt}}" style="height: 44px; padding: 0 12px; border-radius: 10px; border: 1px solid #1C232D; background: #0A0E13; color: #E6EDF3; font-family: 'JetBrains Mono', monospace; font-size: 16px">
+<input id="vd-amt" inputmode="decimal" value="{{d.amt}}" data-on-input="{{d.onAmt}}" style="height: 44px; padding: 0 12px; border-radius: 10px; border: 1px solid #1C232D; background: #0A0E13; color: #E6EDF3; font-family: 'JetBrains Mono', monospace; font-size: 16px">
 <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px">
 <div style="padding: 12px; border-radius: 10px; background: #0A0E13; border: 1px solid #1C232D; display: flex; flex-direction: column; gap: 2px">
 <span style="font-size: 11px; color: #8B97A6">Per year</span>
@@ -379,8 +467,16 @@ button:focus-visible,input:focus-visible,select:focus-visible,a:focus-visible{ou
 <span>Where</span><span>Grade</span><span style="text-align: right">APY 30D</span><span style="text-align: right">Payout</span><span style="text-align: right">Fee</span><span style="text-align: right">Stake</span>
 </div>
 <sc-for list="{{d.places}}" as="p" hint-placeholder-count="5">
-<button type="button" class="ch-row" onClick="{{p.pick}}" aria-pressed="{{p.on}}" style="width: 100%; text-align: left; color: inherit; border: 0; border-bottom: 1px solid #141A22; display: grid; grid-template-columns: minmax(180px, 2fr) 60px 100px 100px 90px 110px; gap: 12px; padding: 0 20px; height: 44px; align-items: center; background: {{p.bg}}">
-<span style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis"><b>{{p.label}}</b> <span style="color: #8B97A6">{{p.sname}}</span></span>
+<button type="button" class="ch-row" data-on-click="{{p.pick}}" aria-pressed="{{p.on}}" style="width: 100%; text-align: left; color: inherit; border: 0; border-bottom: 1px solid #141A22; display: grid; grid-template-columns: minmax(180px, 2fr) 60px 100px 100px 90px 110px; gap: 12px; padding: 0 20px; height: 44px; align-items: center; background: {{p.bg}}">
+<span style="display: flex; align-items: center; gap: 8px; min-width: 0">
+<sc-if value="{{p.av}}" hint-placeholder-val="{{ false }}"><span class="ch-ava" aria-hidden="true" style="width: 22px; height: 22px; border-radius: 6px; background: {{p.av.bg}}; color: {{p.av.fg}}; font-size: 9px">
+<sc-if value="{{p.av.img}}" hint-placeholder-val="{{ false }}"><img src="{{p.av.src}}" alt="" referrerpolicy="no-referrer" loading="lazy" decoding="async" data-on-error="{{p.av.err}}"></sc-if>
+<sc-if value="{{p.av.mono}}" hint-placeholder-val="{{ true }}">{{p.av.ini}}</sc-if>
+</span></sc-if>
+<sc-if value="{{p.isSn}}" hint-placeholder-val="{{ true }}"><span class="ch-sn">{{p.label}}</span></sc-if>
+<sc-if value="{{p.isRoot}}" hint-placeholder-val="{{ false }}"><b>{{p.label}}</b></sc-if>
+<span style="color: #8B97A6; white-space: nowrap; overflow: hidden; text-overflow: ellipsis">{{p.sname}}</span>
+</span>
 <span style="font-family: 'Space Grotesk', sans-serif; font-weight: 700; color: {{p.gFg}}">{{p.grade}}</span>
 <span style="text-align: right; font-family: 'JetBrains Mono', monospace">{{p.apy}}</span>
 <span style="text-align: right; font-family: 'JetBrains Mono', monospace; color: {{p.gFg}}">{{p.pr}}</span>
@@ -392,7 +488,7 @@ button:focus-visible,input:focus-visible,select:focus-visible,a:focus-visible{ou
 </div>
 <sc-if value="{{d.placesMore}}" hint-placeholder-val="{{ false }}">
 <div style="padding: 12px 20px; display: flex; justify-content: center; border-top: 1px solid #1C232D">
-<button type="button" class="ch-chip" onClick="{{d.showAllPlaces}}" style="height: 36px; padding: 0 16px; border-radius: 999px; border: 1px solid #2A3340; background: transparent; color: #E6EDF3">Show all {{d.placesTotal}}</button>
+<button type="button" class="ch-chip" data-on-click="{{d.showAllPlaces}}" style="height: 36px; padding: 0 16px; border-radius: 999px; border: 1px solid #2A3340; background: transparent; color: #E6EDF3">Show all {{d.placesTotal}}</button>
 </div>
 </sc-if>
 </section>
@@ -401,8 +497,7 @@ button:focus-visible,input:focus-visible,select:focus-visible,a:focus-visible{ou
 </sc-if>
 </div>
 </template>
-<script src="/dc-lite.js?v=5f681ab05352"></script>
-<script src="/app.js?v=32d38b77e021"></script>
-<script>DCMount(Component, document.getElementById('tpl'), document.getElementById('app'), {});</script>
+<script src="/dc-lite.js?v=0ced284fd338"></script>
+<script src="/app.js?v=a8c89b814b18"></script>
 </body>
 </html>
