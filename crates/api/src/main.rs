@@ -65,6 +65,7 @@ async fn main() -> Result<()> {
         .route("/api/validators", get(validators))
         .route("/api/alpha", get(alpha))
         .fallback_service(ServeDir::new(&web).fallback(ServeFile::new(index)))
+        .layer(axum::middleware::map_response(static_cache))
         .layer(CompressionLayer::new())
         .layer(TraceLayer::new_for_http())
         .with_state(app);
@@ -99,6 +100,22 @@ async fn refresh(app: &App) -> Result<()> {
         info!(block = out.block, ms = t.elapsed().as_millis() as u64, "rankings recomputed");
     }
     Ok(())
+}
+
+/// Cache policy for the frontend (CDNs such as Cloudflare follow it): files requested with a
+/// content hash (`/app.js?v=…`) never change, so they are cached for a year; everything else
+/// (index.html) is revalidated on every load so a new release shows up at once.
+async fn static_cache(uri: axum::http::Uri, mut res: Response) -> Response {
+    if uri.path().starts_with("/api/") || !res.status().is_success() {
+        return res;
+    }
+    let v = if uri.query().is_some_and(|q| q.split('&').any(|kv| kv.starts_with("v="))) {
+        "public, max-age=31536000, immutable"
+    } else {
+        "no-cache"
+    };
+    res.headers_mut().insert(header::CACHE_CONTROL, HeaderValue::from_static(v));
+    res
 }
 
 fn json(body: Option<Arc<String>>) -> Response {

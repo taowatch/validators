@@ -48,6 +48,13 @@ script, n2 = re.subn(r"const ALPHA_URL = '[^']*';", "const ALPHA_URL = '/api/alp
 if n1 != 1 or n2 != 1:
     fail(f"expected one `const DATA_URL = '…';` and one `const ALPHA_URL = '…';` in the script, found {n1} and {n2}")
 
+# Content hashes in the script URLs: a CDN or browser can keep each file forever, and a new
+# index.html always pulls the matching scripts.
+import hashlib
+app_js = "// Generated from design/Main.dc.html by tools/dc2web.py — edit the design, then rerun.\n" + script + "\n"
+v_app = hashlib.sha256(app_js.encode()).hexdigest()[:12]
+v_lite = hashlib.sha256((out / "dc-lite.js").read_bytes()).hexdigest()[:12]
+
 index = f"""<!doctype html>
 <html lang="en">
 <head>
@@ -63,13 +70,13 @@ index = f"""<!doctype html>
 <template id="tpl">
 {markup}
 </template>
-<script src="/dc-lite.js"></script>
-<script src="/app.js"></script>
+<script src="/dc-lite.js?v={v_lite}"></script>
+<script src="/app.js?v={v_app}"></script>
 <script>DCMount(Component, document.getElementById('tpl'), document.getElementById('app'), {{}});</script>
 </body>
 </html>
 """
 out.mkdir(parents=True, exist_ok=True)
 (out / "index.html").write_text(index, encoding="utf-8")
-(out / "app.js").write_text("// Generated from design/Main.dc.html by tools/dc2web.py — edit the design, then rerun.\n" + script + "\n", encoding="utf-8")
+(out / "app.js").write_text(app_js, encoding="utf-8")
 print(f"wrote {out/'index.html'} ({len(index)} bytes), {out/'app.js'} ({len(script)} bytes)")
