@@ -1,0 +1,33 @@
+[workspace]
+resolver = "3"
+members = ["crates/core", "crates/collector", "crates/api"]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2024"
+license = "MIT"
+
+[workspace.dependencies]
+vr-core = { path = "crates/core" }
+
+anyhow = "1.0.105"
+tokio = { version = "1.54.1", features = ["full"] }
+serde = { version = "1.0.229", features = ["derive"] }
+serde_json = "1.0.154"
+tracing = "0.1.44"
+tracing-subscriber = { version = "0.3.23", features = ["env-filter"] }
+futures = "0.3.34"
+
+sqlx = { version = "0.9.1", default-features = false, features = ["runtime-tokio", "tls-rustls", "postgres", "macros", "migrate", "json"] }
+
+subxt = "0.51.1"
+subxt-rpcs = "0.51.1"
+scale-decode = { version = "0.16.2", features = ["derive"] }
+scale-value = "0.18.2"
+
+axum = { version = "0.8.9" }
+tower-http = { version = "0.7.1", features = ["fs", "compression-gzip", "trace", "set-header"] }
+
+[profile.release]
+lto = "thin"
+codegen-units = 4

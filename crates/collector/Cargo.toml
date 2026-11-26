@@ -1,0 +1,17 @@
+[package]
+name = "vr-collector"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[[bin]]
+name = "collector"
+path = "src/main.rs"
+
+[dependencies]
+vr-core.workspace = true
+anyhow.workspace = true
+tokio.workspace = true
+tracing.workspace = true
+tracing-subscriber.workspace = true
+sqlx.workspace = true

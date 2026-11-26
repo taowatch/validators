@@ -1,0 +1,70 @@
+name: validator-ranking
+
+# Runs the published image: ghcr.io/taowatch/validators (built by .github/workflows/image.yml).
+#   cp .env.example .env   # set POSTGRES_PASSWORD
+#   docker compose pull && docker compose up -d
+# Web + API on http://${WEB_BIND:-127.0.0.1}:${WEB_PORT:-8080}. Put a TLS reverse proxy in front
+# for public access. To build the image from this checkout instead, see docker-compose.build.yml.
+
+x-app: &app
+  image: ${IMAGE:-ghcr.io/taowatch/validators:latest}
+  restart: unless-stopped
+  init: true
+  logging: &logging
+    driver: json-file
+    options: { max-size: "10m", max-file: "5" }
+  environment: &env
+    DATABASE_URL: postgres://vr:${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}@db:5432/vr
+    RUST_LOG: ${RUST_LOG:-info}
+
+services:
+  db:
+    image: postgres:17.12-alpine
+    environment:
+      POSTGRES_USER: vr
+      POSTGRES_DB: vr
+      # Only read when the volume is first created; see README to change it later.
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
+    volumes:
+      - db:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U vr -d vr"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    restart: unless-stopped
+    logging: *logging
+
+  api:
+    <<: *app
+    command: ["api"]
+    ports:
+      - "${WEB_BIND:-127.0.0.1}:${WEB_PORT:-8080}:8080"
+    depends_on:
+      db: { condition: service_healthy }
+
+  collector:
+    <<: *app
+    command: ["collector"]
+    # Healthy while a head snapshot was stored within the last 2.5 cycles (default 1h each).
+    healthcheck:
+      test: ["CMD-SHELL", "test -n \"$$(find /tmp/collector.alive -mmin -$$(( ${INTERVAL_SECS:-3600} * 5 / 120 )) 2>/dev/null)\""]
+      interval: 60s
+      timeout: 5s
+      retries: 3
+      start_period: 15m
+    environment:
+      <<: *env
+      # Comma-separated; the next endpoint is used when one fails or rate-limits.
+      RPC_URLS: ${RPC_URLS:-wss://entrypoint-finney.opentensor.ai:443}
+      ARCHIVE_URLS: ${ARCHIVE_URLS:-wss://bittensor-finney.api.onfinality.io/public-ws,wss://archive.chain.opentensor.ai:443}
+      INTERVAL_SECS: ${INTERVAL_SECS:-3600}
+      BACKFILL_DAYS: ${BACKFILL_DAYS:-30}
+      MIN_ALPHA: ${MIN_ALPHA:-100}
+      KEEP_HOURS: ${KEEP_HOURS:-72}
+      NOMINATORS_EVERY: ${NOMINATORS_EVERY:-24}
+    depends_on:
+      api: { condition: service_healthy } # api applies the migrations first
+
+volumes:
+  db:
