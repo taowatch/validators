@@ -1,14 +1,11 @@
 // Generated from design/Main.dc.html by tools/dc2web.py — edit the design, then rerun.
 const DATA_URL = '/api/validators';
 const ALPHA_URL = '/api/alpha';
-const PAUSE = [3, 7];
+// BasketRate stood still Nov 7–11 2026; rolling windows ending in that stretch are distorted
+const PAUSE_TS = [Date.UTC(2026, 10, 7), Date.UTC(2026, 10, 12)];
+const RANGES = [30, 90, 180, 365];
 const ALPHA_MINS = [[0, 'All'], [1000, '≥ 1K τ'], [10000, '≥ 10K τ'], [100000, '≥ 100K τ']];
-const EFF_DIRS = { rank: -1, name: 1, tao: -1, ns: -1, t: 1, cfg: 1, et: 1, eff: -1, a30: -1, root: -1 };
-const EFF_COLS = [
-  ['rank', '#', 'flex-start'], ['name', 'Validator', 'flex-start'], ['tao', 'Alpha stake', 'flex-end'], ['ns', 'Subnets', 'flex-end'],
-  ['t', 'Listed take', 'flex-end'], ['cfg', 'Config. take', 'flex-end'], ['et', 'Effective take', 'flex-end'], ['eff', 'Efficiency', 'flex-start'],
-  ['a30', 'α APY 30D', 'flex-end'], ['root', 'Root APY 30D', 'flex-end'],
-];
+const EFF_DIRS = { rank: -1, name: 1, tao: -1, ns: -1, t: 1, cfg: 1, et: 1, eff: -1, cons: -1, a: -1, root: -1 };
 function effColor(e, accent) { return e == null ? '#8B97A6' : e >= 95 ? accent : e >= 80 ? '#E6EDF3' : '#F59E3B'; }
 function mono(hk) { const h = hue(hk); return { monoBg: 'hsl(' + h + ' 34% 20%)', monoFg: 'hsl(' + h + ' 70% 78%)' }; }
 function initials(name, hk) { return ((name || '').replace(/[^A-Za-z0-9]/g, '').slice(0, 2) || hk.slice(1, 3)).toUpperCase(); }
@@ -50,6 +47,13 @@ function linePath(arr, W, H, lo, hi) {
 }
 // x of point i of n; a single point sits in the middle instead of dividing by zero
 function xAt(i, n, W) { return n > 1 ? (i / (n - 1)) * W : W / 2; }
+// line through [x fraction 0..1, value|null] points
+function ptsPath(pts, W, H, lo, hi) {
+  if (!(hi > lo)) hi = lo + 1;
+  let d = '', pen = false;
+  pts.forEach(([f, v]) => { if (v == null) { pen = false; return; } d += (pen ? 'L' : 'M') + (f * W).toFixed(1) + ' ' + yOf(v, H, lo, hi).toFixed(1) + ' '; pen = true; });
+  return d.trim();
+}
 function areaPath(arr, W, H, lo, hi) {
   const n = arr.length;
   if (!(hi > lo)) hi = lo + 1;
@@ -61,19 +65,49 @@ function niceStep(r) { const p = Math.pow(10, Math.floor(Math.log10(r))); const 
 function ticks(lo, hi, count) { const st = niceStep((hi - lo) / count); const out = []; for (let v = Math.ceil(lo / st) * st; v <= hi + 1e-9; v += st) out.push(+v.toFixed(6)); return out; }
 function apyColor(v, m, accent) { if (v == null) return MUTED; if (m == null) return TEXT; if (v >= m + 0.4) return accent; if (v < m - 1) return ORANGE; return TEXT; }
 
-const DIRS = { rank: -1, name: 1, stake: -1, take: 1, a1: -1, a7: -1, a30: -1, sd: 1, flow: -1, nom: -1 };
-const COLS = [
-  ['rank', '#', 'flex-start'], ['name', 'Validator', 'flex-start'], ['stake', 'Root stake', 'flex-end'], ['take', 'Take', 'flex-end'],
-  ['a1', 'APY 1D', 'flex-end'], ['a7', 'APY 7D', 'flex-end'], ['a30', 'APY 30D', 'flex-end'], [null, 'Trend 7D', 'flex-start'],
-  ['flow', 'Flow 30D', 'flex-end'], ['sd', 'Stability σ', 'flex-end'], ['nom', 'Nominator', 'flex-end'],
-];
-const WINS = [['a1', '1D'], ['a7', '7D'], ['a30', '30D']];
+const DIRS = { rank: -1, name: 1, stake: -1, take: 1, sd: 1, flow: -1, nom: -1 }; // APY columns (a1, a7, a30, a90…) sort high → low
+function dirOf(map, k) { return map[k] != null ? map[k] : -1; }
+function wl(w) { return w + 'D'; }
+// chart / flow ranges the data covers: the standard ones shorter than the history, plus all of it
+function rangeOpts(N) { const r = RANGES.filter((x) => x < N); r.push(N); return r; }
+function rangeLabel(r, N) { return r === N && !RANGES.includes(N) ? 'All' : r + 'D'; }
+// stake flow over the last r days, measured from the first stored point inside that range
+function flowOver(sh, days, ts, s, r) {
+  const N = sh.length - 1;
+  for (let i = Math.max(0, N - r); i < N; i++) {
+    const s0 = sh[i];
+    if (s0 != null && s0 > 0) return { flow: s - s0, pct: (s - s0) / s0 * 100, days: Math.max(1, Math.round((ts - days[i]) / 864e5)) };
+  }
+  return null;
+}
+// `count` evenly spaced axis labels over n points
+function xLabels(n, count, labelOf) {
+  if (n < 1) return [];
+  const k = Math.min(count, n), out = [];
+  for (let t = 0; t < k; t++) { const j = k > 1 ? Math.round(t * (n - 1) / (k - 1)) : 0; out.push({ pos: (n > 1 ? j / (n - 1) * 100 : 50).toFixed(2), label: labelOf(j) }); }
+  return out;
+}
+// segmented-control chips
+function segChips(list, cur, labelOf, accent, pick) {
+  return list.map((v) => ({ label: labelOf(v), on: v === cur, bg: v === cur ? accent : 'transparent', fg: v === cur ? '#0A0E13' : '#A9B4C2', pick: () => pick(v) }));
+}
+// consistency: share of periods at ≥ 90% of the reference, with one bar per period (oldest → newest)
+function consCell(v, A, accent) {
+  const per = (v.effp || []).slice(0, A.np).reverse();
+  const known = per.filter((x) => x != null);
+  return {
+    txt: v.cons == null ? '—' : Math.round(v.cons) + '%',
+    color: v.cons == null ? MUTED : v.cons >= 75 ? accent : v.cons >= 50 ? TEXT : ORANGE,
+    bars: per.map((x) => ({ h: x == null ? 3 : Math.max(3, Math.min(120, x) / 120 * 18).toFixed(1), fill: x == null ? '#232C38' : x >= 90 ? accent : x >= 70 ? '#5B6675' : ORANGE })),
+    title: v.cons == null ? 'Not enough complete ' + A.period + '-day periods' : known.filter((x) => x >= 90).length + ' of ' + known.length + ' ' + A.period + '-day periods at ≥ 90% of the subnet reference',
+  };
+}
 const MINS = [[0, 'All'], [1000, '≥ 1K τ'], [10000, '≥ 10K τ'], [100000, '≥ 100K τ']];
 
 class Component extends DCLogic {
   constructor(props) {
     super(props);
-    this.state = { data: null, err: null, q: '', win: 'a30', min: 1000, sortKey: 'rank', dir: -1, hideTake: false, sel: null, hov: null, hovIdx: null, amt: '1,000', showAll: false, copied: false, px: null, pxLive: false, pxDir: 0, tab: 'root', sn: null, effMin: 1000, effSort: 'eff', effDir: -1, ehov: null, alpha: null, alphaErr: null };
+    this.state = { data: null, err: null, q: '', win: null, rng: 30, crng: null, ew: null, min: 1000, sortKey: 'rank', dir: -1, hideTake: false, sel: null, hov: null, hovIdx: null, amt: '1,000', showAll: false, copied: false, px: null, pxLive: false, pxDir: 0, tab: 'root', sn: null, effMin: 1000, effSort: 'eff', effDir: -1, ehov: null, alpha: null, alphaErr: null };
   }
 
   connectPrice() {
@@ -157,34 +191,52 @@ class Component extends DCLogic {
   }
 
   prep(d) {
+    const N = Math.max(1, (d.days || []).length - 1);
+    const win = (d.win && d.win.length ? d.win : [1, 7, 30]).slice().sort((a, b) => a - b);
+    const keys = win.map((w) => 'a' + w);
+    const ranges = rangeOpts(N);
     const v = d.v.map((x) => {
       const h = hue(x.hk);
-      // stake history may start with nulls (no sample yet): flow runs from the first stored day
-      const i0 = x.sh.findIndex((s) => s != null && s > 0);
-      const s0 = i0 >= 0 ? x.sh[i0] : null;
-      const span = i0 >= 0 && d.days && d.days[i0] ? Math.max(1, Math.round((d.ts - d.days[i0]) / 864e5)) : null;
       const label = x.n || (x.hk.slice(0, 6) + '…' + x.hk.slice(-4));
       const ini = ((x.n || '').replace(/[^A-Za-z0-9]/g, '').slice(0, 2) || x.hk.slice(1, 3)).toUpperCase();
+      // flows and sparklines per range; stake history may start with nulls (no sample yet),
+      // so a flow runs from the first stored day inside the range
+      const fl = {}, sp = {};
+      ranges.forEach((r) => { fl[r] = flowOver(x.sh || [], d.days, d.ts, x.s, r); sp[r] = linePath((x.d || []).slice(Math.max(0, N - r)), 100, 28, 0, 10); });
       return Object.assign({}, x, {
+        d: x.d || [], d30: x.d30 || [], sh: x.sh || [],
         name: label, named: !!x.n, short: x.hk.slice(0, 8) + '…' + x.hk.slice(-6), ini,
-        monoBg: 'hsl(' + h + ' 34% 20%)', monoFg: 'hsl(' + h + ' 70% 78%)',
-        flow: s0 > 0 && span ? x.s - s0 : null, flowPct: s0 > 0 && span ? (x.s - s0) / s0 * 100 : null, flowDays: span,
-        spark: linePath(x.d, 100, 28, 0, 10),
+        monoBg: 'hsl(' + h + ' 34% 20%)', monoFg: 'hsl(' + h + ' 70% 78%)', fl, sp, rk: {},
       });
     });
     const big = v.filter((x) => x.s >= 1000);
-    const ranked = big.filter((x) => x.a30 != null).sort((a, b) => b.a30 - a.a30);
-    ranked.forEach((x, i) => { x.rank30 = i + 1; });
-    const wDen = ranked.reduce((a, x) => a + x.s, 0);
-    const wApy = wDen > 0 ? ranked.reduce((a, x) => a + x.a30 * x.s, 0) / wDen : null;
-    const meds = { a1: median(big.map((x) => x.a1)), a7: median(big.map((x) => x.a7)), a30: median(big.map((x) => x.a30)) };
-    const flowSpan = Math.max(0, ...v.map((x) => x.flowDays || 0)) || 30;
-    return Object.assign({}, d, { byHk: new Map(v.map((x) => [x.hk, x])), v, ranked, wApy, meds, best: ranked[0], flowSpan, totalStake: v.reduce((a, x) => a + x.s, 0), bigCount: big.length, maxS: Math.max.apply(null, v.map((x) => x.s)) });
+    const st = {}, meds = {};
+    keys.forEach((k) => {
+      const ranked = big.filter((x) => x[k] != null).sort((a, b) => b[k] - a[k]);
+      ranked.forEach((x, i) => { x.rk[k] = i + 1; });
+      const den = ranked.reduce((a, x) => a + x.s, 0);
+      st[k] = { ranked, best: ranked[0] || null, wApy: den > 0 ? ranked.reduce((a, x) => a + x[k] * x.s, 0) / den : null };
+      meds[k] = median(big.map((x) => x[k]));
+    });
+    const flowSpan = {};
+    ranges.forEach((r) => { flowSpan[r] = Math.max(0, ...v.map((x) => (x.fl[r] ? x.fl[r].days : 0))) || r; });
+    return Object.assign({}, d, {
+      // default window: 30D, or the longest one with data while history is still syncing
+      dflt: st.a30 && st.a30.best ? 'a30' : keys.slice().reverse().find((k) => st[k].best) || keys[keys.length - 1],
+      N, win, keys, ranges, st, meds, flowSpan, med: d.med || [], byHk: new Map(v.map((x) => [x.hk, x])), v,
+      totalStake: v.reduce((a, x) => a + x.s, 0), bigCount: big.length, maxS: Math.max(1, ...v.map((x) => x.s)),
+    });
   }
+
+  // selected APY window key (e.g. 'a30') and range (days) for the root views
+  winKey(D) { const k = this.state.win; return D.keys.includes(k) ? k : D.dflt; }
+  rngOf(D) { const r = this.state.rng; return D.ranges.includes(r) ? r : D.ranges[0]; }
+  chartRng(D) { const r = this.state.crng; return D.ranges.includes(r) ? r : D.ranges.includes(90) ? 90 : D.ranges[D.ranges.length - 1]; }
+  ewOf(A) { const w = this.state.ew; return A.ewin.includes(w) ? w : A.dflt; }
 
   sortBy(key) {
     if (this.state.sortKey === key) this.setState({ dir: -this.state.dir });
-    else this.setState({ sortKey: key, dir: DIRS[key] });
+    else this.setState({ sortKey: key, dir: dirOf(DIRS, key) });
   }
 
   // Detail page for any validator: basket (root) validators get the full page, alpha-only
@@ -238,9 +290,14 @@ class Component extends DCLogic {
 
   renderVals() {
     const accent = this.props.accent ?? '#3DDBB0';
-    const S = this.state, D = S.data;
+    const S = this.state, D = S.data, A = S.alpha;
     const base = { accent, tk: this.ticker(accent), loading: !D && !S.err, failed: !!S.err, err: S.err, ready: !!D, skel: [1, 2, 3, 4, 5, 6, 7, 8] };
     this.px = (S.px || PRICE_SNAPSHOT).c;
+    // efficiency window chips, shared by the alpha tab, the efficiency tab and alpha pages
+    if (A) {
+      const ew = this.ewOf(A);
+      Object.assign(base, { hasEw: A.ewin.length > 1, ewins: segChips(A.ewin, ew, wl, accent, (w) => this.setState({ ew: w })) });
+    } else Object.assign(base, { hasEw: false, ewins: [] });
     if (!D) return Object.assign(base, { listView: false, detailView: false });
     const t = new Date(D.ts);
     Object.assign(base, {
@@ -249,75 +306,81 @@ class Component extends DCLogic {
     });
     const sel = S.sel ? D.v.find((x) => x.hk === S.sel) : null;
     const back = () => this.back();
-    this.inDetail = false;
     this.inDetail = !!sel;
     if (sel) return Object.assign(base, { listView: false, detailView: true, alphaView: false, d: this.detail(sel, D, accent), amt: S.amt, onAmt: (e) => this.setState({ amt: e.target.value }), back });
-    const asel = S.sel && S.alpha ? S.alpha.byHk.get(S.sel) : null;
+    const asel = S.sel && A ? A.byHk.get(S.sel) : null;
     this.inDetail = !!asel;
     if (asel) return Object.assign(base, { listView: false, detailView: false, alphaView: true, ad: this.alphaDetail(asel, D, accent), back });
     return Object.assign(base, { listView: true, detailView: false, alphaView: false }, this.list(D, accent), this.tabsVals(D, accent));
   }
 
   list(D, accent) {
-    const S = this.state, win = S.win, m = D.meds[win];
-    const winLabel = WINS.find((w) => w[0] === win)[1];
+    const S = this.state, win = this.winKey(D), m = D.meds[win], rng = this.rngOf(D);
+    const winLabel = wl(+win.slice(1));
     const q = S.q.trim().toLowerCase();
     const list = D.v.filter((x) => x.s >= S.min && (!S.hideTake || x.t <= 0.10) &&
       (!q || x.name.toLowerCase().includes(q) || x.hk.toLowerCase().includes(q) || (x.ck || '').toLowerCase().includes(q)));
     const rankOf = new Map();
     list.filter((x) => x[win] != null).sort((a, b) => b[win] - a[win]).forEach((x, i) => rankOf.set(x.hk, i + 1));
-    const get = { rank: (x) => x[win], name: (x) => x.name.toLowerCase(), stake: (x) => x.s, take: (x) => x.t, a1: (x) => x.a1, a7: (x) => x.a7, a30: (x) => x.a30, sd: (x) => x.sd, flow: (x) => x.flow, nom: (x) => x.nom }[S.sortKey];
+    const fo = (x) => x.fl[rng];
+    const named = { rank: (x) => x[win], name: (x) => x.name.toLowerCase(), stake: (x) => x.s, take: (x) => x.t, sd: (x) => x.sd, flow: (x) => (fo(x) ? fo(x).flow : null), nom: (x) => x.nom };
+    const sk = named[S.sortKey] || D.keys.includes(S.sortKey) ? S.sortKey : 'rank';
+    const get = named[sk] || ((x) => x[sk]);
     const sorted = list.slice().sort((a, b) => { const va = get(a), vb = get(b); if (va == null && vb == null) return 0; if (va == null) return 1; if (vb == null) return -1; return (va < vb ? -1 : va > vb ? 1 : 0) * S.dir; });
     const shown = S.showAll ? sorted : sorted.slice(0, 50);
     const medY = (28 - Math.max(0, Math.min(10, m || 0)) / 10 * 28).toFixed(1);
     const logMax = Math.log10(D.maxS);
     const cell = (x, k) => ({ t: pct(x[k]), color: apyColor(x[k], D.meds[k], accent), weight: k === win ? 700 : 400 });
+    const span = D.flowSpan[rng];
 
     const rows = shown.map((x) => {
-      const r = rankOf.get(x.hk);
+      const r = rankOf.get(x.hk), f = fo(x);
       return {
         rank: r || '—', rankColor: r && r <= 3 ? accent : MUTED,
         name: x.name, nameColor: x.named ? TEXT : '#A9B4C2', short: x.short, ini: x.ini, monoBg: x.monoBg, monoFg: x.monoFg,
         aria: x.name + ', APY ' + winLabel + ' ' + pct(x[win]) + ', view details',
         stake: fmtInt(x.s), stakeUsd: '≈ ' + usd(x.s * this.px), stakeBar: x.s >= 1 ? Math.max(2, Math.log10(x.s) / logMax * 100).toFixed(1) : '0',
         take: pct(x.t * 100, 0), takeBg: x.t >= 0.15 ? '#2A1D0E' : x.t === 0 ? '#12281F' : '#161C25', takeFg: x.t >= 0.15 ? ORANGE : x.t === 0 ? accent : '#C9D1D9',
-        c1: cell(x, 'a1'), c7: cell(x, 'a7'), c30: cell(x, 'a30'),
-        spark: x.spark, medY, sparkColor: x.a30 != null && D.meds.a30 != null && x.a30 < D.meds.a30 - 1 ? ORANGE : accent,
-        flow: x.flow == null ? '—' : signed(x.flow, fmtK) + ' τ', flowPct: x.flowPct == null ? '' : signed(x.flowPct, (n) => n.toFixed(1) + '%') + (x.flowDays < D.flowSpan ? ' · ' + x.flowDays + 'D' : ''),
-        flowColor: x.flow == null || Math.abs(x.flow) < 0.5 ? MUTED : x.flow > 0 ? accent : ORANGE,
+        apys: D.keys.map((k) => cell(x, k)),
+        spark: x.sp[rng], medY, sparkColor: x[win] != null && m != null && x[win] < m - 1 ? ORANGE : accent,
+        flow: f ? signed(f.flow, fmtK) + ' τ' : '—', flowPct: f ? signed(f.pct, (n) => n.toFixed(1) + '%') + (f.days < span ? ' · ' + f.days + 'D' : '') : '',
+        flowColor: !f || Math.abs(f.flow) < 0.5 ? MUTED : f.flow > 0 ? accent : ORANGE,
         sd: x.sd == null ? '—' : x.sd.toFixed(2), sdColor: x.sd == null ? MUTED : x.sd > 3 ? ORANGE : '#C9D1D9',
         nom: fmtInt(x.nom),
         open: () => this.open(x.hk),
       };
     });
 
-    const cols = COLS.map(([key, label0, justify]) => {
-      const label = key === 'flow' ? 'Flow ' + D.flowSpan + 'D' : label0;
-      const active = key && (S.sortKey === key);
-      const isWin = key === win;
+    const defs = [['rank', '#', 'flex-start'], ['name', 'Validator', 'flex-start'], ['stake', 'Root stake', 'flex-end'], ['take', 'Take', 'flex-end']]
+      .concat(D.keys.map((k) => [k, 'APY ' + wl(+k.slice(1)), 'flex-end']))
+      .concat([[null, 'Trend ' + rangeLabel(rng, D.N), 'flex-start'], ['flow', 'Flow ' + span + 'D', 'flex-end'], ['sd', 'Stability σ', 'flex-end'], ['nom', 'Nominator', 'flex-end']]);
+    const cols = defs.map(([key, label, justify]) => {
+      const active = key && sk === key;
       return {
         label, justify, sortable: !!key, plain: !key,
-        color: active ? accent : isWin ? TEXT : MUTED,
+        color: active ? accent : key === win ? TEXT : MUTED,
         arrow: active ? (S.dir < 0 ? '↓' : '↑') : '',
         aria: 'Sort by ' + label,
         sort: key ? () => this.sortBy(key) : null,
       };
     });
+    const extra = D.keys.length - 3;
+    const grid = '52px minmax(220px, 2.4fr) minmax(150px, 1.3fr) 64px ' + D.keys.map((k) => (k === win ? '86px' : '78px')).join(' ') + ' 112px 116px 80px 84px';
 
-    const best = D.best;
+    const sw = D.st[win], best = sw.best;
     const stats = [
-      { label: 'Validators', value: fmtInt(D.v.length), sub: D.ranked.length + ' with ≥ 1K τ and 30 days of data', color: TEXT },
+      { label: 'Validators', value: fmtInt(D.v.length), sub: sw.ranked.length + ' with ≥ 1K τ and ' + winLabel + ' of data', color: TEXT },
       { label: 'Total root stake', value: fmtK(D.totalStake) + ' τ', sub: '≈ ' + usd(D.totalStake * this.px) + ' at TAO ' + usd(this.px), color: TEXT },
-      { label: 'Median APY 30D', value: pct(D.meds.a30), sub: 'validators ≥ 1K τ', color: BLUE },
-      { label: 'Stake-weighted APY 30D', value: pct(D.wApy), sub: 'weighted by root stake', color: TEXT },
-      { label: 'Best APY 30D', value: best ? pct(best.a30) : '—', sub: best ? best.name + ' · take ' + pct(best.t * 100, 0) : 'needs 30 days of samples', color: accent },
+      { label: 'Median APY ' + winLabel, value: pct(m), sub: 'validators ≥ 1K τ', color: BLUE },
+      { label: 'Stake-weighted APY ' + winLabel, value: pct(sw.wApy), sub: 'weighted by root stake', color: TEXT },
+      { label: 'Best APY ' + winLabel, value: best ? pct(best[win]) : '—', sub: best ? best.name + ' · take ' + pct(best.t * 100, 0) : 'needs ' + winLabel + ' of samples', color: accent },
     ];
 
     // scatter
     const pts = list.filter((x) => x[win] != null && x.s >= 1);
     const vals = pts.map((x) => x[win]);
     const lo = Math.max(0, Math.floor((quant(vals, 0.03) ?? 0) - 0.5));
-    const hi = Math.ceil((quant(vals, 0.97) ?? 6) + 0.5);
+    const hi = Math.max(lo + 1, Math.ceil((quant(vals, 0.97) ?? 6) + 0.5));
     const maxS = Math.max(1, ...pts.map((x) => x.s));
     const yp = (v) => (Math.max(lo, Math.min(hi, v)) - lo) / (hi - lo) * 100;
     const xp = (t) => Math.min(100, t / 0.2 * 100);
@@ -335,8 +398,8 @@ class Component extends DCLogic {
         const on = S.hov === x.hk;
         return {
           x: xp(x.t).toFixed(2), y: yp(x[win]).toFixed(2), size, half: size / 2,
-          fill: on ? accent : apyColor(x[win], D.meds[win], accent) === ORANGE ? 'rgba(245,158,59,0.30)' : 'rgba(61,219,176,0.22)',
-          stroke: on ? TEXT : apyColor(x[win], D.meds[win], accent) === ORANGE ? ORANGE : accent,
+          fill: on ? accent : apyColor(x[win], m, accent) === ORANGE ? 'rgba(245,158,59,0.30)' : 'rgba(61,219,176,0.22)',
+          stroke: on ? TEXT : apyColor(x[win], m, accent) === ORANGE ? ORANGE : accent,
           aria: x.name + ': APY ' + pct(x[win]) + ', take ' + pct(x.t * 100, 0),
           open: () => this.open(x.hk), enter: () => this.setState({ hov: x.hk }), leave: () => this.setState({ hov: null }),
         };
@@ -367,37 +430,50 @@ class Component extends DCLogic {
       spread: vals.length ? (quant(vals, 0.9) - quant(vals, 0.1)).toFixed(2) + ' pp' : '—',
     };
 
-    // flows
-    const fl = D.v.filter((x) => x.s >= 1000 && x.flow != null);
-    const inn = fl.slice().sort((a, b) => b.flow - a.flow).filter((x) => x.flow > 0).slice(0, 5);
-    const out = fl.slice().sort((a, b) => a.flow - b.flow).filter((x) => x.flow < 0).slice(0, 4);
-    const fmax = Math.max(1, ...inn.concat(out).map((x) => Math.abs(x.flow)));
-    const frow = (x) => ({ name: x.name, w: (Math.abs(x.flow) / fmax * 100).toFixed(1), txt: signed(x.flow, fmtK) + ' τ', open: () => this.open(x.hk) });
+    // flows over the selected range
+    const fl = D.v.filter((x) => x.s >= 1000 && fo(x)).map((x) => ({ x, f: fo(x).flow }));
+    const inn = fl.slice().sort((a, b) => b.f - a.f).filter((y) => y.f > 0).slice(0, 5);
+    const out = fl.slice().sort((a, b) => a.f - b.f).filter((y) => y.f < 0).slice(0, 4);
+    const fmax = Math.max(1, ...inn.concat(out).map((y) => Math.abs(y.f)));
+    const frow = (y) => ({ name: y.x.name, w: (Math.abs(y.f) / fmax * 100).toFixed(1), txt: signed(y.f, fmtK) + ' τ', open: () => this.open(y.x.hk) });
 
     return {
-      stats, sc, hist, flows: { inn: inn.map(frow), out: out.map(frow), title: 'Root stake flows, ' + D.flowSpan + ' days' },
+      stats, sc, hist, flows: { inn: inn.map(frow), out: out.map(frow), title: 'Root stake flows, ' + span + ' days' },
       winLabel, medTxt: pct(m), countTxt: fmtInt(sorted.length), empty: sorted.length === 0,
       hasMore: !S.showAll && sorted.length > 50, showAll: () => this.setState({ showAll: true }),
       q: S.q, onQ: (e) => this.setState({ q: e.target.value, showAll: false }),
-      wins: WINS.map(([k, l]) => ({ label: l, on: k === win, bg: k === win ? accent : 'transparent', fg: k === win ? '#0A0E13' : '#A9B4C2', pick: () => this.setState({ win: k }) })),
+      wins: segChips(D.win, +win.slice(1), wl, accent, (w) => this.setState({ win: 'a' + w })),
+      hasRngs: D.ranges.length > 1, rngs: segChips(D.ranges, rng, (r) => rangeLabel(r, D.N), accent, (r) => this.setState({ rng: r })),
       mins: MINS.map(([v, l]) => ({ label: l, on: S.min === v, bg: S.min === v ? '#16231F' : 'transparent', border: S.min === v ? accent : '#232C38', fg: S.min === v ? accent : '#A9B4C2', pick: () => this.setState({ min: v, showAll: false }) })),
       hideTake: S.hideTake, toggleTake: () => this.setState({ hideTake: !S.hideTake }),
       takeChip: { bg: S.hideTake ? '#16231F' : 'transparent', border: S.hideTake ? accent : '#232C38', fg: S.hideTake ? accent : '#A9B4C2', mark: S.hideTake ? '✓' : '' },
-      cols, rows,
+      cols, rows, grid, minW: 1180 + extra * 90,
     };
   }
 
+  // Rows of `p` are looked up by column name (`pf`): the window columns depend on how much
+  // history the server keeps. The older single-window shape (eff/rk/ref/n) maps to 30D.
   prepAlpha(a) {
-    const vs = a.v.map((v) => Object.assign({}, v, { pairs: [] }));
-    const sns = new Map(a.subnets.map((s) => [s.nu, Object.assign({}, s, { pairs: [] })]));
+    const win = (a.win && a.win.length ? a.win : [1, 7, 30]).slice().sort((x, y) => x - y);
+    const ewin = (a.ewin && a.ewin.length ? a.ewin : [30]).slice().sort((x, y) => x - y);
+    const legacy = (o, pairs) => { pairs.forEach(([from, to]) => { if (o[to] === undefined && o[from] !== undefined) o[to] = o[from]; }); return o; };
+    const vs = a.v.map((v) => legacy(Object.assign({}, v, { pairs: [], effp: v.effp || [] }), [['eff', 'eff30'], ['et', 'et30']]));
+    const sns = new Map(a.subnets.map((s) => [s.nu, legacy(Object.assign({}, s, { pairs: [] }), [['ref', 'ref30'], ['n', 'n30']])]));
+    const pf = a.pf || [];
     a.p.forEach((row) => {
-      const p = { v: vs[row[0]], nu: row[1], tao: row[2], a1: row[3], a7: row[4], a30: row[5], eff: row[6], ct: row[7], rk: row[8] };
+      const p = {};
+      pf.forEach((k, i) => { p[k] = row[i]; });
+      legacy(p, [['eff', 'eff30'], ['rk', 'rk30']]);
+      p.v = vs[p.v];
+      if (!p.v) return;
       p.v.pairs.push(p);
       const s = sns.get(p.nu); if (s) s.pairs.push(p);
     });
-    sns.forEach((s) => s.pairs.sort((x, y) => (y.a30 ?? -1e9) - (x.a30 ?? -1e9)));
     vs.forEach((v) => v.pairs.sort((x, y) => y.tao - x.tao));
-    return { sample: !!a.sample, block: a.block, vs, sns, byHk: new Map(vs.map((v) => [v.hk, v])), snList: a.subnets.map((s) => sns.get(s.nu)) };
+    const np = a.np || 0;
+    const hasEff = (w) => vs.some((v) => v['eff' + w] != null);
+    const dflt = hasEff(30) ? 30 : ewin.slice().reverse().find(hasEff) || ewin[ewin.length - 1];
+    return { sample: !!a.sample, block: a.block, ts: a.ts, win, ewin, dflt, np, period: a.period || 30, vs, sns, byHk: new Map(vs.map((v) => [v.hk, v])), snList: a.subnets.map((s) => sns.get(s.nu)) };
   }
 
   vname(hk, n) {
@@ -409,7 +485,8 @@ class Component extends DCLogic {
 
   tabsVals(D, accent) {
     const S = this.state, A = S.alpha;
-    const tabs = [['root', 'Root stake', fmtInt(D.v.length)], ['alpha', 'Alpha by subnet', A ? fmtInt(A.snList.length) : '…'], ['eff', 'Validator efficiency', A ? fmtInt(A.vs.filter((v) => v.eff != null).length) : '…']]
+    const ew = A ? this.ewOf(A) : 30;
+    const tabs = [['root', 'Root stake', fmtInt(D.v.length)], ['alpha', 'Alpha by subnet', A ? fmtInt(A.snList.length) : '…'], ['eff', 'Validator efficiency', A ? fmtInt(A.vs.filter((v) => v['eff' + ew] != null).length) : '…']]
       .map(([k, label, count]) => ({ label, count, on: S.tab === k, bg: S.tab === k ? '#1A222D' : 'transparent', fg: S.tab === k ? TEXT : '#A9B4C2', countBg: S.tab === k ? '#12281F' : '#161C25', pick: () => this.setState({ tab: k, q: '', showAll: false }) }));
     const out = { tabs, isRoot: S.tab === 'root', isAlpha: false, isEff: false, alWait: false, alWaitTxt: '', showSample: false, alSnCount: '', alBlock: '' };
     if (S.tab === 'root') return out;
@@ -420,7 +497,10 @@ class Component extends DCLogic {
   }
 
   alphaTab(A, accent) {
-    const S = this.state, q = S.q.trim().toLowerCase();
+    const S = this.state, q = S.q.trim().toLowerCase(), ew = this.ewOf(A), L = wl(ew);
+    const ak = 'a' + ew, ek = 'eff' + ew, rk = 'rk' + ew;
+    // price change for the window; the 1D/7D price stands in when the window has none
+    const dpk = A.win.includes(ew) ? 'dp' + ew : 'dp30';
     const match = (s) => !q || ('sn' + s.nu) === q.replace(/\s/g, '') || String(s.nu) === q || (s.name || '').toLowerCase().includes(q) ||
       s.pairs.some((p) => this.vname(p.v.hk, p.v.n).toLowerCase().includes(q));
     const list = A.snList.filter(match);
@@ -430,60 +510,76 @@ class Component extends DCLogic {
     const dpTxt = (x) => x == null ? '—' : signed(x, (n) => n.toFixed(1) + '%');
     const dpCol = (x) => x == null ? MUTED : x >= 0 ? accent : ORANGE;
     const snRows = list.map((s) => ({
-      sn: 'SN' + s.nu, name: s.name || 'Subnet ' + s.nu, ref: pct(s.ref, 1), dp: dpTxt(s.dp30), dpColor: dpCol(s.dp30),
+      sn: 'SN' + s.nu, name: s.name || 'Subnet ' + s.nu, ref: pct(s['ref' + ew], 1), dp: dpTxt(s[dpk]), dpColor: dpCol(s[dpk]),
       on: s.nu === curNu, bg: s.nu === curNu ? '#151C26' : 'transparent', mark: s.nu === curNu ? accent : 'transparent',
       pick: () => this.setState({ sn: s.nu }),
     }));
-    if (!cur) {
-      return { snRows, noSn: true, hasCur: false, noCur: true, noCurTxt: A.snList.length ? 'No subnet matches “' + S.q.trim() + '”.' : 'No subnet data yet: the collector has not stored alpha samples.', cur: { sn: '', name: '', kpis: [] }, rows: [] };
-    }
+    const hdr = { ref: 'Ref ' + L, dp: 'Price ' + dpk.slice(2) + 'D' };
+    const winCols = A.win.map((w) => ({ label: 'APY ' + wl(w), color: w === ew ? TEXT : MUTED }));
+    const grid = '44px minmax(180px, 2fr) 110px 56px ' + A.win.map((w) => (w === ew ? '74px' : '64px')).join(' ') + ' 140px 72px';
+    const minW = 860 + (A.win.length - 3) * 70;
+    const empty = { snRows, hdr, winCols, grid, minW, noSn: list.length === 0, hasCur: false, noCur: true, cur: { sn: '', name: '', kpis: [] }, rows: [], title: '' };
+    if (!cur) return Object.assign(empty, { noCurTxt: A.snList.length ? 'No subnet matches “' + S.q.trim() + '”.' : 'No subnet data yet: the collector has not stored alpha samples.' });
     const kpis = [
-      { label: 'Reference APY 30D', value: pct(cur.ref, 1), color: accent },
+      { label: 'Reference APY ' + L, value: pct(cur['ref' + ew], 1), color: accent },
       { label: 'Alpha price', value: cur.price == null ? '—' : cur.price.toFixed(5) + ' τ', color: TEXT },
-      { label: 'Price 7D', value: dpTxt(cur.dp7), color: dpCol(cur.dp7) },
-      { label: 'Price 30D', value: dpTxt(cur.dp30), color: dpCol(cur.dp30) },
-      { label: 'Validators', value: fmtInt(cur.n), color: TEXT },
-      { label: 'Alpha staked', value: fmtK(cur.tao) + ' τ', color: TEXT },
-    ];
-    const rows = cur.pairs.filter((p) => p.tao >= 1).map((p) => {
-      const name = this.vname(p.v.hk, p.v.n), m = mono(p.v.hk);
+    ].concat(A.win.filter((w) => w >= 7).map((w) => ({ label: 'Price ' + wl(w), value: dpTxt(cur['dp' + w]), color: dpCol(cur['dp' + w]) })))
+      .concat([
+        { label: 'Validators', value: fmtInt(cur['n' + ew]), color: TEXT },
+        { label: 'Alpha staked', value: fmtK(cur.tao) + ' τ', color: TEXT },
+      ]);
+    const pairs = cur.pairs.filter((p) => p.tao >= 1).sort((x, y) => (y[ak] ?? -1e9) - (x[ak] ?? -1e9));
+    const rows = pairs.map((p) => {
+      const name = this.vname(p.v.hk, p.v.n), m = mono(p.v.hk), e = p[ek], r = p[rk];
       return Object.assign({}, m, {
-        rank: p.rk || '—', rankColor: p.rk && p.rk <= 3 ? accent : MUTED, name, ini: initials(name, p.v.hk),
-        aria: name + ' on SN' + cur.nu + ', alpha APY 30D ' + pct(p.a30),
+        rank: r || '—', rankColor: r && r <= 3 ? accent : MUTED, name, ini: initials(name, p.v.hk),
+        aria: name + ' on SN' + cur.nu + ', alpha APY ' + L + ' ' + pct(p[ak]),
         tao: fmtInt(p.tao), take: pct(p.v.t * 100, 0), takeBg: p.v.t >= 0.15 ? '#2A1D0E' : p.v.t === 0 ? '#12281F' : '#161C25', takeFg: p.v.t >= 0.15 ? ORANGE : p.v.t === 0 ? accent : '#C9D1D9',
-        a1: pct(p.a1, 1), a7: pct(p.a7, 1), a30: pct(p.a30, 1), a30Color: p.eff == null ? MUTED : effColor(p.eff, accent),
-        eff: p.eff == null ? '—' : Math.min(p.eff, 100).toFixed(0) + '%', effW: p.eff == null ? 0 : Math.min(100, p.eff).toFixed(1), effColor: effColor(p.eff, accent),
+        apys: A.win.map((w) => ({ t: pct(p['a' + w], 1), color: w === ew ? (e == null ? MUTED : effColor(e, accent)) : '#C9D1D9', weight: w === ew ? 700 : 400 })),
+        eff: e == null ? '—' : Math.min(e, 100).toFixed(0) + '%', effW: e == null ? 0 : Math.min(100, e).toFixed(1), effColor: effColor(e, accent),
         ct: p.ct == null ? 'n/a' : pct(p.ct, 1), ctColor: p.ct != null && p.ct >= 5 ? ORANGE : '#A9B4C2',
         open: () => this.openAny(p.v.hk),
       });
     });
-    return { snRows, noSn: list.length === 0, hasCur: true, noCur: false, noCurTxt: '', cur: { sn: 'SN' + cur.nu, name: cur.name || 'Subnet ' + cur.nu, kpis }, rows };
+    return Object.assign(empty, { noSn: false, hasCur: true, noCur: false, noCurTxt: '', cur: { sn: 'SN' + cur.nu, name: cur.name || 'Subnet ' + cur.nu, kpis }, rows, title: 'Validators on SN' + cur.nu + ', ranked by alpha APY ' + L });
   }
 
   effTab(D, A, accent) {
-    const S = this.state, q = S.q.trim().toLowerCase();
-    const items = A.vs.filter((v) => v.eff != null && v.tao >= S.effMin).map((v) => {
+    const S = this.state, q = S.q.trim().toLowerCase(), ew = this.ewOf(A), L = wl(ew);
+    const ek = 'eff' + ew, etk = 'et' + ew, ak = 'a' + ew;
+    const rootK = D.keys.includes('a' + ew) ? 'a' + ew : 'a30';
+    const hasCons = A.np >= 2;
+    const items = A.vs.filter((v) => v[ek] != null && v.tao >= S.effMin).map((v) => {
       const r = D.byHk.get(v.hk);
-      return { v, name: this.vname(v.hk, v.n), root: r ? r.a30 : null, et: Math.max(0, v.et) };
+      return { v, name: this.vname(v.hk, v.n), root: r ? r[rootK] : null, et: Math.max(0, v[etk] ?? 100 - v[ek]), eff: v[ek] };
     }).filter((x) => !q || x.name.toLowerCase().includes(q) || x.v.hk.toLowerCase().includes(q));
-    const rankOf = new Map(); items.slice().sort((a, b) => b.v.eff - a.v.eff).forEach((x, i) => rankOf.set(x.v.hk, i + 1));
-    const get = { rank: (x) => x.v.eff, name: (x) => x.name.toLowerCase(), tao: (x) => x.v.tao, ns: (x) => x.v.ns, t: (x) => x.v.t, cfg: (x) => x.v.cfg, et: (x) => x.et, eff: (x) => x.v.eff, a30: (x) => x.v.a30, root: (x) => x.root }[S.effSort];
+    const rankOf = new Map(); items.slice().sort((a, b) => b.eff - a.eff).forEach((x, i) => rankOf.set(x.v.hk, i + 1));
+    const getters = { rank: (x) => x.eff, name: (x) => x.name.toLowerCase(), tao: (x) => x.v.tao, ns: (x) => x.v.ns, t: (x) => x.v.t, cfg: (x) => x.v.cfg, et: (x) => x.et, eff: (x) => x.eff, cons: (x) => x.v.cons, a: (x) => x.v[ak], root: (x) => x.root };
+    const sk = getters[S.effSort] && (S.effSort !== 'cons' || hasCons) ? S.effSort : 'eff';
+    const get = getters[sk];
     const sorted = items.slice().sort((a, b) => { const va = get(a), vb = get(b); if (va == null && vb == null) return 0; if (va == null) return 1; if (vb == null) return -1; return (va < vb ? -1 : va > vb ? 1 : 0) * S.effDir; });
     const rows = sorted.map((x) => {
       const v = x.v, rk = rankOf.get(v.hk);
       return Object.assign({}, mono(v.hk), {
         rank: rk || '—', rankColor: rk && rk <= 3 ? accent : MUTED, name: x.name, ini: initials(x.name, v.hk), short: v.hk.slice(0, 8) + '…' + v.hk.slice(-6),
-        aria: x.name + ', efficiency ' + pct(v.eff, 1), tao: fmtInt(v.tao), ns: v.ns, t: pct(v.t * 100, 0), cfg: v.cfg == null ? 'n/a' : pct(v.cfg, 1),
+        aria: x.name + ', efficiency ' + L + ' ' + pct(x.eff, 1), tao: fmtInt(v.tao), ns: v.ns, t: pct(v.t * 100, 0), cfg: v.cfg == null ? 'n/a' : pct(v.cfg, 1),
         et: pct(x.et, 1), etColor: x.et - v.t * 100 > 5 ? ORANGE : TEXT,
-        eff: pct(Math.min(v.eff, 100), 1), effW: Math.min(100, v.eff).toFixed(1), effColor: effColor(v.eff, accent),
-        a30: pct(v.a30, 1), root: pct(x.root), rootColor: x.root == null ? MUTED : apyColor(x.root, D.meds.a30, accent),
+        eff: pct(Math.min(x.eff, 100), 1), effW: Math.min(100, x.eff).toFixed(1), effColor: effColor(x.eff, accent),
+        hasCons, cons: consCell(v, A, accent, 4),
+        a: pct(v[ak], 1), root: pct(x.root), rootColor: x.root == null ? MUTED : apyColor(x.root, D.meds[rootK], accent),
         open: () => this.openAny(v.hk),
       });
     });
-    const cols = EFF_COLS.map(([key, label, justify]) => ({
-      label, justify, color: S.effSort === key ? accent : MUTED, arrow: S.effSort === key ? (S.effDir < 0 ? '↓' : '↑') : '', aria: 'Sort by ' + label,
-      sort: () => (S.effSort === key ? this.setState({ effDir: -S.effDir }) : this.setState({ effSort: key, effDir: EFF_DIRS[key] })),
+    const defs = [['rank', '#', 'flex-start'], ['name', 'Validator', 'flex-start'], ['tao', 'Alpha stake', 'flex-end'], ['ns', 'Subnets', 'flex-end'],
+      ['t', 'Listed take', 'flex-end'], ['cfg', 'Config. take', 'flex-end'], ['et', 'Eff. take ' + L, 'flex-end'], ['eff', 'Efficiency ' + L, 'flex-start']]
+      .concat(hasCons ? [['cons', 'Consistency', 'flex-start']] : [])
+      .concat([['a', 'α APY ' + L, 'flex-end'], ['root', 'Root APY ' + wl(+rootK.slice(1)), 'flex-end']]);
+    const cols = defs.map(([key, label, justify]) => ({
+      label, justify, color: sk === key ? accent : MUTED, arrow: sk === key ? (S.effDir < 0 ? '↓' : '↑') : '', aria: 'Sort by ' + label,
+      title: key === 'cons' ? 'Share of ' + A.period + '-day periods in which the validator passed on at least 90% of the subnet reference APY' : '',
+      sort: () => (sk === key ? this.setState({ effDir: -S.effDir }) : this.setState({ effSort: key, effDir: dirOf(EFF_DIRS, key) })),
     }));
+    const grid = '44px minmax(200px, 2fr) 120px 70px 84px 96px 104px 160px ' + (hasCons ? '150px ' : '') + '90px 96px';
     // scatter: listed take vs effective take
     const ymax = Math.max(40, Math.ceil(Math.max(0, ...items.map((x) => x.et)) / 10) * 10);
     const maxT = Math.max(1, ...items.map((x) => x.v.tao));
@@ -500,7 +596,9 @@ class Component extends DCLogic {
     const gaps = items.map((x) => ({ x, gap: x.et - x.v.t * 100 })).filter((g) => g.gap > 3).sort((a, b) => b.gap - a.gap).slice(0, 6);
     const gmax = Math.max(1, ...gaps.map((g) => g.gap));
     return {
-      cols, rows, empty: rows.length === 0, pts,
+      cols, rows, grid, minW: 1120 + (hasCons ? 162 : 0), empty: rows.length === 0, pts, L,
+      note: 'Efficiency = share of each subnet’s alpha yield a validator passes to its stakers over ' + L + ', weighted by alpha stake. Effective take = 100% − efficiency.' +
+        (hasCons ? ' Consistency = share of ' + A.period + '-day periods at ≥ 90% of the subnet reference (bars: oldest → newest).' : ''),
       yTicks: ticks(0, ymax, 4).map((v) => ({ pos: yp(v).toFixed(2), label: v + '%' })),
       xTicks: [0, 5, 10, 15, 20].map((v) => ({ pos: v * 5, label: v + '%' })),
       diag: 'M0 100 L100 ' + (100 - yp(20)).toFixed(2), diagLabelPos: (yp(20) + 2).toFixed(2),
@@ -514,24 +612,27 @@ class Component extends DCLogic {
   detailAlpha(hk, accent) {
     const A = this.state.alpha, v = A && A.byHk.get(hk);
     if (!v || !v.pairs.length) return { has: false };
+    const ew = this.ewOf(A), L = wl(ew), ak = 'a' + ew, ek = 'eff' + ew, rk = 'rk' + ew;
+    const dpk = A.win.includes(ew) ? 'dp' + ew : 'dp30';
     const shown = v.pairs.filter((p) => p.tao >= 1).slice(0, 20);
     const dpCol = (x) => x == null ? MUTED : x >= 0 ? accent : ORANGE;
+    const e = v[ek], et = v['et' + ew];
     return {
-      has: true, total: v.pairs.length, shown: shown.length, more: v.pairs.length > shown.length,
+      has: true, total: v.pairs.length, shown: shown.length, more: v.pairs.length > shown.length, hA: 'α APY ' + L, hP: 'Price ' + dpk.slice(2) + 'D',
       kpis: [
         { label: 'Alpha stake', value: fmtK(v.tao) + ' τ', color: TEXT },
         { label: 'Subnets', value: fmtInt(v.ns), color: TEXT },
-        { label: 'Efficiency', value: v.eff == null ? '—' : pct(Math.min(100, v.eff), 1), color: effColor(v.eff, accent) },
-        { label: 'Effective take', value: v.et == null ? '—' : pct(Math.max(0, v.et), 1), color: v.et != null && v.et - v.t * 100 > 5 ? ORANGE : TEXT },
-        { label: 'α APY 30D (weighted)', value: pct(v.a30, 1), color: TEXT },
-      ],
+        { label: 'Efficiency ' + L, value: e == null ? '—' : pct(Math.min(100, e), 1), color: effColor(e, accent) },
+        { label: 'Effective take ' + L, value: et == null ? '—' : pct(Math.max(0, et), 1), color: et != null && et - v.t * 100 > 5 ? ORANGE : TEXT },
+        { label: 'α APY ' + L + ' (weighted)', value: pct(v[ak], 1), color: TEXT },
+      ].concat(A.np >= 2 ? [{ label: 'Consistency', value: v.cons == null ? '—' : pct(v.cons, 0), color: v.cons == null ? MUTED : v.cons >= 75 ? accent : v.cons >= 50 ? TEXT : ORANGE }] : []),
       rows: shown.map((p) => {
-        const s = A.sns.get(p.nu) || {};
+        const s = A.sns.get(p.nu) || {}, pe = p[ek], r = p[rk];
         return {
-          sn: 'SN' + p.nu, name: s.name || 'Subnet ' + p.nu, tao: fmtInt(p.tao), a30: pct(p.a30, 1),
-          rank: p.rk ? '#' + p.rk + ' / ' + s.n : '—', rankColor: p.rk === 1 ? accent : '#C9D1D9',
-          eff: p.eff == null ? '—' : Math.min(100, p.eff).toFixed(0) + '%', effW: p.eff == null ? 0 : Math.min(100, p.eff).toFixed(1), effColor: effColor(p.eff, accent),
-          dp: s.dp30 == null ? '—' : signed(s.dp30, (n) => n.toFixed(1) + '%'), dpColor: dpCol(s.dp30),
+          sn: 'SN' + p.nu, name: s.name || 'Subnet ' + p.nu, tao: fmtInt(p.tao), a30: pct(p[ak], 1),
+          rank: r ? '#' + r + ' / ' + (s['n' + ew] ?? '—') : '—', rankColor: r === 1 ? accent : '#C9D1D9',
+          eff: pe == null ? '—' : Math.min(100, pe).toFixed(0) + '%', effW: pe == null ? 0 : Math.min(100, pe).toFixed(1), effColor: effColor(pe, accent),
+          dp: s[dpk] == null ? '—' : signed(s[dpk], (n) => n.toFixed(1) + '%'), dpColor: dpCol(s[dpk]),
           go: () => this.leaveTo({ tab: 'alpha', sn: p.nu, q: '' }),
         };
       }),
@@ -540,123 +641,157 @@ class Component extends DCLogic {
 
   // Page for a validator with alpha stake but no root basket (most of the efficiency tab).
   alphaDetail(v, D, accent) {
-    const S = this.state, A = S.alpha;
+    const S = this.state, A = S.alpha, ew = this.ewOf(A), L = wl(ew);
+    const ek = 'eff' + ew, rk = 'rk' + ew;
+    const dpk = A.win.includes(ew) ? 'dp' + ew : 'dp30';
     const name = this.vname(v.hk, v.n), m = mono(v.hk);
-    const ranked = A.vs.filter((x) => x.eff != null && x.tao >= 1000).sort((a, b) => b.eff - a.eff);
-    const rk = ranked.findIndex((x) => x.hk === v.hk) + 1;
-    const rankTxt = rk ? '#' + rk + ' / ' + ranked.length + ' by efficiency' : 'unranked (needs ≥ 1K τ and 30D data)';
-    const take = v.t || 0, et = v.et == null ? null : Math.max(0, v.et);
+    const ranked = A.vs.filter((x) => x[ek] != null && x.tao >= 1000).sort((a, b) => b[ek] - a[ek]);
+    const rkn = ranked.findIndex((x) => x.hk === v.hk) + 1;
+    const rankTxt = rkn ? '#' + rkn + ' / ' + ranked.length + ' by efficiency ' + L : 'unranked (needs ≥ 1K τ and ' + L + ' data)';
+    const take = v.t || 0, e = v[ek], et = v['et' + ew] == null ? null : Math.max(0, v['et' + ew]);
     const kpis = [
       { label: 'Alpha stake', value: fmtK(v.tao) + ' τ', color: TEXT, sub: '≈ ' + usd(v.tao * this.px), subColor: MUTED },
-      { label: 'Efficiency', value: v.eff == null ? '—' : pct(Math.min(100, v.eff), 1), color: effColor(v.eff, accent), sub: 'APY ÷ subnet reference, stake-weighted', subColor: MUTED },
-      { label: 'Effective take', value: et == null ? '—' : pct(et, 1), color: et != null && et - take * 100 > 5 ? ORANGE : TEXT, sub: 'listed ' + pct(take * 100, 0) + ' · configured ' + (v.cfg == null ? 'n/a' : pct(v.cfg, 1)), subColor: MUTED },
-      { label: 'α APY 30D', value: pct(v.a30, 2), color: accent, sub: 'stake-weighted over subnets', subColor: MUTED },
-      { label: 'α APY 7D', value: pct(v.a7, 2), color: TEXT, sub: 'stake-weighted over subnets', subColor: MUTED },
-      { label: 'Childkey take', value: v.ct == null ? '—' : pct(v.ct, 1), color: v.ct != null && v.ct >= 5 ? ORANGE : TEXT, sub: 'paid to child hotkeys, weighted', subColor: MUTED },
+      { label: 'Efficiency ' + L, value: e == null ? '—' : pct(Math.min(100, e), 1), color: effColor(e, accent), sub: 'APY ÷ subnet reference, stake-weighted', subColor: MUTED },
+      { label: 'Effective take ' + L, value: et == null ? '—' : pct(et, 1), color: et != null && et - take * 100 > 5 ? ORANGE : TEXT, sub: 'listed ' + pct(take * 100, 0) + ' · configured ' + (v.cfg == null ? 'n/a' : pct(v.cfg, 1)), subColor: MUTED },
     ];
+    if (A.np >= 2) kpis.push({ label: 'Consistency', value: v.cons == null ? '—' : pct(v.cons, 0), color: v.cons == null ? MUTED : v.cons >= 75 ? accent : v.cons >= 50 ? TEXT : ORANGE, sub: A.period + '-day periods at ≥ 90% of reference', subColor: MUTED });
+    kpis.push({ label: 'α APY ' + L, value: pct(v['a' + ew], 2), color: accent, sub: A.win.filter((w) => w !== ew).map((w) => wl(w) + ' ' + pct(v['a' + w], 1)).join(' · '), subColor: MUTED });
+    kpis.push({ label: 'Childkey take', value: v.ct == null ? '—' : pct(v.ct, 1), color: v.ct != null && v.ct >= 5 ? ORANGE : TEXT, sub: 'paid to child hotkeys, weighted', subColor: MUTED });
+
+    // efficiency per period, oldest → newest
+    const per = (v.effp || []).slice(0, A.np).map((x, k) => ({ x, k })).reverse();
+    const periods = per.map(({ x, k }) => {
+      const end = (A.ts || D.ts) - k * A.period * 864e5, start = end - A.period * 864e5;
+      return {
+        h: x == null ? 2 : Math.max(2, Math.min(120, x) / 120 * 100).toFixed(1), fill: x == null ? '#232C38' : x >= 90 ? accent : x >= 70 ? '#C9D1D9' : ORANGE,
+        val: x == null ? '—' : Math.min(x, 120).toFixed(0) + '%', label: dstr(start) + '–' + dstr(end),
+        title: dstr(start) + '–' + dstr(end) + ': ' + (x == null ? 'no data' : 'efficiency ' + x.toFixed(1) + '%'),
+      };
+    });
+
     const pools = v.pairs.filter((p) => p.tao >= 1);
     const shown = S.poolsAll ? pools : pools.slice(0, 30);
     const dpCol = (x) => x == null ? MUTED : x >= 0 ? accent : ORANGE;
     const rows = shown.map((p) => {
-      const s = A.sns.get(p.nu) || {};
+      const s = A.sns.get(p.nu) || {}, pe = p[ek], r = p[rk];
       return {
         sn: 'SN' + p.nu, name: s.name || 'Subnet ' + p.nu, tao: fmtInt(p.tao),
-        a1: pct(p.a1, 1), a7: pct(p.a7, 1), a30: pct(p.a30, 1), a30Color: p.eff == null ? MUTED : effColor(p.eff, accent), ref: pct(s.ref, 1),
-        eff: p.eff == null ? '—' : Math.min(100, p.eff).toFixed(0) + '%', effW: p.eff == null ? 0 : Math.min(100, p.eff).toFixed(1), effColor: effColor(p.eff, accent),
-        rank: p.rk ? '#' + p.rk + ' / ' + s.n : '—', rankColor: p.rk === 1 ? accent : '#C9D1D9',
+        apys: A.win.map((w) => ({ t: pct(p['a' + w], 1), color: w === ew ? (pe == null ? MUTED : effColor(pe, accent)) : '#C9D1D9', weight: w === ew ? 700 : 400 })),
+        ref: pct(s['ref' + ew], 1),
+        eff: pe == null ? '—' : Math.min(100, pe).toFixed(0) + '%', effW: pe == null ? 0 : Math.min(100, pe).toFixed(1), effColor: effColor(pe, accent),
+        rank: r ? '#' + r + ' / ' + (s['n' + ew] ?? '—') : '—', rankColor: r === 1 ? accent : '#C9D1D9',
         ct: p.ct == null ? 'n/a' : pct(p.ct, 1), ctColor: p.ct != null && p.ct >= 5 ? ORANGE : '#A9B4C2',
-        dp: s.dp30 == null ? '—' : signed(s.dp30, (n) => n.toFixed(1) + '%'), dpColor: dpCol(s.dp30),
-        aria: 'SN' + p.nu + ' ' + (s.name || '') + ', alpha APY 30D ' + pct(p.a30) + ', open subnet',
+        dp: s[dpk] == null ? '—' : signed(s[dpk], (n) => n.toFixed(1) + '%'), dpColor: dpCol(s[dpk]),
+        aria: 'SN' + p.nu + ' ' + (s.name || '') + ', alpha APY ' + L + ' ' + pct(p['a' + ew]) + ', open subnet',
         go: () => this.leaveTo({ tab: 'alpha', sn: p.nu, q: '' }),
       };
     });
+    const grid = 'minmax(220px, 2fr) 110px ' + A.win.map((w) => (w === ew ? '80px' : '70px')).join(' ') + ' 70px 150px 90px 74px 80px';
     return Object.assign({}, m, {
       name, hk: v.hk, ini: initials(name, v.hk), rankTxt, take: pct(take * 100, 0),
       takeBg: take >= 0.15 ? '#2A1D0E' : take === 0 ? '#12281F' : '#161C25', takeFg: take >= 0.15 ? ORANGE : take === 0 ? accent : '#C9D1D9',
       nsTxt: fmtInt(v.ns) + (v.ns === 1 ? ' subnet' : ' subnets') + ' ≥ 10 τ', kpis, rows, empty: rows.length === 0,
+      winCols: A.win.map((w) => ({ label: 'APY ' + wl(w), color: w === ew ? TEXT : MUTED })), grid, minW: 1100 + (A.win.length - 3) * 82,
+      hdrRef: 'Ref. ' + L, hdrDp: 'Price ' + dpk.slice(2) + 'D', poolNote: 'Efficiency = pool APY ' + L + ' ÷ subnet reference APY · click a subnet to see every validator on it',
+      hasPeriods: A.np >= 2, periods, cons: v.cons == null ? '—' : pct(v.cons, 0),
+      perTitle: 'Efficiency by ' + A.period + '-day period', perNote: 'Each bar is one ' + A.period + '-day period, oldest on the left. Green = passed on at least 90% of the subnet reference APY.',
       more: !S.poolsAll && pools.length > shown.length, moreTxt: 'Show all ' + pools.length + ' subnets', showAll: () => this.setState({ poolsAll: true }),
       copyTxt: this.copyTxt(), copy: () => this.copyHk(v.hk),
     });
   }
 
   detail(x, D, accent) {
-    const S = this.state;
-    const rankTxt = x.rank30 ? '#' + x.rank30 + ' / ' + D.ranked.length + ' · top ' + Math.max(1, Math.ceil(x.rank30 / D.ranked.length * 100)) + '%' : 'unranked (30D)';
+    const S = this.state, win = this.winKey(D), L = wl(+win.slice(1)), N = D.N;
+    const sw = D.st[win], rk = x.rk[win];
+    const rankTxt = rk ? '#' + rk + ' / ' + sw.ranked.length + ' by APY ' + L + ' · top ' + Math.max(1, Math.ceil(rk / sw.ranked.length * 100)) + '%' : 'unranked (' + L + ')';
     const dv = (v, m) => v == null || m == null ? { sub: 'not enough data', subColor: MUTED } : { sub: signed(v - m, (n) => n.toFixed(2)) + ' pp vs median', subColor: v >= m ? accent : ORANGE };
-    const kpis = [
-      Object.assign({ label: 'APY 30D', value: pct(x.a30), color: accent }, dv(x.a30, D.meds.a30)),
-      Object.assign({ label: 'APY 7D', value: pct(x.a7), color: TEXT }, dv(x.a7, D.meds.a7)),
-      Object.assign({ label: 'APY 1D', value: pct(x.a1), color: TEXT }, dv(x.a1, D.meds.a1)),
-      { label: 'Root stake', value: fmtK(x.s) + ' τ', color: TEXT, sub: x.flowPct == null ? 'no history yet' : signed(x.flowPct, (n) => n.toFixed(1) + '%') + ' over ' + x.flowDays + ' days', subColor: x.flow > 0 ? accent : x.flow < 0 ? ORANGE : MUTED },
+    const r = this.chartRng(D), f = x.fl[r];
+    const order = [win].concat(D.keys.filter((k) => k !== win).reverse());
+    const kpis = order.map((k) => Object.assign({ label: 'APY ' + wl(+k.slice(1)), value: pct(x[k]), color: k === win ? accent : TEXT }, dv(x[k], D.meds[k]))).concat([
+      { label: 'Root stake', value: fmtK(x.s) + ' τ', color: TEXT, sub: f ? signed(f.pct, (n) => n.toFixed(1) + '%') + ' over ' + f.days + ' days' : 'no history yet', subColor: f && f.flow > 0 ? accent : f && f.flow < 0 ? ORANGE : MUTED },
       { label: 'Stability σ', value: x.sd == null ? '—' : x.sd.toFixed(2), color: TEXT, sub: 'std dev of 7D APY (lower = steadier)', subColor: MUTED },
-    ];
+    ]);
 
-    // APY chart
-    const ser = x.d, med = D.med, N = ser.length;
-    const all = ser.concat(med).filter((v) => v != null);
-    const lo = all.length ? Math.max(0, Math.floor(Math.min(...all) - 0.5)) : 0;
-    const hi = all.length ? Math.ceil(Math.max(...all) + 0.5) : 10;
+    // APY chart over the selected range; x = end day of each rolling window
+    const s0 = Math.max(0, N - r);
+    const ser = x.d.slice(s0), med = D.med.slice(s0), n = ser.length;
+    const e0 = s0 + 7; // end day of the first 7D point
+    const frac = (e) => (n > 1 ? (e - e0) / (N - e0) : 0.5);
+    const show30 = r >= 60 && x.d30.length > 0;
+    const p30 = show30 ? x.d30.map((v, i) => [i + 30, v]).filter(([e]) => e >= e0).map(([e, v]) => [frac(e), v]) : [];
+    const all = ser.concat(med).concat(p30.map((p) => p[1])).filter((v) => v != null);
+    const lo = all.length ? Math.max(0, Math.floor(quant(all, 0.01) - 0.5)) : 0;
+    const hi = all.length ? Math.max(lo + 1, Math.ceil(quant(all, 0.99) + 0.5)) : 10;
     const tp = (v) => ((1 - (Math.max(lo, Math.min(hi, v)) - lo) / (hi - lo)) * 100);
-    const hi_ = S.hovIdx;
-    const hv = hi_ != null ? ser[hi_] : null, hm = hi_ != null ? med[hi_] : null;
+    const hj = S.hovIdx != null && S.hovIdx < n ? S.hovIdx : null;
+    const hv = hj != null ? ser[hj] : null, hm = hj != null ? med[hj] : null;
+    const h30 = hj != null && show30 ? x.d30[s0 + 7 + hj - 30] : null;
+    // shaded stretch where BasketRate stood still, when it falls inside the range
+    const dayAt = (ts) => { const i = D.days.findIndex((t) => t >= ts); return i < 0 ? N + 1 : i; };
+    const pa = Math.max(0, frac(dayAt(PAUSE_TS[0]))), pb = Math.min(1, frac(dayAt(PAUSE_TS[1]) + 7));
+    const hasPause = pb > pa && pa < 1 && pb > 0;
+    const long = n > 120;
     const ch = {
       line: linePath(ser, 600, 200, lo, hi), area: areaPath(ser, 600, 200, lo, hi), med: linePath(med, 600, 200, lo, hi),
+      l30: ptsPath(p30, 600, 200, lo, hi), has30: p30.length > 1, sw: long ? 1.4 : n > 40 ? 1.8 : 2.2,
       ticks: ticks(lo, hi, 5).map((v) => ({ pos: tp(v).toFixed(2), label: v + '%' })),
-      xl: [0, 6, 12, 18, N - 1].map((j) => ({ pos: (j / (N - 1) * 100).toFixed(2), label: dstr(D.days[j + 7]) })),
-      pauseL: (PAUSE[0] / (N - 1) * 100).toFixed(2), pauseW: ((PAUSE[1] - PAUSE[0]) / (N - 1) * 100).toFixed(2),
+      xl: xLabels(n, 6, (j) => dstr(D.days[Math.min(N, e0 + j)])),
+      hasPause, pauseL: (pa * 100).toFixed(2), pauseW: ((pb - pa) * 100).toFixed(2),
       cols: ser.map((_, j) => ({ enter: () => this.setState({ hovIdx: j }) })),
       leave: () => this.setState({ hovIdx: null }),
-      hasTip: hi_ != null && hv != null,
-      tip: hi_ != null && hv != null ? {
-        x: (hi_ / (N - 1) * 100).toFixed(2), vy: tp(hv).toFixed(2), my: hm == null ? 0 : tp(hm).toFixed(2),
-        shift: hi_ > N * 0.7 ? 'calc(-100% - 12px)' : '12px', date: dstr(D.days[hi_ + 7]),
-        v: x.name + ' ' + pct(hv), m: pct(hm), diff: hm == null ? '' : signed(hv - hm, (n) => n.toFixed(2)) + ' pp', diffColor: hm != null && hv >= hm ? accent : ORANGE,
+      title: 'Rolling APY vs network median, ' + (r === N && !RANGES.includes(N) ? 'all ' + N + ' days' : r + ' days'),
+      hasRngs: D.ranges.length > 1, rngs: segChips(D.ranges, r, (q) => rangeLabel(q, N), accent, (q) => this.setState({ crng: q, hovIdx: null })),
+      hasTip: hj != null && hv != null,
+      tip: hj != null && hv != null ? {
+        x: (frac(e0 + hj) * 100).toFixed(2), vy: tp(hv).toFixed(2), my: hm == null ? 0 : tp(hm).toFixed(2),
+        shift: hj > n * 0.7 ? 'calc(-100% - 12px)' : '12px', date: dstr(D.days[Math.min(N, e0 + hj)]),
+        v: x.name + ' ' + pct(hv), m: pct(hm), diff: hm == null ? '' : signed(hv - hm, (q) => q.toFixed(2)) + ' pp', diffColor: hm != null && hv >= hm ? accent : ORANGE,
+        has30: h30 != null, t30: '30D ' + pct(h30),
       } : {},
     };
 
-    // stake chart
-    const sh = x.sh, shv = sh.filter((v) => v != null);
+    // stake chart over the same range
+    const sh = x.sh.slice(s0), shv = sh.filter((v) => v != null);
     const smin = shv.length ? Math.min(...shv) : 0, smax = shv.length ? Math.max(...shv) : 1;
     const pad = Math.max(1, (smax - smin) * 0.15);
     const slo = Math.max(0, smin - pad), shi = smax + pad;
-    const first = sh.find((v) => v > 0);
     const st = {
-      line: linePath(sh, 600, 200, slo, shi), area: areaPath(sh, 600, 200, slo, shi),
+      line: linePath(sh, 600, 200, slo, shi), area: areaPath(sh, 600, 200, slo, shi), sw: sh.length > 120 ? 1.4 : 2,
       ticks: ticks(slo, shi, 3).map((v) => ({ pos: ((1 - (v - slo) / (shi - slo)) * 100).toFixed(2), label: fmtK(v) })),
-      xl: [0, 15, 30].map((j) => ({ pos: (j / 30 * 100).toFixed(2), label: dstr(D.days[j]) })),
-      title: 'Root stake, ' + (x.flowDays || 30) + ' days',
-      delta: x.flow == null ? '—' : signed(x.flow, fmtInt) + ' τ (' + signed(x.flowPct, (n) => n.toFixed(1) + '%') + ')',
-      color: x.flow > 0 ? accent : x.flow < 0 ? ORANGE : MUTED,
+      xl: xLabels(sh.length, 4, (j) => dstr(D.days[s0 + j])),
+      title: 'Root stake, ' + (f ? f.days : r) + ' days',
+      delta: f ? signed(f.flow, fmtInt) + ' τ (' + signed(f.pct, (q) => q.toFixed(1) + '%') + ')' : '—',
+      color: f && f.flow > 0 ? accent : f && f.flow < 0 ? ORANGE : MUTED,
     };
-    void first;
 
     // basket
     const rows = x.h.map(([netuid, name, spot]) => ({ sn: 'SN' + netuid, name: name || 'Subnet ' + netuid, spot, share: x.snav > 0 ? pct(spot / x.snav * 100, 1) : '—' }));
     if (x.nh > 8 && x.hr > 0) rows.push({ sn: '+' + (x.nh - 8), name: 'other subnets', spot: x.hr, share: x.snav > 0 ? pct(x.hr / x.snav * 100, 1) : '—', other: true });
-    const bmax = Math.max(1e-9, ...rows.map((r) => r.spot));
+    const bmax = Math.max(1e-9, ...rows.map((q) => q.spot));
     const slip = x.snav > 0 ? (1 - x.nav / x.snav) * 100 : null;
     const bk = {
       count: x.nh, nav: fmtNum(x.nav, 1), snav: fmtNum(x.snav, 1), slip: pct(slip), slipColor: slip != null && slip > 2 ? ORANGE : TEXT,
-      rows: rows.map((r) => ({ sn: r.sn, name: r.name, share: r.share, w: (r.spot / bmax * 100).toFixed(1), fill: r.other ? '#3B4A5E' : accent })),
+      rows: rows.map((q) => ({ sn: q.sn, name: q.name, share: q.share, w: (q.spot / bmax * 100).toFixed(1), fill: q.other ? '#3B4A5E' : accent })),
     };
 
-    // calculator
+    // calculator, on the selected window (falling back to 30D, then 7D)
     const amt = parseFloat(String(S.amt).replace(/[^0-9.]/g, '')) || 0;
-    const apy = x.a30 ?? x.a7;
+    const ck = x[win] != null ? win : x.a30 != null ? 'a30' : 'a7';
+    const apy = x[ck];
+    const CL = wl(+ck.slice(1)), cm = D.meds[ck], best = D.st[ck] ? D.st[ck].best : null;
     const yr = apy == null ? null : amt * apy / 100;
-    const best = D.best;
     const cmp = [];
-    if (apy != null && D.meds.a30 != null) {
-      const dm = amt * (apy - D.meds.a30) / 100;
-      cmp.push({ label: 'vs median (' + pct(D.meds.a30) + ')', value: signed(dm, (n) => fmtNum(n, 2)) + ' τ/yr', color: dm >= 0 ? accent : ORANGE });
+    if (apy != null && cm != null) {
+      const dm = amt * (apy - cm) / 100;
+      cmp.push({ label: 'vs median (' + pct(cm) + ')', value: signed(dm, (q) => fmtNum(q, 2)) + ' τ/yr', color: dm >= 0 ? accent : ORANGE });
     }
     if (apy != null && best && best.hk !== x.hk) {
-      const db = amt * (best.a30 - apy) / 100;
-      // `best` is the top 30D APY among validators ≥ 1K τ; a smaller one (or a 7D figure) can beat it
-      if (db > 0) cmp.push({ label: 'Switch to ' + best.name + ' (' + pct(best.a30) + ')', value: '+' + fmtNum(db, 2) + ' τ/yr', color: accent });
-      else cmp.push({ label: 'Ahead of the top ranked ' + best.name + ' (' + pct(best.a30) + ')', value: signed(-db, (n) => fmtNum(n, 2)) + ' τ/yr', color: accent });
+      const db = amt * (best[ck] - apy) / 100;
+      // `best` is the top APY among validators ≥ 1K τ; a smaller one can beat it
+      if (db > 0) cmp.push({ label: 'Switch to ' + best.name + ' (' + pct(best[ck]) + ')', value: '+' + fmtNum(db, 2) + ' τ/yr', color: accent });
+      else cmp.push({ label: 'Ahead of the top ranked ' + best.name + ' (' + pct(best[ck]) + ')', value: signed(-db, (q) => fmtNum(q, 2)) + ' τ/yr', color: accent });
     } else if (best && best.hk === x.hk) {
-      cmp.push({ label: 'This is the top validator by 30D APY', value: '', color: accent });
+      cmp.push({ label: 'This is the top validator by ' + CL + ' APY', value: '', color: accent });
     }
 
     const ledger = [
@@ -675,6 +810,7 @@ class Component extends DCLogic {
       calc: {
         year: yr == null ? '—' : fmtNum(yr, 2), month: yr == null ? '—' : fmtNum(yr / 12, 3), cmp,
         yearUsd: yr == null ? '' : '≈ ' + usd(yr * this.px), monthUsd: yr == null ? '' : '≈ ' + usd(yr / 12 * this.px),
+        note: 'Based on the current ' + CL + ' APY, assuming basket alpha prices hold. USD at the live TAO/USDT price from Binance.',
       },
       copyTxt: this.copyTxt(), copy: () => this.copyHk(x.hk),
     };

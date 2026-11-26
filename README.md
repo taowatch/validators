@@ -23,7 +23,7 @@ curl -s http://127.0.0.1:8080/api/health
 
 Open http://127.0.0.1:8080 in a browser (through an SSH tunnel or a reverse proxy on a remote server, see [Public access](#public-access)).
 
-On first start the collector backfills 30 days from an archive node, which takes about 50–60 minutes.
+On first start the collector backfills `BACKFILL_DAYS` (default 30) from an archive node, at about 1–4 minutes per day depending on the node.
 The newest days come first, so the 1D and 7D APY columns appear within about 15 minutes and 30D once the backfill is done.
 To follow along:
 
@@ -48,19 +48,6 @@ When `docker-compose.yml` itself changes in the repo, fetch it again first:
 `latest` follows `main`. To pin a version, set `IMAGE` in `.env`, for example `IMAGE=ghcr.io/taowatch/validators:1.2.0` or `:sha-abc1234`.
 Database migrations run automatically when the `api` container starts.
 
-## Image tags
-
-| Event | Tags |
-|---|---|
-| Push to `main` | `latest`, `main`, `sha-<short>` |
-| Tag `v1.2.3` | `1.2.3`, `1.2`, `sha-<short>` |
-| Pull request | build and checks only, nothing pushed |
-
-The workflow first runs the checks: `web/` must match the design, `cargo clippy -D warnings` and `cargo test` must pass.
-It then builds each architecture on a native runner and joins the two builds into one multi-arch tag.
-
-To release, push a tag: `git tag v1.0.0 && git push origin v1.0.0`.
-
 ## Configuration (`.env`)
 
 | Variable | Default | Meaning |
@@ -71,7 +58,7 @@ To release, push a tag: `git tag v1.0.0 && git push origin v1.0.0`.
 | `RPC_URLS` | `wss://entrypoint-finney.opentensor.ai:443` | Live nodes for head snapshots, comma-separated |
 | `ARCHIVE_URLS` | onfinality, opentensor archive | Archive nodes for backfill and history gaps |
 | `INTERVAL_SECS` | `3600` | Snapshot cadence |
-| `BACKFILL_DAYS` | `30` | Days of daily history to backfill and keep |
+| `BACKFILL_DAYS` | `30` | Days of history to backfill and keep. The UI follows it: 90 adds the 90D window, 180 adds 180D, 365 adds 365D |
 | `MIN_ALPHA` | `100` | Track a delegate's alpha pool from this much alpha |
 | `KEEP_HOURS` | `72` | Hourly samples kept; older ones thin to one per UTC day |
 | `NOMINATORS_EVERY` | `24` | Refresh nominator counts every N cycles |
@@ -146,21 +133,30 @@ Measured on mainnet:
 - **Root APY.** yield = Δ`BasketRate.bits` / 2³² × NAV / shares between two samples. APY = (1 + yield)^(365 / days) − 1, with days taken from the blocks' `Timestamp.Now`. The detail charts use a rolling 7-day APY.
 - **Alpha APY.** pps = `TotalHotkeyAlpha` / `TotalHotkeySharesV2` per (hotkey, subnet) pool. yield = pps(t₁) / pps(t₀) − 1, annualized the same way. It is undefined when `AlphaSharePoolEpoch` changed or pps went down. The netuid 0 entry is root stake and is excluded.
 - **Subnet reference APY.** The median 30D APY of the top 3 pools worth at least 100 τ.
-- **Efficiency.** Pool APY ÷ reference, capped at 120%. Effective take = 1 − efficiency.
+- **Efficiency.** Pool APY ÷ reference, capped at 120%. Effective take = 1 − efficiency. It is computed for every window of 7 days or more.
+- **Consistency.** The history is cut into 30-day periods, newest first. For each one, the validator's stake-weighted efficiency is computed against that period's own subnet references. Consistency is the share of periods in which efficiency reached at least 90%. It needs at least 2 periods, so 60 or more days of history.
+
+### History length
+
+The API serves as much history as is stored: the daily grid reaches back to the oldest snapshot, with a minimum of 30 days.
+- APY windows 1D, 7D and 30D are always present.
+- 90D, 180D and 365D appear once the data reaches that far.
+- Raising `BACKFILL_DAYS` on a running deployment only backfills the extra days. Each cycle spends up to one interval on backfill.
+- Rough storage cost: about 2 MB per stored day, so 365 days is under 1 GB.
 - **Configured take.** 1 − (1 − take)(1 − Σ proportion × childkey take). `ChildKeys` proportions are u64 / 2⁶⁴; `ChildkeyTake` and `Delegates` takes are u16 / 65535.
 
 ## API
 
 | Endpoint | Content |
 |---|---|
-| `GET /api/validators` | Root: stake, take, nominators, APY 1D/7D/30D, rolling 7-day APY series, stake history, NAV, basket holdings |
-| `GET /api/alpha` | Subnets (reference APY, price, price change), validators (efficiency, effective take) and every pool (APY, efficiency, childkey take, rank) |
+| `GET /api/validators` | Root: stake, take, nominators, APY for each window in `win` (`a1`, `a7`, `a30`, `a90`, …), rolling 7D and 30D APY series (`d`, `d30`), stake history, NAV, basket holdings |
+| `GET /api/alpha` | Subnets (reference APY and price change per window), validators (APY, efficiency and effective take per window, per-period efficiency `effp`, consistency `cons`) and every pool (columns named in `pf`) |
 | `GET /api/health` | Database reachable, newest block and its age |
 
 The API computes every response from one consistent database snapshot.
 The JSON shapes match the design's data files, so the frontend logic is shared.
 
-In `/api/validators`, `sh` (31 daily stake points) is `null` for leading days with no sample.
+In `/api/validators`, `days` and `sh` have one point per day of history, and `sh` is `null` for leading days with no sample.
 The UI then labels flows by the span actually covered, for example "Flow 18D".
 
 ## Development

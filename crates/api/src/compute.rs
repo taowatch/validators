@@ -6,6 +6,9 @@
 //!
 //! Undefined (null) when a sample is missing, a rate went down (fund reset) or the alpha
 //! pool epoch changed between the two samples.
+//!
+//! History length follows the data: the daily grid reaches back to the oldest stored
+//! snapshot (at least 30 days), and windows 90/180/365 appear once data reaches that far.
 
 use std::collections::HashMap;
 
@@ -48,6 +51,41 @@ fn nearest(snaps: &[(i64, f64)], target: f64, tol: f64) -> Option<(i64, f64)> {
     snaps.iter().copied().filter(|(_, ts)| (ts - target).abs() <= tol).min_by(|a, b| (a.1 - target).abs().total_cmp(&(b.1 - target).abs()))
 }
 
+/// APY windows offered, in days. 1/7/30 are always present (null until data exists).
+const WINDOWS: [usize; 6] = [1, 7, 30, 90, 180, 365];
+const BASE_WINDOWS: usize = 3;
+/// Length of a consistency period on the efficiency side.
+const PERIOD: usize = 30;
+/// Longest history served (days).
+const MAX_SPAN: usize = 400;
+
+/// Daily grid: `pts[i]` stands for `n − i` days before head (`pts[n]` = head).
+struct Grid {
+    n: usize,
+    pts: Vec<Option<(i64, f64)>>,
+    win: Vec<usize>,
+}
+
+impl Grid {
+    fn new(snaps: &[(i64, f64)], head: i64, head_ts: f64) -> Self {
+        let oldest = snaps.first().map_or(head_ts, |s| s.1);
+        let n = (((head_ts - oldest) / DAY).round() as usize).clamp(30, MAX_SPAN);
+        let pts: Vec<_> = (0..=n).map(|i| if i == n { Some((head, head_ts)) } else { nearest(snaps, head_ts - (n - i) as f64 * DAY, TOL) }).collect();
+        let win = WINDOWS.iter().copied().enumerate().filter(|&(k, w)| k < BASE_WINDOWS || (w <= n && pts[n - w].is_some())).map(|(_, w)| w).collect();
+        Self { n, pts, win }
+    }
+    /// Point `d` days before head.
+    fn back(&self, d: usize) -> Option<(i64, f64)> {
+        if d > self.n { None } else { self.pts[self.n - d] }
+    }
+    fn blocks(&self) -> Vec<i64> {
+        let mut b: Vec<i64> = self.pts.iter().flatten().map(|p| p.0).collect();
+        b.sort();
+        b.dedup();
+        b
+    }
+}
+
 pub struct Out {
     pub block: i64,
     pub validators: Value,
@@ -61,10 +99,11 @@ pub async fn compute(pool: &PgPool) -> Result<Option<Out>> {
     sqlx::query("SET TRANSACTION ISOLATION LEVEL REPEATABLE READ, READ ONLY").execute(&mut *tx).await?;
     let snaps = vr_core::db::snapshots(&mut *tx).await?;
     let Some(&(head, head_ts)) = snaps.last() else { return Ok(None) };
+    let grid = Grid::new(&snaps, head, head_ts);
     let names: HashMap<i32, String> =
         sqlx::query_as::<_, (i32, Option<String>)>("SELECT netuid, name FROM subnet").fetch_all(&mut *tx).await?.into_iter().filter_map(|(n, s)| s.map(|s| (n, s))).collect();
-    let validators = root(&mut tx, &snaps, head, head_ts, &names).await?;
-    let alpha = alpha(&mut tx, &snaps, head, head_ts, &names).await?;
+    let validators = root(&mut tx, &grid, head, head_ts, &names).await?;
+    let alpha = alpha(&mut tx, &grid, head, head_ts, &names).await?;
     tx.commit().await?;
     Ok(Some(Out { block: head, validators, alpha }))
 }
@@ -84,20 +123,16 @@ struct VRow {
     holdings: Option<Value>,
 }
 
-/// Same shape as the design's validators.json.
-async fn root(db: &mut PgConnection, snaps: &[(i64, f64)], head: i64, head_ts: f64, names: &HashMap<i32, String>) -> Result<Value> {
-    // 31 daily points, index 0 = 30 days ago, 30 = head.
-    let pts: Vec<Option<(i64, f64)>> = (0..=30)
-        .map(|i| {
-            let d = 30 - i;
-            if d == 0 { Some((head, head_ts)) } else { nearest(snaps, head_ts - d as f64 * DAY, TOL) }
-        })
-        .collect();
-    let blocks: Vec<i64> = pts.iter().flatten().map(|p| p.0).collect();
+type Pt = Option<(i64, f64)>;
+
+/// Same shape as the design's validators.json, with `win`, `a{w}`, `d30` added and the
+/// series as long as the history.
+async fn root(db: &mut PgConnection, g: &Grid, head: i64, head_ts: f64, names: &HashMap<i32, String>) -> Result<Value> {
+    let n = g.n;
     let rows = sqlx::query_as::<_, (i64, String, Option<String>, f64)>(
         "SELECT block, hotkey, rate_bits::text, root_stake FROM root_sample WHERE block = ANY($1)",
     )
-    .bind(&blocks)
+    .bind(g.blocks())
     .fetch_all(&mut *db)
     .await?;
     let mut rate: HashMap<(i64, String), f64> = HashMap::new();
@@ -114,7 +149,7 @@ async fn root(db: &mut PgConnection, snaps: &[(i64, f64)], head: i64, head_ts: f
     .fetch_all(&mut *db)
     .await?;
 
-    let apy_between = |hk: &str, a: Option<(i64, f64)>, b: Option<(i64, f64)>, price: f64| -> Option<f64> {
+    let apy_between = |hk: &str, a: Pt, b: Pt, price: f64| -> Option<f64> {
         let (ab, ats) = a?;
         let (bb, bts) = b?;
         let r0 = *rate.get(&(ab, hk.to_string()))?;
@@ -124,6 +159,9 @@ async fn root(db: &mut PgConnection, snaps: &[(i64, f64)], head: i64, head_ts: f
         }
         annualize((r1 - r0) / TWO_32 * price, (bts - ats) / DAY)
     };
+    let series = |hk: &str, len: usize, price: f64| -> Vec<Option<f64>> {
+        if n < len { vec![] } else { (0..=n - len).map(|i| apy_between(hk, g.pts[i], g.pts[i + len], price)).collect() }
+    };
 
     let mut out = Vec::new();
     let mut rolling_all: Vec<(f64, Vec<Option<f64>>)> = Vec::new();
@@ -132,8 +170,8 @@ async fn root(db: &mut PgConnection, snaps: &[(i64, f64)], head: i64, head_ts: f
         let price = if shares > 0.0 { nav / shares } else { 0.0 };
         let hk = v.hotkey.as_str();
         let s_now = stake.get(&(head, hk.to_string())).copied().unwrap_or(0.0);
-        let win = |d: usize| apy_between(hk, pts[30 - d], pts[30], price);
-        let rolling: Vec<Option<f64>> = (7..=30).map(|j| apy_between(hk, pts[j - 7], pts[j], price)).collect();
+        let rolling = series(hk, 7, price);
+        let rolling30 = series(hk, 30, price);
         let good: Vec<f64> = rolling.iter().flatten().copied().collect();
         // σ of the rolling series; fewer than 10 points says more about noise than stability
         let sd = (good.len() >= 10).then(|| {
@@ -142,9 +180,9 @@ async fn root(db: &mut PgConnection, snaps: &[(i64, f64)], head: i64, head_ts: f
         });
         // stake history; inner gaps take the previous value, leading ones stay null so a flow
         // is never measured over a shorter span than it claims
-        let mut sh = Vec::with_capacity(31);
+        let mut sh = Vec::with_capacity(n + 1);
         let mut last: Option<f64> = None;
-        for p in &pts {
+        for p in &g.pts {
             let x = p.and_then(|(b, _)| stake.get(&(b, hk.to_string())).copied()).or(last);
             last = x;
             sh.push(x.map(|v| json!(v.round())).unwrap_or(Value::Null));
@@ -164,34 +202,48 @@ async fn root(db: &mut PgConnection, snaps: &[(i64, f64)], head: i64, head_ts: f
             .map(|(n, spot, real)| json!([n, names.get(&(*n as i32)).map(|s| s.chars().take(18).collect::<String>()), r(*spot, 1), r(*real, 1)]))
             .collect();
 
-        rolling_all.push((s_now, rolling.clone()));
-        out.push(json!({
+        let mut o = json!({
             "hk": hk, "ck": v.coldkey, "n": v.name.as_deref().filter(|s| !s.is_empty()),
-            "s": r(s_now, 1), "t": r(v.take, 4), "nom": v.nominators,
-            "a1": ro(win(1), 2), "a7": ro(win(7), 2), "a30": ro(win(30), 2), "sd": ro(sd, 2),
+            "s": r(s_now, 1), "t": r(v.take, 4), "nom": v.nominators, "sd": ro(sd, 2),
             "nav": r(nav / 1e9, 1), "snav": r(v.spot_nav.unwrap_or(0.0) / 1e9, 1),
             "dep": r(v.deposited.unwrap_or(0.0) / 1e9, 1), "red": r(v.redeemed.unwrap_or(0.0) / 1e9, 1),
             "nh": hold.len(), "hr": r(rest, 1), "h": top,
             "d": rolling.iter().map(|x| ro(*x, 2)).collect::<Vec<_>>(),
+            "d30": rolling30.iter().map(|x| ro(*x, 2)).collect::<Vec<_>>(),
             "sh": sh,
-        }));
+        });
+        for &w in &g.win {
+            o[format!("a{w}")] = ro(apy_between(hk, g.back(w), g.back(0), price), 2);
+        }
+        rolling_all.push((s_now, rolling));
+        out.push(o);
     }
-    let med: Vec<Value> = (0..24)
-        .map(|i| ro(median(rolling_all.iter().filter(|(s, _)| *s >= 1000.0).filter_map(|(_, d)| d[i]).collect()), 2))
+    let med: Vec<Value> = (0..n.saturating_sub(6))
+        .map(|i| ro(median(rolling_all.iter().filter(|(s, _)| *s >= 1000.0).filter_map(|(_, d)| d.get(i).copied().flatten()).collect()), 2))
         .collect();
-    let days: Vec<Value> = pts
+    let days: Vec<Value> = g
+        .pts
         .iter()
         .enumerate()
-        .map(|(i, p)| json!((p.map(|p| p.1).unwrap_or(head_ts - (30 - i) as f64 * DAY) * 1000.0).round() as i64))
+        .map(|(i, p)| json!((p.map(|p| p.1).unwrap_or(head_ts - (n - i) as f64 * DAY) * 1000.0).round() as i64))
         .collect();
-    Ok(json!({ "block": head, "ts": (head_ts * 1000.0).round() as i64, "days": days, "med": med, "v": out }))
+    Ok(json!({ "block": head, "ts": (head_ts * 1000.0).round() as i64, "win": g.win, "days": days, "med": med, "v": out }))
 }
 
-/// Same shape as the design's alpha.json.
-async fn alpha(db: &mut PgConnection, snaps: &[(i64, f64)], head: i64, head_ts: f64, names: &HashMap<i32, String>) -> Result<Value> {
-    let pt = |d: u32| if d == 0 { Some((head, head_ts)) } else { nearest(snaps, head_ts - d as f64 * DAY, TOL) };
-    let p: HashMap<u32, (i64, f64)> = [0u32, 1, 7, 30].into_iter().filter_map(|d| pt(d).map(|x| (d, x))).collect();
-    let blocks: Vec<i64> = p.values().map(|x| x.0).collect();
+/// Same shape as the design's alpha.json, with windows (`win`, `ewin`) and consistency
+/// periods (`period`, `np`, `effp`, `cons`).
+async fn alpha(db: &mut PgConnection, g: &Grid, head: i64, head_ts: f64, names: &HashMap<i32, String>) -> Result<Value> {
+    let ewin: Vec<usize> = g.win.iter().copied().filter(|&w| w >= 7).collect();
+    let np = g.n / PERIOD;
+    // every day offset we read: window starts and period boundaries
+    let mut offs: Vec<usize> = g.win.clone();
+    offs.extend((0..=np).map(|k| k * PERIOD));
+    offs.sort();
+    offs.dedup();
+    let p: HashMap<usize, (i64, f64)> = offs.iter().filter_map(|&d| g.back(d).map(|x| (d, x))).collect();
+    let mut blocks: Vec<i64> = p.values().map(|x| x.0).collect();
+    blocks.sort();
+    blocks.dedup();
 
     let rows = sqlx::query_as::<_, (i64, String, i32, f64, Option<f64>, Option<i64>)>(
         "SELECT block, hotkey, netuid, alpha, pps, epoch FROM alpha_sample WHERE block = ANY($1)",
@@ -229,75 +281,102 @@ async fn alpha(db: &mut PgConnection, snaps: &[(i64, f64)], head: i64, head_ts: 
         })
         .collect();
 
+    // Pools at head; APY of a pool between two day offsets (from > to).
     struct Pair {
         hk: String,
         nu: i32,
         tao: f64,
-        a: [Option<f64>; 3], // 1d, 7d, 30d
-        eff: Option<f64>,
         ct: f64,
         cfg: f64,
-        rk: Option<usize>,
     }
-    let (hb, _) = p[&0];
+    let pool_apy = |hk: &str, nu: i32, from: usize, to: usize| -> Option<f64> {
+        let (b0, t0) = *p.get(&from)?;
+        let (b1, t1) = *p.get(&to)?;
+        let (_, pps0, ep0) = pool_at.get(&(b0, hk.to_string(), nu))?;
+        let (_, pps1, ep1) = pool_at.get(&(b1, hk.to_string(), nu))?;
+        let (p0, p1) = ((*pps0)?, (*pps1)?);
+        if ep0 != ep1 || p0 <= 0.0 || p1 < p0 {
+            return None;
+        }
+        annualize(p1 / p0 - 1.0, (t1 - t0) / DAY)
+    };
     let mut pairs: Vec<Pair> = Vec::new();
-    for ((b, hk, nu), (alpha, pps0, ep0)) in &pool_at {
-        if *b != hb {
+    for ((b, hk, nu), (alpha, _, _)) in &pool_at {
+        if *b != head {
             continue;
         }
-        let px = prices.get(&(hb, *nu)).copied().unwrap_or(0.0);
-        let apy = |d: u32| -> Option<f64> {
-            let (bd, tsd) = *p.get(&d)?;
-            let (_, ppsd, epd) = pool_at.get(&(bd, hk.clone(), *nu))?;
-            let (p0, p1) = ((*ppsd)?, (*pps0)?);
-            if epd != ep0 || p0 <= 0.0 || p1 < p0 {
-                return None;
-            }
-            annualize(p1 / p0 - 1.0, (head_ts - tsd) / DAY)
-        };
+        let px = prices.get(&(head, *nu)).copied().unwrap_or(0.0);
         let ct = child_take.get(&(hk.clone(), *nu)).copied().unwrap_or(0.0);
         let own = meta.get(hk).map(|m| m.1).unwrap_or(0.0);
-        pairs.push(Pair { hk: hk.clone(), nu: *nu, tao: alpha * px, a: [apy(1), apy(7), apy(30)], eff: None, ct, cfg: 1.0 - (1.0 - own) * (1.0 - ct), rk: None });
+        pairs.push(Pair { hk: hk.clone(), nu: *nu, tao: alpha * px, ct, cfg: 1.0 - (1.0 - own) * (1.0 - ct) });
     }
-
-    // subnet reference APY = median of the top 3 pools worth ≥ 100 τ; efficiency vs that.
+    pairs.sort_by(|a, b| (a.nu, &a.hk).cmp(&(b.nu, &b.hk)));
     let mut by_sn: HashMap<i32, Vec<usize>> = HashMap::new();
     for (i, x) in pairs.iter().enumerate() {
         by_sn.entry(x.nu).or_default().push(i);
     }
+
+    /// Per-pool APY over one interval, the subnet reference (median of the top 3 pools worth
+    /// ≥ 100 τ), efficiency vs that (capped at 120%) and rank among pools worth ≥ 10 τ.
+    struct Interval {
+        apy: Vec<Option<f64>>,
+        eff: Vec<Option<f64>>,
+        rk: Vec<Option<usize>>,
+        refv: HashMap<i32, Option<f64>>,
+        ranked: HashMap<i32, usize>,
+    }
+    let interval = |from: usize, to: usize| -> Interval {
+        let apy: Vec<Option<f64>> = pairs.iter().map(|x| pool_apy(&x.hk, x.nu, from, to)).collect();
+        let mut eff = vec![None; pairs.len()];
+        let mut rk = vec![None; pairs.len()];
+        let mut refv = HashMap::new();
+        let mut ranked_n = HashMap::new();
+        for (nu, idx) in &by_sn {
+            let mut big: Vec<f64> = idx.iter().filter(|&&i| pairs[i].tao >= 100.0).filter_map(|&i| apy[i]).collect();
+            big.sort_by(|a, b| b.total_cmp(a));
+            let rv = if big.len() >= 3 { median(big[..3].to_vec()) } else { big.first().copied() };
+            for &i in idx {
+                eff[i] = match (rv, apy[i]) {
+                    (Some(rv), Some(a)) if rv > 0.0 => Some((a / rv).min(1.2)),
+                    _ => None,
+                };
+            }
+            let mut ranked: Vec<usize> = idx.iter().copied().filter(|&i| apy[i].is_some() && pairs[i].tao >= 10.0).collect();
+            ranked.sort_by(|&a, &b| apy[b].unwrap().total_cmp(&apy[a].unwrap()));
+            for (k, &i) in ranked.iter().enumerate() {
+                rk[i] = Some(k + 1);
+            }
+            refv.insert(*nu, rv);
+            ranked_n.insert(*nu, ranked.len());
+        }
+        Interval { apy, eff, rk, refv, ranked: ranked_n }
+    };
+    let wins: Vec<(usize, Interval)> = g.win.iter().map(|&w| (w, interval(w, 0))).collect();
+    let ewins: Vec<&(usize, Interval)> = wins.iter().filter(|(w, _)| ewin.contains(w)).collect();
+    let periods: Vec<Interval> = (0..np).map(|k| interval((k + 1) * PERIOD, k * PERIOD)).collect();
+
+    // subnets
+    let price = |d: usize, nu: i32| p.get(&d).and_then(|(b, _)| prices.get(&(*b, nu))).copied();
     let mut subnets = Vec::new();
     for (nu, idx) in &by_sn {
-        let mut big: Vec<f64> = idx.iter().filter(|&&i| pairs[i].tao >= 100.0).filter_map(|&i| pairs[i].a[2]).collect();
-        big.sort_by(|a, b| b.total_cmp(a));
-        let refv = if big.len() >= 3 { median(big[..3].to_vec()) } else { big.first().copied() };
-        for &i in idx {
-            pairs[i].eff = match (refv, pairs[i].a[2]) {
-                (Some(rv), Some(a)) if rv > 0.0 => Some((a / rv).min(1.2)),
+        let tao: f64 = idx.iter().map(|&i| pairs[i].tao).sum();
+        let mut o = json!({ "nu": nu, "name": names.get(nu), "price": ro(price(0, *nu), 6), "tao": r(tao, 1) });
+        for &w in &g.win {
+            let ch = match (price(0, *nu), price(w, *nu)) {
+                (Some(a), Some(b)) if b > 0.0 => Some((a / b - 1.0) * 100.0),
                 _ => None,
             };
+            o[format!("dp{w}")] = ro(ch, 2);
         }
-        let mut ranked: Vec<usize> = idx.iter().copied().filter(|&i| pairs[i].a[2].is_some() && pairs[i].tao >= 10.0).collect();
-        ranked.sort_by(|&a, &b| pairs[b].a[2].unwrap().total_cmp(&pairs[a].a[2].unwrap()));
-        for (k, &i) in ranked.iter().enumerate() {
-            pairs[i].rk = Some(k + 1);
+        for (w, iv) in &ewins {
+            o[format!("ref{w}")] = ro(iv.refv.get(nu).copied().flatten(), 2);
+            o[format!("n{w}")] = json!(iv.ranked.get(nu).copied().unwrap_or(0));
         }
-        let price = |d: u32| p.get(&d).and_then(|(b, _)| prices.get(&(*b, *nu))).copied();
-        let ch = |d: u32| match (price(0), price(d)) {
-            (Some(a), Some(b)) if b > 0.0 => Some((a / b - 1.0) * 100.0),
-            _ => None,
-        };
-        subnets.push((
-            idx.iter().map(|&i| pairs[i].tao).sum::<f64>(),
-            json!({
-                "nu": nu, "name": names.get(nu), "price": ro(price(0), 6),
-                "dp30": ro(ch(30), 2), "dp7": ro(ch(7), 2), "ref": ro(refv, 2),
-                "n": ranked.len(), "tao": r(idx.iter().map(|&i| pairs[i].tao).sum(), 1),
-            }),
-        ));
+        subnets.push((tao, o));
     }
     subnets.sort_by(|a, b| b.0.total_cmp(&a.0));
 
-    // validators
+    // validators: stake-weighted over their pools worth ≥ 10 τ
     let mut by_v: HashMap<&str, Vec<usize>> = HashMap::new();
     for (i, x) in pairs.iter().enumerate() {
         by_v.entry(x.hk.as_str()).or_default().push(i);
@@ -308,40 +387,60 @@ async fn alpha(db: &mut PgConnection, snaps: &[(i64, f64)], head: i64, head_ts: 
         if tot < 10.0 {
             continue;
         }
-        let w = |f: &dyn Fn(&Pair) -> Option<f64>| -> Option<f64> {
-            let xs: Vec<(f64, f64)> = idx.iter().map(|&i| &pairs[i]).filter(|x| x.tao >= 10.0).filter_map(|x| f(x).map(|v| (v, x.tao))).collect();
+        let w = |f: &dyn Fn(usize) -> Option<f64>| -> Option<f64> {
+            let xs: Vec<(f64, f64)> = idx.iter().copied().filter(|&i| pairs[i].tao >= 10.0).filter_map(|i| f(i).map(|v| (v, pairs[i].tao))).collect();
             let ww: f64 = xs.iter().map(|x| x.1).sum();
             (ww > 0.0).then(|| xs.iter().map(|(v, t)| v * t).sum::<f64>() / ww)
         };
-        let eff = w(&|x| x.eff);
         let (name, take) = meta.get(*hk).cloned().unwrap_or((None, 0.0));
-        vlist.push((
-            hk.to_string(),
-            json!({
-                "hk": hk, "n": name, "t": r(take, 4), "tao": r(tot, 1),
-                "ns": idx.iter().filter(|&&i| pairs[i].tao >= 10.0).count(),
-                "eff": ro(eff.map(|e| e * 100.0), 2), "et": ro(eff.map(|e| (1.0 - e) * 100.0), 2),
-                "a30": ro(w(&|x| x.a[2]), 2), "a7": ro(w(&|x| x.a[1]), 2),
-                "ct": ro(w(&|x| Some(x.ct * 100.0)), 2), "cfg": ro(w(&|x| Some(x.cfg * 100.0)), 2),
-            }),
-        ));
+        let effp: Vec<Option<f64>> = periods.iter().map(|iv| w(&|i| iv.eff[i])).collect();
+        let known: Vec<f64> = effp.iter().flatten().copied().collect();
+        let cons = (known.len() >= 2).then(|| known.iter().filter(|&&e| e >= 0.9).count() as f64 / known.len() as f64 * 100.0);
+        let mut o = json!({
+            "hk": hk, "n": name, "t": r(take, 4), "tao": r(tot, 1),
+            "ns": idx.iter().filter(|&&i| pairs[i].tao >= 10.0).count(),
+            "ct": ro(w(&|i| Some(pairs[i].ct * 100.0)), 2), "cfg": ro(w(&|i| Some(pairs[i].cfg * 100.0)), 2),
+            "effp": effp.iter().map(|e| ro(e.map(|e| e * 100.0), 1)).collect::<Vec<_>>(),
+            "cons": ro(cons, 0),
+        });
+        for (wd, iv) in &wins {
+            o[format!("a{wd}")] = ro(w(&|i| iv.apy[i]), 2);
+        }
+        for (wd, iv) in &ewins {
+            let e = w(&|i| iv.eff[i]);
+            o[format!("eff{wd}")] = ro(e.map(|e| e * 100.0), 2);
+            o[format!("et{wd}")] = ro(e.map(|e| (1.0 - e) * 100.0), 2);
+        }
+        vlist.push((hk.to_string(), o));
     }
     vlist.sort_by(|a, b| a.0.cmp(&b.0));
     let vi: HashMap<&str, usize> = vlist.iter().enumerate().map(|(i, (h, _))| (h.as_str(), i)).collect();
+
+    let mut pf: Vec<String> = vec!["v".into(), "nu".into(), "tao".into()];
+    pf.extend(g.win.iter().map(|w| format!("a{w}")));
+    pf.extend(ewins.iter().map(|(w, _)| format!("eff{w}")));
+    pf.extend(ewins.iter().map(|(w, _)| format!("rk{w}")));
+    pf.push("ct".into());
     let prow: Vec<Value> = pairs
         .iter()
-        .filter(|x| x.tao >= 1.0)
-        .filter_map(|x| {
-            let i = *vi.get(x.hk.as_str())?;
-            Some(json!([i, x.nu, r(x.tao, 1), ro(x.a[0], 2), ro(x.a[1], 2), ro(x.a[2], 2), ro(x.eff.map(|e| e * 100.0), 1), r(x.ct * 100.0, 1), x.rk]))
+        .enumerate()
+        .filter(|(_, x)| x.tao >= 1.0)
+        .filter_map(|(i, x)| {
+            let mut row = vec![json!(*vi.get(x.hk.as_str())?), json!(x.nu), r(x.tao, 1)];
+            row.extend(wins.iter().map(|(_, iv)| ro(iv.apy[i], 2)));
+            row.extend(ewins.iter().map(|(_, iv)| ro(iv.eff[i].map(|e| e * 100.0), 1)));
+            row.extend(ewins.iter().map(|(_, iv)| json!(iv.rk[i])));
+            row.push(r(x.ct * 100.0, 1));
+            Some(Value::Array(row))
         })
         .collect();
 
     Ok(json!({
         "sample": false, "block": head, "ts": (head_ts * 1000.0).round() as i64,
+        "win": g.win, "ewin": ewin, "period": PERIOD, "np": np,
         "subnets": subnets.into_iter().map(|x| x.1).collect::<Vec<_>>(),
         "v": vlist.into_iter().map(|x| x.1).collect::<Vec<_>>(),
-        "pf": ["v", "nu", "tao", "a1", "a7", "a30", "eff", "ct", "rk"],
+        "pf": pf,
         "p": prow,
     }))
 }
