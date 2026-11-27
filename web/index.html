@@ -6,7 +6,7 @@
 <title>Choose a validator · Validator Yield · Bittensor</title>
 <meta name="description" content="Pick a Bittensor validator: every root and subnet validator graded on what it pays stakers, after fees, from on-chain data.">
 <meta name="color-scheme" content="dark">
-<script src="/ui.js?v=0cdf1daf7c8a" data-page="index"></script>
+<script src="/ui.js?v=e3d37fbdfb28" data-page="index"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&amp;family=JetBrains+Mono:wght@400;500;600&amp;family=Space+Grotesk:wght@500;600;700&amp;display=swap" rel="stylesheet">
@@ -35,6 +35,8 @@ button:focus-visible,input:focus-visible,select:focus-visible,a:focus-visible{ou
 .ch-swu{height:36px;padding:0 14px;border-radius:999px;background:#F5C542;color:#0A0E13 !important;text-decoration:none;display:flex;align-items:center;font-weight:600;white-space:nowrap}
 .ch-swu:hover{background:#FFD866}
 .ch-msort{display:none}
+.ch-q{display:inline-flex;align-items:center;justify-content:center;width:15px;height:15px;margin-left:4px;border-radius:50%;border:1px solid #2A3340;color:#8B97A6 !important;font-size:10px;font-weight:600;text-decoration:none;text-transform:none;letter-spacing:0;vertical-align:middle}
+.ch-q:hover{border-color:#3DDBB0;color:#3DDBB0 !important}
 @media (max-width:1499px){.ch-block{display:none !important}}
 @media (max-width:899px){
 .ch-table{display:none !important}
@@ -81,7 +83,8 @@ button:focus-visible,input:focus-visible,select:focus-visible,a:focus-visible{ou
 </a>
 <nav aria-label="Sections" style="display: flex; gap: 6px; flex-wrap: wrap">
 <a href="/" data-on-click="{{home}}" aria-current="page" style="height: 36px; padding: 0 14px; border-radius: 9px; background: #151C26; color: #E6EDF3; text-decoration: none; display: flex; align-items: center; font-weight: 500">Choose a validator</a>
-<a href="/analytics" style="height: 36px; padding: 0 14px; border-radius: 9px; color: #A9B4C2; text-decoration: none; display: flex; align-items: center">Analytics ›</a>
+<a href="/analytics" style="height: 36px; padding: 0 14px; border-radius: 9px; color: #A9B4C2; text-decoration: none; display: flex; align-items: center">Analytics</a>
+<a href="/faq" style="height: 36px; padding: 0 14px; border-radius: 9px; color: #A9B4C2; text-decoration: none; display: flex; align-items: center">FAQ</a>
 <a href="#v/5FFSBkNiymQWHaxc8dTmfTT7iHoz6YDexVG4xR2yLrffVR86" class="ch-swu" data-on-click="{{stakeUs}}" title="Kooltek68: the validator behind this site">Stake with us</a>
 </nav>
 <div style="flex: 1 1 auto"></div>
@@ -121,7 +124,7 @@ button:focus-visible,input:focus-visible,select:focus-visible,a:focus-visible{ou
 
 <section style="display: flex; flex-direction: column; gap: 6px">
 <h1 class="ch-h1" style="margin: 0; font-family: 'Space Grotesk', sans-serif; font-size: 30px; font-weight: 600; letter-spacing: -0.01em">Choose a validator</h1>
-<p style="margin: 0; color: #A9B4C2; max-width: 760px">First decide where your TAO goes, then pick who validates for you. Grades compare each validator with the best ones in the same place, after every fee.</p>
+<p style="margin: 0; color: #A9B4C2; max-width: 760px">Pick Root or a subnet, then a validator. Grades compare payouts with the best validators in the same place.</p>
 </section>
 
 <section aria-label="Where to stake" class="ch-modes" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(min(300px, 100%), 1fr)); gap: 12px">
@@ -199,7 +202,7 @@ button:focus-visible,input:focus-visible,select:focus-visible,a:focus-visible{ou
 </div>
 <sc-for list="{{sumStats}}" as="st" hint-placeholder-count="3">
 <div style="display: flex; flex-direction: column; gap: 2px" title="{{st.tip}}">
-<span style="font-size: 12px; color: #8B97A6">{{st.label}}</span>
+<span style="font-size: 12px; color: #8B97A6">{{st.label}}<sc-if value="{{st.faq}}" hint-placeholder-val="{{ false }}"><a href="{{st.faq}}" class="ch-q" aria-label="{{st.faqAria}}" title="{{st.faqAria}}">?</a></sc-if></span>
 <span class="ch-sum-v" style="font-family: 'JetBrains Mono', monospace; font-size: 18px; color: {{st.color}}">{{st.value}}</span>
 <span style="font-size: 12px; color: #8B97A6">{{st.sub}}</span>
 </div>
@@ -226,15 +229,17 @@ button:focus-visible,input:focus-visible,select:focus-visible,a:focus-visible{ou
 <sc-if value="{{wide}}" hint-placeholder-val="{{ true }}">
 <div class="ch-table" style="overflow-x: auto">
 <div style="min-width: 900px">
-<div role="group" aria-label="Sort validators" style="display: grid; grid-template-columns: minmax(260px, 2.2fr) 140px minmax(190px, 1.4fr) 150px 130px; gap: 16px; padding: 0 20px; height: 40px; align-items: center; background: #0B1016; border-bottom: 1px solid #1C232D; font-size: 11px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: #8B97A6">
-<span style="display: flex; align-items: center; gap: 10px"><button type="button" class="ch-sorth" data-on-click="{{sh.g.pick}}" aria-pressed="{{sh.g.on}}" aria-label="{{sh.g.aria}}" title="Who you delegate to. The grade sums up the checks on the right." style="color: {{sh.g.color}}">Grade<span aria-hidden="true">{{sh.g.arrow}}</span></button><span aria-hidden="true">· Validator</span></span>
-<span style="display: flex; justify-content: flex-end"><button type="button" class="ch-sorth" data-on-click="{{sh.a30.pick}}" aria-pressed="{{sh.a30.on}}" aria-label="{{sh.a30.aria}}" title="{{earnTip}}" style="color: {{sh.a30.color}}; white-space: nowrap">You earn · 30D<span aria-hidden="true">{{sh.a30.arrow}}</span></button></span>
-<span style="display: flex"><button type="button" class="ch-sorth" data-on-click="{{sh.pr.pick}}" aria-pressed="{{sh.pr.on}}" aria-label="{{sh.pr.aria}}" title="How much of the best validators' payout here you would get. 100% matches the best; 80% means you get a fifth less." style="color: {{sh.pr.color}}">Payout vs best<span aria-hidden="true">{{sh.pr.arrow}}</span></button></span>
-<span style="display: flex; justify-content: flex-end"><button type="button" class="ch-sorth" data-on-click="{{sh.fee.pick}}" aria-pressed="{{sh.fee.on}}" aria-label="{{sh.fee.aria}}" title="Everything the validator keeps: its own take plus any childkey take." style="color: {{sh.fee.color}}">Total fee<span aria-hidden="true">{{sh.fee.arrow}}</span></button></span>
-<span style="display: flex; justify-content: flex-end"><button type="button" class="ch-sorth" data-on-click="{{sh.stake.pick}}" aria-pressed="{{sh.stake.on}}" aria-label="{{sh.stake.aria}}" title="How much others have staked here." style="color: {{sh.stake.color}}">Stake<span aria-hidden="true">{{sh.stake.arrow}}</span></button></span>
+<div role="group" aria-label="Sort validators" style="display: grid; grid-template-columns: {{gridCols}}; gap: 16px; padding: 0 20px; height: 40px; align-items: center; background: #0B1016; border-bottom: 1px solid #1C232D; font-size: 11px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: #8B97A6">
+<span style="display: flex; align-items: center; gap: 10px"><button type="button" class="ch-sorth" data-on-click="{{sh.g.pick}}" aria-pressed="{{sh.g.on}}" aria-label="{{sh.g.aria}}" title="Who you delegate to. The grade sums up the checks on the right." style="color: {{sh.g.color}}">Grade<span aria-hidden="true">{{sh.g.arrow}}</span></button><span aria-hidden="true">· Validator</span><a href="/faq#grades" class="ch-q" aria-label="How grades work" title="How grades work">?</a></span>
+<span style="display: flex; justify-content: flex-end"><button type="button" class="ch-sorth" data-on-click="{{sh.a30.pick}}" aria-pressed="{{sh.a30.on}}" aria-label="{{sh.a30.aria}}" title="{{earnTip}}" style="color: {{sh.a30.color}}; white-space: nowrap">You earn · 30D<span aria-hidden="true">{{sh.a30.arrow}}</span></button><a href="/faq#apy" class="ch-q" aria-label="What APY means" title="What APY means">?</a></span>
+<sc-if value="{{showPay}}" hint-placeholder-val="{{ true }}">
+<span style="display: flex"><button type="button" class="ch-sorth" data-on-click="{{sh.pr.pick}}" aria-pressed="{{sh.pr.on}}" aria-label="{{sh.pr.aria}}" title="Daily yield divided by the best validators' daily yield here. 100% matches the best; 80% means you get a fifth less." style="color: {{sh.pr.color}}">Payout vs best<span aria-hidden="true">{{sh.pr.arrow}}</span></button><a href="/faq#payout" class="ch-q" aria-label="What payout vs best means" title="What payout vs best means">?</a></span>
+</sc-if>
+<span style="display: flex; justify-content: flex-end"><button type="button" class="ch-sorth" data-on-click="{{sh.fee.pick}}" aria-pressed="{{sh.fee.on}}" aria-label="{{sh.fee.aria}}" title="Everything the validator keeps: its own take plus any childkey take." style="color: {{sh.fee.color}}">Total fee<span aria-hidden="true">{{sh.fee.arrow}}</span></button><a href="/faq#fee" class="ch-q" aria-label="How fees work" title="How fees work">?</a></span>
+<span style="display: flex; justify-content: flex-end"><button type="button" class="ch-sorth" data-on-click="{{sh.stake.pick}}" aria-pressed="{{sh.stake.on}}" aria-label="{{sh.stake.aria}}" title="{{stakeTip}}" style="color: {{sh.stake.color}}">Stake<span aria-hidden="true">{{sh.stake.arrow}}</span></button></span>
 </div>
 <sc-for list="{{rows}}" as="r" hint-placeholder-count="8">
-<a href="{{r.href}}" class="ch-row" data-on-click="{{r.open}}" aria-label="{{r.aria}}" style="color: inherit; text-decoration: none; border-bottom: 1px solid #141A22; display: grid; grid-template-columns: minmax(260px, 2.2fr) 140px minmax(190px, 1.4fr) 150px 130px; gap: 16px; padding: 10px 20px; min-height: 60px; box-sizing: border-box; align-items: center; background: transparent">
+<a href="{{r.href}}" class="ch-row" data-on-click="{{r.open}}" aria-label="{{r.aria}}" style="color: inherit; text-decoration: none; border-bottom: 1px solid #141A22; display: grid; grid-template-columns: {{gridCols}}; gap: 16px; padding: 10px 20px; min-height: 60px; box-sizing: border-box; align-items: center; background: transparent">
 <span style="display: flex; align-items: center; gap: 12px; min-width: 0">
 <span title="{{r.gradeTip}}" style="flex: none; width: 34px; height: 34px; border-radius: 9px; background: {{r.gBg}}; color: {{r.gFg}}; display: flex; align-items: center; justify-content: center; font-family: 'Space Grotesk', sans-serif; font-weight: 700; font-size: 16px">{{r.grade}}</span>
 <span class="ch-ava" aria-hidden="true" style="width: 30px; height: 30px; border-radius: 8px; background: {{r.av.bg}}; color: {{r.av.fg}}; font-size: 11px">
@@ -244,7 +249,7 @@ button:focus-visible,input:focus-visible,select:focus-visible,a:focus-visible{ou
 <span style="display: flex; flex-direction: column; gap: 3px; min-width: 0">
 <span style="font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis">{{r.name}}</span>
 <span style="display: flex; flex-wrap: wrap; gap: 4px">
-<span style="font-family: 'JetBrains Mono', monospace; font-size: 11px; color: #8B97A6">{{r.hkShort}}</span>
+<sc-if value="{{r.hkShort}}" hint-placeholder-val="{{ true }}"><span style="font-family: 'JetBrains Mono', monospace; font-size: 11px; color: #8B97A6">{{r.hkShort}}</span></sc-if>
 <sc-for list="{{r.badges}}" as="b" hint-placeholder-count="1">
 <span title="{{b.tip}}" style="font-size: 11px; padding: 0 6px; border-radius: 999px; background: {{b.bg}}; color: {{b.fg}}">{{b.label}}</span>
 </sc-for>
@@ -253,19 +258,20 @@ button:focus-visible,input:focus-visible,select:focus-visible,a:focus-visible{ou
 </span>
 <span style="display: flex; flex-direction: column; align-items: flex-end">
 <span style="font-family: 'JetBrains Mono', monospace; font-size: 15px; font-weight: 600; color: {{r.earnColor}}">{{r.earn}}</span>
-<span style="font-size: 11px; color: #8B97A6">7D {{r.earn7}}</span>
+<sc-if value="{{r.earn7}}" hint-placeholder-val="{{ true }}"><span style="font-size: 11px; color: #8B97A6">7D {{r.earn7}}</span></sc-if>
 </span>
+<sc-if value="{{showPay}}" hint-placeholder-val="{{ true }}">
 <span style="display: flex; align-items: center; gap: 10px">
 <span style="flex: 1; height: 8px; border-radius: 4px; background: #1A212B; overflow: hidden"><span style="display: block; height: 100%; width: {{r.barW}}; background: {{r.barC}}"></span></span>
 <span style="font-family: 'JetBrains Mono', monospace; font-size: 13px; width: 52px; text-align: right; color: {{r.payC}}">{{r.payout}}</span>
 </span>
+</sc-if>
 <span style="display: flex; flex-direction: column; align-items: flex-end">
 <span style="font-family: 'JetBrains Mono', monospace; font-size: 14px; color: {{r.feeColor}}">{{r.fee}}</span>
-<span style="font-size: 11px; color: #8B97A6">{{r.feeSub}}</span>
+<sc-if value="{{r.feeSub}}" hint-placeholder-val="{{ false }}"><span style="font-size: 11px; color: #8B97A6">{{r.feeSub}}</span></sc-if>
 </span>
 <span style="display: flex; flex-direction: column; align-items: flex-end">
 <span style="font-family: 'JetBrains Mono', monospace; font-size: 13px">{{r.stake}}</span>
-<span style="font-size: 11px; color: #8B97A6">{{r.stakeSub}}</span>
 </span>
 </a>
 </sc-for>
@@ -296,7 +302,7 @@ button:focus-visible,input:focus-visible,select:focus-visible,a:focus-visible{ou
 </span>
 <span style="flex: none; display: flex; flex-direction: column; align-items: flex-end; gap: 2px">
 <span style="font-family: 'JetBrains Mono', monospace; font-size: 16px; font-weight: 600; color: {{r.earnColor}}">{{r.earnShort}}</span>
-<span style="font-size: 11px; color: #8B97A6">{{r.payout}} of best</span>
+<span style="font-size: 11px; color: #8B97A6">{{r.cardRight}}</span>
 </span>
 </a>
 </sc-for>
@@ -337,7 +343,7 @@ button:focus-visible,input:focus-visible,select:focus-visible,a:focus-visible{ou
 </section>
 </sc-if>
 
-<p style="margin: 0; font-size: 12px; color: #8B97A6">Grades: A ≥ 95% of the best payout here · B ≥ 85% · C ≥ 70% · D below · F earned nothing. The best payout leaves out the validator being graded, uses daily yields, and takes the weaker of the 7-day and 30-day results. Fees are shown, not graded. {{priceFoot}} Data as of block #{{blockTxt}} ({{timeTxt}}).</p>
+<p style="margin: 0; font-size: 12px; color: #8B97A6">A ≥ 95% of the best · B ≥ 85% · C ≥ 70% · D below · F earned nothing. <a href="/faq#grades">How grades work ›</a> · Data as of block #{{blockTxt}} ({{timeTxt}}).</p>
 </main>
 </sc-if>
 
@@ -365,7 +371,6 @@ button:focus-visible,input:focus-visible,select:focus-visible,a:focus-visible{ou
 <div style="display: flex; flex-wrap: wrap; align-items: center; gap: 10px">
 <h1 class="vd-h1" style="margin: 0; font-family: 'Space Grotesk', sans-serif; font-size: 28px; font-weight: 600; overflow-wrap: anywhere">{{d.name}}</h1>
 <span title="{{d.gTip}}" style="height: 28px; padding: 0 10px; border-radius: 8px; background: {{d.gBg}}; color: {{d.gFg}}; display: flex; align-items: center; font-family: 'Space Grotesk', sans-serif; font-weight: 700">Grade {{d.grade}} · {{d.locLabel}}</span>
-<span style="height: 28px; padding: 0 10px; border-radius: 8px; background: #161C25; color: #C9D1D9; display: flex; align-items: center; font-size: 12px">Fee {{d.feeTxt}}</span>
 <sc-if value="{{d.nomTxt}}" hint-placeholder-val="{{ false }}">
 <span style="height: 28px; padding: 0 10px; border-radius: 8px; background: #161C25; color: #C9D1D9; display: flex; align-items: center; font-size: 12px">{{d.nomTxt}}</span>
 </sc-if>
@@ -407,7 +412,7 @@ button:focus-visible,input:focus-visible,select:focus-visible,a:focus-visible{ou
 <section aria-label="Key numbers" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(min(220px, 100%), 1fr)); gap: 12px">
 <sc-for list="{{d.kpis}}" as="k" hint-placeholder-count="4">
 <div title="{{k.tip}}" style="padding: 16px 18px; border-radius: 14px; border: 1px solid #1C232D; background: #0E131A; display: flex; flex-direction: column; gap: 4px">
-<span style="font-size: 12px; color: #8B97A6">{{k.label}}</span>
+<span style="font-size: 12px; color: #8B97A6">{{k.label}}<sc-if value="{{k.faq}}" hint-placeholder-val="{{ false }}"><a href="{{k.faq}}" class="ch-q" aria-label="About {{k.label}}" title="About {{k.label}}">?</a></sc-if></span>
 <span class="vd-kv" style="font-family: 'JetBrains Mono', monospace; font-size: 24px; color: {{k.color}}">{{k.value}}</span>
 <span style="font-size: 12px; color: #8B97A6">{{k.sub}}</span>
 </div>
@@ -415,6 +420,7 @@ button:focus-visible,input:focus-visible,select:focus-visible,a:focus-visible{ou
 </section>
 
 <div style="display: flex; flex-wrap: wrap; gap: 16px; align-items: stretch">
+<sc-if value="{{d.showChart}}" hint-placeholder-val="{{ true }}">
 <section aria-label="Payout over time" style="flex: 999 1 560px; min-width: 0; padding: 18px 20px; border-radius: 14px; border: 1px solid #1C232D; background: #0E131A; display: flex; flex-direction: column; gap: 12px">
 <div style="display: flex; flex-wrap: wrap; justify-content: space-between; gap: 8px">
 <h2 style="margin: 0; font-family: 'Space Grotesk', sans-serif; font-size: 16px; font-weight: 600">Payout vs best, over time</h2>
@@ -436,6 +442,7 @@ button:focus-visible,input:focus-visible,select:focus-visible,a:focus-visible{ou
 </sc-for>
 </div>
 </section>
+</sc-if>
 
 <section aria-label="Calculator" style="flex: 1 1 300px; padding: 18px 20px; border-radius: 14px; border: 1px solid #1C232D; background: #0E131A; display: flex; flex-direction: column; gap: 12px">
 <h2 style="margin: 0; font-family: 'Space Grotesk', sans-serif; font-size: 16px; font-weight: 600">What you would earn</h2>
@@ -511,6 +518,6 @@ button:focus-visible,input:focus-visible,select:focus-visible,a:focus-visible{ou
 </div>
 </template>
 <script src="/dc-lite.js?v=0ced284fd338"></script>
-<script src="/app.js?v=4dc489611ff7"></script>
+<script src="/app.js?v=bb40d28f62a2"></script>
 </body>
 </html>

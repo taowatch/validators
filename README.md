@@ -244,10 +244,12 @@ The UI is generated from four design sources in `design/`:
 | `design/Terminal.dc.html` | Terminal interface: same data and views, keyboard-driven | `/terminal` |
 | `design/Main.dc.html` | Analytics | `/analytics` |
 | `design/TerminalAnalytics.dc.html` | Analytics in the Terminal interface | `/terminal/analytics` |
+| `design/FAQ.dc.html` | How the numbers work (APY, grades, badges, fees) | `/faq` |
+| `design/TerminalFAQ.dc.html` | FAQ in the Terminal interface | `/terminal/faq` |
 
 The default and Terminal pages share the same API (`/api/choose`, `/api/validator/{hotkey}`) and the same validator links (`#v/<hotkey>[/<netuid>]`), so switching keeps the current view.
 Viewers switch with the "UI Default | Terminal" control in the header. The Terminal pages also accept the `t` key.
-- The choice is remembered per browser in `localStorage` (`vy.ui`). With `terminal` stored, `/` redirects to `/terminal` and `/analytics` to `/terminal/analytics`.
+- The choice is remembered per browser in `localStorage` (`vy.ui`). With `terminal` stored, `/` redirects to `/terminal` and `/analytics` to `/terminal/analytics` and `/faq` to `/terminal/faq`.
 - `?ui=terminal` or `?ui=default` in a link sets the choice.
 
 Terminal keys: `j`/`k` move, `enter` opens, `/` focuses the command line, `s` cycles the sort, `g` cycles the grade filter, `esc` clears or goes back, `h`/`l` step through a validator's places, `c` copies the hotkey, `t` switches UI. On the Terminal analytics page: `1`/`2`/`3` switch tabs, `w` cycles the window, `j`/`k` + `enter` open a validator. Single-key shortcuts can be turned off with the "keys: on/off" button in the status bar or the `keys off` command (stored in `localStorage` `vy.keys`).

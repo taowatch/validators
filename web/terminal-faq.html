@@ -1,0 +1,91 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>FAQ · Terminal · Validator Yield · Bittensor</title>
+<meta name="description" content="How Validator Yield computes APY, τ return, grades, benchmarks, badges and fees, in the terminal view.">
+<meta name="color-scheme" content="dark">
+<script src="/ui.js?v=e3d37fbdfb28" data-page="terminal-faq"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="">
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#07090A}
+a{color:#4BE38A}a:hover{color:#9DF5BF}
+button,input{font:inherit}
+button{cursor:pointer}
+button:focus-visible,input:focus-visible,a:focus-visible{outline:2px solid #4BE38A;outline-offset:1px}
+.tm-row:hover{background:#0D1411 !important}
+@media (max-width:899px){
+.tf-ans{padding:2px 12px 10px !important}
+.tf-g,.tf-hint{display:none !important}
+.tf-q{grid-template-columns:20px minmax(0,1fr) !important}
+.tf-main{padding:10px 12px 16px !important}
+}
+</style>
+</head>
+<body>
+<div id="app"></div>
+<template id="tpl">
+<div style="min-height: 100vh; background: #07090A; color: #D4DDD6; font-family: 'JetBrains Mono', ui-monospace, Menlo, monospace; font-size: 13px; line-height: 1.55; display: flex; flex-direction: column">
+<header style="border-bottom: 1px solid #1E2622">
+<div style="max-width: 1360px; margin: 0 auto; padding: 10px 20px; display: flex; flex-wrap: wrap; align-items: center; gap: 10px 20px">
+<a href="/terminal" style="color: #4BE38A; text-decoration: none; font-weight: 700; letter-spacing: 0.02em">▌validator-yield</a>
+<nav aria-label="Main" style="display: flex; flex-wrap: wrap; align-items: center; gap: 6px">
+<a href="/terminal" style="padding: 4px 10px; color: #A9B6AD; text-decoration: none">choose</a>
+<a href="/terminal/analytics" style="padding: 4px 10px; color: #A9B6AD; text-decoration: none">analytics</a>
+<a href="/terminal/faq" aria-current="page" style="padding: 4px 10px; border: 1px solid #2C3A33; color: #E8F2EA; text-decoration: none">[ faq ]</a>
+<a href="/terminal#v/5FFSBkNiymQWHaxc8dTmfTT7iHoz6YDexVG4xR2yLrffVR86" style="padding: 4px 10px; background: #F2B544; color: #0A0C0B; text-decoration: none; font-weight: 700">STAKE WITH US</a>
+</nav>
+<div style="flex: 1 1 auto"></div>
+<div role="group" aria-label="Interface" style="display: flex; align-items: center">
+<span style="color: #8A978E; padding-right: 8px; font-size: 12px; text-transform: uppercase; letter-spacing: 0.08em">UI</span>
+<a href="/faq?ui=default" data-on-click="{{toDefault}}" style="padding: 4px 10px; border: 1px solid #2C3A33; color: #A9B6AD; text-decoration: none">Default</a>
+<span aria-current="true" style="padding: 4px 10px; border: 1px solid #4BE38A; background: #0E1F15; color: #4BE38A; font-weight: 700">Terminal</span>
+</div>
+</div>
+</header>
+<main class="tf-main" style="flex: 1; width: 100%; max-width: 1100px; margin: 0 auto; box-sizing: border-box; padding: 14px 20px 20px; display: flex; flex-direction: column; gap: 12px">
+<section aria-label="Search" style="border: 1px solid #1E2622; background: #0B0E0D">
+<div style="padding: 8px 12px; border-bottom: 1px solid #1E2622; color: #8A978E; word-break: break-word"><span style="color: #4BE38A">$</span> <span style="color: #E8F2EA">man validator-yield{{grepArg}}</span></div>
+<div style="padding: 8px 12px; display: flex; align-items: center; gap: 8px">
+<label for="tf-q" style="color: #4BE38A; font-weight: 700">/</label>
+<input id="tf-q" value="{{q}}" data-on-input="{{onQ}}" aria-label="Search questions" placeholder="grep: grade, fee, unstable…" autocomplete="off" spellcheck="false" style="flex: 1; min-width: 0; height: 30px; padding: 0 8px; border: 1px solid #2C3A33; background: #07090A; color: #E8F2EA">
+<button type="button" class="tm-row" data-on-click="{{expandAll}}" style="height: 30px; padding: 0 10px; border: 1px solid #2C3A33; background: transparent; color: #A9B6AD">{{allLabel}}</button>
+</div>
+</section>
+<section aria-label="Questions" style="border: 1px solid #1E2622; background: #0B0E0D">
+<sc-for list="{{items}}" as="f" hint-placeholder-count="10">
+<div id="{{f.id}}" style="border-bottom: 1px solid #111713; scroll-margin-top: 12px">
+<button type="button" class="tm-row tf-q" data-on-click="{{f.toggle}}" aria-expanded="{{f.on}}" aria-controls="{{f.aid}}" style="width: 100%; display: grid; grid-template-columns: 24px 78px minmax(0, 1fr); gap: 8px; padding: 6px 12px; border: 0; background: {{f.bg}}; color: #E8F2EA; text-align: left">
+<span aria-hidden="true" style="color: #4BE38A">{{f.sign}}</span>
+<span class="tf-g" style="color: #8A978E">[{{f.g}}]</span>
+<span>{{f.q}}</span>
+</button>
+<sc-if value="{{f.on}}" hint-placeholder-val="{{ false }}">
+<div id="{{f.aid}}" class="tf-ans" style="padding: 2px 12px 10px 122px; display: flex; flex-direction: column; gap: 6px; color: #A9B6AD">
+<span>{{f.a}}</span>
+<sc-if value="{{f.ex}}" hint-placeholder-val="{{ false }}">
+<span style="color: #4BE38A; overflow-wrap: anywhere">{{f.ex}}</span>
+</sc-if>
+</div>
+</sc-if>
+</div>
+</sc-for>
+<sc-if value="{{none}}" hint-placeholder-val="{{ false }}">
+<div style="padding: 14px 12px; color: #8A978E">grep: no match</div>
+</sc-if>
+</section>
+</main>
+<footer aria-label="Status" style="border-top: 1px solid #1E2622; background: #0B0E0D">
+<div style="max-width: 1360px; margin: 0 auto; padding: 6px 20px; display: flex; gap: 18px; font-size: 12px; color: #8A978E">
+<span>{{countTxt}}</span><span class="tf-hint" style="margin-left: auto">/ search · esc clear</span>
+</div>
+</footer>
+</div>
+</template>
+<script src="/dc-lite.js?v=0ced284fd338"></script>
+<script src="/terminal-faq.js?v=da52b113f4d5"></script>
+</body>
+</html>

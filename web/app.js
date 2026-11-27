@@ -11,7 +11,7 @@ const GRADE = {
 const BADGE = {
   'Not earning': { bg: '#3A1716', fg: '#FF8A80', tip: 'No rewards reached stakers over the window' },
   'High fee': { bg: '#33210F', fg: '#F5A524', tip: 'Keeps 15% or more of rewards (take + childkey take)' },
-  'Unstable': { bg: '#2E2814', fg: '#E8C35A', tip: 'Its 7-day and 30-day payout differ by more than 15 points' },
+  'Unstable': { bg: '#2E2814', fg: '#E8C35A', tip: 'Its 7-day and 30-day payout differ by more than 15 points', rootTip: 'Paid at least 90% of the best on fewer than half of recent days' },
   // a warning like the ones above (hidden by "Hide warnings"), so it gets a warning colour
   'Thin benchmark': { bg: '#2E2814', fg: '#E8C35A', tip: 'Few comparable validators here, so the comparison is rough' },
   'New': { bg: '#1A212B', fg: '#A9B4C2', tip: 'Not enough history to grade yet' },
@@ -359,14 +359,15 @@ class Component extends DCLogic {
       const barC = pr == null ? '#4A5565' : pr >= 95 ? accent : pr >= 85 ? '#8FB0FF' : pr >= 70 ? '#E8C35A' : '#F5A524';
       const href = '#v/' + r.hk + (r.nu != null ? '/' + r.nu : '');
       return {
-        name: r.name, hkShort: short(r.hk), av: this.ava(r.img, r.hk, r.name), grade: r.g || '—', gBg: G ? G.bg : '#1A212B', gFg: G ? G.fg : '#8B97A6',
+        name: r.name, hkShort: r.name === short(r.hk) ? '' : short(r.hk), av: this.ava(r.img, r.hk, r.name), grade: r.g || '—', gBg: G ? G.bg : '#1A212B', gFg: G ? G.fg : '#8B97A6',
         gradeTip: G ? G.tip : 'Not graded yet',
-        badges: r.b.map((b) => Object.assign({ label: b }, BADGE[b] || { bg: '#1A212B', fg: '#A9B4C2', tip: '' })),
-        earn: F ? 'Not earning' : pct(r.a30, alpha ? 1 : 2), earnShort: F ? '0%' : pct(r.a30, alpha ? 1 : 2), earn7: pct(r.a7, alpha ? 1 : 2), earnColor: F ? '#FF8A80' : '#E6EDF3',
-        payout: pr == null ? '—' : Math.round(pr) + '%', barW: pr == null ? '0%' : Math.min(100, pr) + '%', barC, payC: pr == null ? '#8B97A6' : barC,
+        badges: r.b.map((b) => { const B = BADGE[b] || { bg: '#1A212B', fg: '#A9B4C2', tip: '' }; return { label: b, bg: B.bg, fg: B.fg, tip: !alpha && B.rootTip ? B.rootTip : B.tip }; }),
+        earn: F ? 'Not earning' : pct(r.a30, alpha ? 1 : 2), earnShort: F ? '0%' : pct(r.a30, alpha ? 1 : 2), earn7: alpha ? pct(r.a7, 1) : '', earnColor: F ? '#FF8A80' : '#E6EDF3',
+        payout: pr == null ? '—' : Math.min(100, Math.round(pr)) + '%', barW: pr == null ? '0%' : Math.min(100, pr) + '%', barC, payC: pr == null ? '#8B97A6' : barC,
         fee: pct(r.fee, 1), feeColor: r.fee >= 15 ? '#F5A524' : '#E6EDF3',
-        feeSub: r.ck > 0.05 ? 'take ' + pct(r.take, 0) + ' + childkey ' + pct(r.ck, 1) : 'take only',
-        stake: fmtK(r.stake) + ' τ', stakeSub: r.stakeSub,
+        feeSub: r.ck > 0.05 ? 'take ' + pct(r.take, 0) + ' + childkey ' + pct(r.ck, 1) : '',
+        stake: fmtK(r.stake) + ' τ',
+        cardRight: alpha ? (pr == null ? '—' : Math.min(100, Math.round(pr)) + '%') + ' of best' : '7D ' + pct(r.a7, 2),
         cardSub: 'fee ' + pct(r.fee, 1) + ' · ' + fmtK(r.stake) + ' τ' + (r.b.length ? ' · ' + r.b.join(', ') : ''),
         cardSubColor: r.fee >= 15 || hasWarn(r.b) ? '#F5A524' : '#8B97A6',
         href, aria: r.name + ', grade ' + (r.g || 'not graded') + ', earns ' + (F ? 'nothing' : pct(r.a30, 1)) + ', fee ' + pct(r.fee, 1),
@@ -386,9 +387,9 @@ class Component extends DCLogic {
       sumKicker = '';
       sumTitle = cur.name;
       sumStats = [
-        { label: 'Best APY · 30D', value: pct(cur.best, 1), sub: 'in alpha, median of the top 3', color: accent, tip: 'What the best validators here paid stakers, in alpha' },
-        { label: 'Alpha price · 30D', value: sgn(cur.dp30, 1), sub: 'same for every validator here', color: '#A9B4C2', tip: 'Change of this alpha against τ. Not caused by validators.' },
-        { label: 'Net in τ · 30D', value: sgn(cur.net30, 1), sub: 'best validator, rewards + price', color: '#A9B4C2', tip: 'What staking with the best validator here returned in τ over 30 days, not annualized' },
+        { label: 'Best APY · 30D', value: pct(cur.best, 1), sub: 'paid in alpha', color: accent, tip: 'Median of the top 3 validators here', faq: '/faq#best' },
+        { label: 'Net in τ · 30D', value: sgn(cur.net30, 1), sub: 'best validator, rewards + price', color: cur.net30 == null ? '#A9B4C2' : cur.net30 >= 0 ? accent : '#FF8A80', tip: 'What staking with the best validator here returned in τ over 30 days, not annualized', faq: '/faq#net' },
+        { label: 'Alpha price · 30D', value: sgn(cur.dp30, 1), sub: 'same for every validator here', color: '#A9B4C2', tip: 'Change of this alpha against τ. Not caused by validators.', faq: '/faq#price' },
         { label: 'Validators', value: fmtInt(cur.nv), sub: 'with 10 τ or more', color: '#E6EDF3', tip: '' },
       ];
       sumNote = !cur.nbest ? 'Not graded yet: no pool of 100 τ or more has earned over 30 days here.'
@@ -398,11 +399,10 @@ class Component extends DCLogic {
     } else {
       const graded = D.root.rows.filter((r) => r.g).length;
       sumKicker = 'Root';
-      sumTitle = 'Principal stays in τ';
+      sumTitle = 'Root network';
       sumStats = [
-        { label: 'Best APY · 30D', value: pct(D.root.bench, 2), sub: 'median of the top 3', color: accent, tip: 'What the best root validators paid, in τ, after fees' },
-        { label: 'Graded validators', value: fmtInt(graded), sub: '1,000 τ or more, 21+ days', color: '#E6EDF3', tip: '' },
-        { label: 'Price risk', value: 'None on principal', sub: 'rewards paid as basket alpha', color: '#A9B4C2', tip: 'Your staked τ stays τ; the alpha you earn can change in value' },
+        { label: 'Best APY · 30D', value: pct(D.root.bench, 2), sub: 'in τ, after fees', color: accent, tip: 'Median of the top 3 root validators', faq: '/faq#best' },
+        { label: 'Graded validators', value: fmtInt(graded), sub: 'of ' + fmtInt(D.root.rows.length), color: '#E6EDF3', tip: '1,000 τ or more and 21+ days of history', faq: '/faq#ungraded' },
       ];
     }
 
@@ -434,7 +434,7 @@ class Component extends DCLogic {
       };
     });
     const msortOpts = [{ v: '', label: 'Default order' }];
-    Object.keys(SORTS).forEach((k) => { msortOpts.push({ v: k + ':1', label: SORTS[k].label + ' · ' + SORTS[k].word[0] }); msortOpts.push({ v: k + ':-1', label: SORTS[k].label + ' · ' + SORTS[k].word[1] }); });
+    Object.keys(SORTS).filter((k) => alpha || k !== 'pr').forEach((k) => { msortOpts.push({ v: k + ':1', label: SORTS[k].label + ' · ' + SORTS[k].word[0] }); msortOpts.push({ v: k + ':-1', label: SORTS[k].label + ' · ' + SORTS[k].word[1] }); });
     const sumAva = alpha && cur ? this.ava(cur.logo, 'SN' + cur.nu, cur.name) : null;
     // the validator search found nothing but looks like a subnet: offer to go there
     let snHint = null;
@@ -458,17 +458,19 @@ class Component extends DCLogic {
       amt: S.amt, onAmt: (e) => this.setState({ amt: e.target.value }),
       showAll: () => this.setState({ all: true }),
       clearFilters: () => this.setState({ q: '', grade: 'all', hideWarn: false, all: false }),
+      showPay: alpha, gridCols: alpha ? 'minmax(260px, 2.2fr) 140px minmax(190px, 1.4fr) 150px 130px' : 'minmax(300px, 2.6fr) 160px 150px 150px',
+      stakeTip: alpha ? 'Alpha staked with this validator, valued in τ at today’s price' : 'τ staked with this validator',
       earnTip: alpha ? 'Yearly yield in this subnet’s alpha, after all fees, from the last 30 days. Alpha price moves are not included.' : 'Yearly yield in τ after all fees, from the last 30 days.',
       rootBench: D.root.bench == null ? '—' : D.root.bench.toFixed(1),
       alphaRange: bests.length ? Math.round(med(bests)) + '% median APY' : '—', medDp: sgn(med(dps), 1),
       ...this.snPicker(subs, cur, accent),
       snHint,
-      sumKicker, sumTitle, sumStats, sumNote,
+      sumKicker, sumTitle, sumNote,
+      sumStats: sumStats.map((st) => Object.assign({ faq: '', faqAria: 'About ' + st.label }, st)),
       gradeChips, rows, noRows: rows.length === 0,
       noRowsTxt: q ? 'No validator matches “' + S.q.trim() + '” here.' : 'No validator matches these filters.',
       more: !S.all && total > shown.length, total,
       hasCalc: !!calcRow, calc, calcOpts, pickCalc: (e) => this.setState({ calcHk: e.target.value }),
-      priceFoot: alpha ? 'Alpha APY is paid in alpha; the alpha price line above shows what that alpha did against τ.' : 'Root APY is paid as basket alpha valued at today’s price.',
     };
   }
 
@@ -543,10 +545,9 @@ class Component extends DCLogic {
     if (L.g === 'F') verdict.push(Object.assign({ text: 'Earned nothing for stakers on ' + where + ' over the last 30 days. Stake elsewhere.' }, BAD));
     else if (L.pr != null) {
       const p = Math.round(L.pr);
-      verdict.push(Object.assign({ text: 'Pays ' + p + '% of what the best validators on ' + where + ' pay (after fees, weaker of 7D and 30D).' }, p >= 95 ? OK : p >= 85 ? INFO : WARN));
+      verdict.push(Object.assign({ text: 'Pays ' + p + '% of what the best validators on ' + where + ' pay' + (isRoot ? ' (30-day APY vs the top 3).' : ' (after fees, weaker of 7D and 30D, this one left out).') }, p >= 95 ? OK : p >= 85 ? INFO : WARN));
     } else verdict.push(Object.assign({ text: 'Not enough comparable data to grade on ' + where + ' yet.' }, INFO));
-    const feeLine = 'Fee ' + pct(L.fee, 1) + (L.ck > 0.05 ? ' (take ' + pct(L.take, 0) + ' + childkey ' + pct(L.ck, 1) + ')' : ' (validator take only)');
-    verdict.push(Object.assign({ text: L.fee >= 15 ? 'High fee: ' + feeLine + '. Most of the gap to the best comes from this.' : feeLine + '.' }, L.fee >= 15 ? WARN : OK));
+    if (L.fee >= 15) verdict.push(Object.assign({ text: 'High fee: keeps ' + pct(L.fee, 1) + ' of rewards. Most of the gap to the best comes from this.' }, WARN));
     if (isRoot) {
       if (L.hit != null) verdict.push(Object.assign({ text: 'Paid at least 90% of the best on ' + Math.round(L.hit) + '% of days.' }, L.hit >= 67 ? OK : WARN));
     } else if (L.pr7 != null && L.pr30 != null && L.g !== 'F') {
@@ -554,15 +555,20 @@ class Component extends DCLogic {
       verdict.push(Object.assign({ text: (unstable ? 'Unsteady: ' : 'Steady: ') + '7-day payout ' + Math.round(L.pr7) + '%, 30-day ' + Math.round(L.pr30) + '% of the best.' }, unstable ? WARN : OK));
     }
     if (!isRoot && L.kind30 === 'thin') verdict.push(Object.assign({ text: 'Few large validators on ' + L.label + ', so this comparison is rough.' }, INFO));
-    if (!isRoot) verdict.push(Object.assign({ text: 'Alpha price on ' + L.label + ': ' + sgn(L.dp30, 1) + ' against τ over 30 days. The same for every validator there, not caused by this one.' }, INFO));
-    else verdict.push(Object.assign({ text: 'Your principal stays in τ. Rewards arrive as basket alpha valued at today’s price.' }, INFO));
 
+    // what 30 days here returned in τ: the 30-day reward growth (un-annualized APY) times the alpha price move
+    const net30 = isRoot || L.a30 == null || L.dp30 == null ? null : ((L.g === 'F' ? 1 : Math.pow(1 + L.a30 / 100, 30 / 365)) * (1 + L.dp30 / 100) - 1) * 100;
     const kpis = [
-      { label: 'You earn · APY 30D', value: L.g === 'F' ? '0%' : pct(L.a30, isRoot ? 2 : 1), sub: '7D ' + pct(L.a7, isRoot ? 2 : 1) + (isRoot ? ' · in τ' : ' · in alpha'), color: L.g === 'F' ? '#FF8A80' : '#E6EDF3', tip: isRoot ? 'Yearly yield in τ after fees' : 'Yearly yield in this subnet’s alpha after fees; price moves not included' },
-      { label: 'Payout vs best', value: L.g === 'F' ? '0%' : L.pr == null ? '—' : Math.round(L.pr) + '%', sub: isRoot ? 'best here ' + pct(rootBench, 2) + ' APY' : (L.rank ? '#' + L.rank + ' of ' + L.of + ' on ' + L.label : 'best here ' + pct(L.bench, 1)), color: G ? G.fg : '#E6EDF3', tip: 'Compared with the best validators here, leaving this one out' },
-      { label: 'Total fee', value: pct(L.fee, 1), sub: L.ck > 0.05 ? 'take ' + pct(L.take, 0) + ' + childkey ' + pct(L.ck, 1) : 'take ' + pct(L.take, 0) + ', no childkey', color: L.fee >= 15 ? '#F5A524' : '#E6EDF3', tip: 'Everything the validator keeps' },
-      { label: isRoot ? 'Root stake' : 'Alpha stake here', value: fmtInt(L.stake) + ' τ', sub: isRoot ? (V.nom != null ? fmtInt(V.nom) + ' nominators' : '') : 'valued in τ at today’s price', color: '#E6EDF3', tip: '' },
-    ];
+      { label: 'You earn · APY 30D', value: L.g === 'F' ? '0%' : pct(L.a30, isRoot ? 2 : 1), sub: isRoot ? 'in τ · best here ' + pct(rootBench, 2) : '7D ' + pct(L.a7, 1) + ' · in alpha', color: L.g === 'F' ? '#FF8A80' : '#E6EDF3', tip: isRoot ? 'Yearly yield in τ after fees' : 'Yearly yield in this subnet’s alpha after fees; price moves not included', faq: '/faq#apy' },
+    ].concat(isRoot ? [
+      { label: 'Days at 90%+ of best', value: L.hit == null ? '—' : Math.round(L.hit) + '%', sub: 'an A needs 67% or more', color: L.hit == null ? '#E6EDF3' : L.hit >= 67 ? accent : '#F5A524', tip: 'Share of recent days this validator paid at least 90% of the best root validators', faq: '/faq#grades' },
+    ] : [
+      { label: 'Net in τ · 30D', value: sgn(net30, 1), sub: 'rewards + alpha price ' + sgn(L.dp30, 1), color: net30 == null ? '#E6EDF3' : net30 >= 0 ? accent : '#FF8A80', tip: 'What 30 days here returned in τ, not annualized', faq: '/faq#net' },
+      { label: 'Payout vs best', value: L.g === 'F' ? '0%' : L.pr == null ? '—' : Math.min(100, Math.round(L.pr)) + '%', sub: L.rank ? '#' + L.rank + ' of ' + L.of + ' on ' + L.label : 'best here ' + pct(L.bench, 1), color: G ? G.fg : '#E6EDF3', tip: 'Daily yield ÷ the best validators’ daily yield here, leaving this one out', faq: '/faq#payout' },
+    ]).concat([
+      { label: 'Total fee', value: pct(L.fee, 1), sub: L.ck > 0.05 ? 'take ' + pct(L.take, 0) + ' + childkey ' + pct(L.ck, 1) : 'already inside the APY', color: L.fee >= 15 ? '#F5A524' : '#E6EDF3', tip: 'Validator take plus any childkey take', faq: '/faq#fee' },
+      { label: isRoot ? 'Root stake' : 'Alpha stake here', value: fmtInt(L.stake) + ' τ', sub: isRoot ? '' : 'valued in τ at today’s price', color: '#E6EDF3', tip: '', faq: '' },
+    ]);
 
     let bars, chartNote;
     const H = 150, top = 120;
@@ -598,7 +604,7 @@ class Component extends DCLogic {
       return {
         label: l.label, sname: l.sname || (l.kind === 'root' ? 'principal in τ' : ''), grade: l.g || '—', gFg: g ? g.fg : '#8B97A6',
         isSn: l.kind !== 'root', isRoot: l.kind === 'root', av: l.kind === 'root' ? null : this.ava(l.logo, l.label, l.sname || l.label),
-        apy: l.g === 'F' ? '0%' : pct(l.a30, l.kind === 'root' ? 2 : 1), pr: l.g === 'F' ? '0%' : l.pr == null ? '—' : Math.round(l.pr) + '%',
+        apy: l.g === 'F' ? '0%' : pct(l.a30, l.kind === 'root' ? 2 : 1), pr: l.g === 'F' ? '0%' : l.pr == null ? '—' : Math.min(100, Math.round(l.pr)) + '%',
         fee: pct(l.fee, 1), feeColor: l.fee >= 15 ? '#F5A524' : '#E6EDF3', stake: fmtK(l.stake) + ' τ',
         on: i === li, bg: i === li ? '#111A1F' : 'transparent', pick: () => { this.pickLoc(i); if (window.scrollTo) window.scrollTo(0, 0); },
       };
@@ -623,14 +629,14 @@ class Component extends DCLogic {
       hk: V.hk, copyTxt: S.copied === 'ok' ? 'Copied' : S.copied === 'fail' ? 'Copy failed: select the key' : 'Copy',
       copy: () => this.copyHk(V.hk),
       tabs: tabIdx.map(tabOf), moreLocs: locs.length > tabIdx.length ? locs.length - tabIdx.length : 0,
-      vBorder: G ? G.fg : '#1C232D', verdict, kpis,
+      vBorder: G ? G.fg : '#1C232D', verdict, kpis, showChart: isRoot,
       bars, barGap: bars.length > 8 ? '4px' : '10px', barFont: bars.length > 8 ? '10px' : '12px',
       line90: (90 / top * H + 1) + 'px', chartNote,
       chartAria: 'Payout vs best: ' + bars.map((b) => (b.label || '') + ' ' + b.txt).join(', '),
       amt: S.amtD, onAmt: (e) => this.setState({ amtD: e.target.value }),
       calcYear: yr == null ? '—' : fmtInt(yr) + unit, calcMonth: yr == null ? '—' : fmtInt(yr / 12) + unit,
       calcVs: (gap == null ? '' : gap > 0.5 ? 'The best validators here would pay about ' + fmtInt(gap) + unit + ' more a year on the same stake.' : 'On par with the best validators here.') + (yr == null ? 'No 30-day yield yet, so no estimate.' : '') + (isRoot && yr > 0 ? ' About ' + usd(yr * px) + ' a year at today’s TAO price.' : ''),
-      calcNote: isRoot ? 'Based on the 30-day APY. Rewards arrive as basket alpha; their τ value moves with alpha prices.' : 'Based on the 30-day APY, paid in alpha. What that alpha is worth in τ depends on the subnet’s price.',
+      calcNote: 'Based on the 30-day APY.',
       places, placesMore: !S.allPlaces && placesAll.length > places.length, placesTotal: placesAll.length,
       ps, pmsortOpts, pmsortVal: S.pSortKey ? S.pSortKey + ':' + S.pSortDir : '',
       pickPmsort: (e) => { const v = e.target.value; if (!v) this.setState({ pSortKey: null, pSortDir: 1 }); else { const [k, d] = v.split(':'); this.setState({ pSortKey: k, pSortDir: +d }); } },

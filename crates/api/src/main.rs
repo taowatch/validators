@@ -8,6 +8,7 @@
 //! GET /analytics       the analytics page (analytics.html)
 //! GET /terminal        the Terminal interface (terminal.html), same data as "/"
 //! GET /terminal/analytics  Terminal version of /analytics (terminal-analytics.html)
+//! GET /faq             how the numbers work (faq.html); /terminal/faq is its Terminal twin
 //! everything else      files from WEB_DIR; paths without a file extension get index.html
 //!                      (client-side routes), missing files and unknown /api paths get 404
 //!
@@ -123,6 +124,8 @@ async fn main() -> Result<()> {
         .route_service("/analytics", ServeFile::new(format!("{web}/analytics.html")))
         .route_service("/terminal", ServeFile::new(format!("{web}/terminal.html")))
         .route_service("/terminal/analytics", ServeFile::new(format!("{web}/terminal-analytics.html")))
+        .route_service("/faq", ServeFile::new(format!("{web}/faq.html")))
+        .route_service("/terminal/faq", ServeFile::new(format!("{web}/terminal-faq.html")))
         .fallback_service(ServeDir::new(&web).fallback(spa.into_service()))
         .layer(axum::middleware::map_response(cache_headers))
         // /api JSON is pre-gzipped; the layer leaves responses with a Content-Encoding alone

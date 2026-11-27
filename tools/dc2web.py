@@ -6,6 +6,8 @@ The design files are the source of truth for markup and view logic:
   design/Main.dc.html  →  web/analytics.html + web/analytics.js  analytics (served at /analytics)
   design/Terminal.dc.html → web/terminal.html + web/terminal.js  the Terminal interface (/terminal)
   design/TerminalAnalytics.dc.html → web/terminal-analytics.html + .js  Terminal analytics (/terminal/analytics)
+  design/FAQ.dc.html   →  web/faq.html + web/faq.js            how the numbers work (/faq)
+  design/TerminalFAQ.dc.html → web/terminal-faq.html + .js     Terminal FAQ (/terminal/faq)
 
 The default (App) and Terminal pages share the data and the hash routes (#v/<hotkey>[/<netuid>]).
 The viewer's choice is kept in localStorage "vy.ui"; `?ui=terminal|default` sets it from a link.
@@ -61,6 +63,24 @@ PAGES = [
         "desc": "Bittensor validators ranked by root and alpha yield, in a keyboard-driven terminal view.",
         "urls": {"DATA_URL": "/api/validators", "ALPHA_URL": "/api/alpha"},
         "page": "terminal-analytics",
+    },
+    {
+        "src": Path("design/FAQ.dc.html"),
+        "html": "faq.html",
+        "js": "faq.js",
+        "title": "FAQ · Validator Yield · Bittensor",
+        "desc": "How Validator Yield computes APY, τ return, grades, benchmarks, badges and fees for Bittensor validators.",
+        "urls": {},
+        "page": "faq",
+    },
+    {
+        "src": Path("design/TerminalFAQ.dc.html"),
+        "html": "terminal-faq.html",
+        "js": "terminal-faq.js",
+        "title": "FAQ · Terminal · Validator Yield · Bittensor",
+        "desc": "How Validator Yield computes APY, τ return, grades, benchmarks, badges and fees, in the terminal view.",
+        "urls": {},
+        "page": "terminal-faq",
     },
 ]
 

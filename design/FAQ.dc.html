@@ -1,0 +1,166 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>FAQ · Validator Yield</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&amp;family=JetBrains+Mono:wght@400;500;600&amp;family=Space+Grotesk:wght@500;600;700&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#0A0E13}
+a{color:#3DDBB0}a:hover{color:#8CF2D6}
+button,input{font:inherit}
+button{cursor:pointer}
+button:focus-visible,input:focus-visible,a:focus-visible{outline:2px solid #3DDBB0;outline-offset:2px}
+.fq-q:hover{background:#111821 !important}
+.fq-toc:hover{color:#E6EDF3 !important}
+.fq-swu{height:36px;padding:0 14px;border-radius:999px;background:#F5C542;color:#0A0E13 !important;text-decoration:none;display:flex;align-items:center;font-weight:600;white-space:nowrap}
+.fq-swu:hover{background:#FFD866}
+@media (max-width:899px){
+.fq-toc-wrap,.fq-ui-l{display:none !important}
+.fq-main{padding:18px 16px 40px !important}
+.fq-hdr{padding:12px 16px !important;gap:10px 14px !important}
+.fq-ans{padding:0 16px 16px !important}
+.fq-g{display:none !important}
+.fq-h1{font-size:24px !important}
+}
+</style>
+</helmet>
+<div style="min-height: 100vh; background: #0A0E13; color: #E6EDF3; font-family: Inter, system-ui, sans-serif; font-size: 14px; line-height: 1.5; -webkit-font-smoothing: antialiased">
+
+<header style="border-bottom: 1px solid #1C232D">
+<div class="fq-hdr" style="max-width: 1280px; margin: 0 auto; padding: 16px 24px; display: flex; flex-wrap: wrap; align-items: center; gap: 12px 24px">
+<a href="/" aria-label="Validator Yield, back to choosing a validator" style="display: flex; align-items: center; gap: 12px; color: inherit; text-decoration: none; border-radius: 10px">
+<span aria-hidden="true" style="width: 34px; height: 34px; border-radius: 9px; background: #3DDBB0; color: #0A0E13; display: flex; align-items: center; justify-content: center; font-family: 'Space Grotesk', sans-serif; font-weight: 700; font-size: 20px">τ</span>
+<span style="font-family: 'Space Grotesk', sans-serif; font-weight: 600; font-size: 17px">Validator Yield</span>
+</a>
+<nav aria-label="Sections" style="display: flex; gap: 6px; flex-wrap: wrap">
+<a href="/" style="height: 36px; padding: 0 14px; border-radius: 9px; color: #A9B4C2; text-decoration: none; display: flex; align-items: center">Choose a validator</a>
+<a href="/analytics" style="height: 36px; padding: 0 14px; border-radius: 9px; color: #A9B4C2; text-decoration: none; display: flex; align-items: center">Analytics</a>
+<a href="/faq" aria-current="page" style="height: 36px; padding: 0 14px; border-radius: 9px; background: #151C26; color: #E6EDF3; text-decoration: none; display: flex; align-items: center; font-weight: 500">FAQ</a>
+<a href="/#v/5FFSBkNiymQWHaxc8dTmfTT7iHoz6YDexVG4xR2yLrffVR86" class="fq-swu" title="Kooltek68: the validator behind this site">Stake with us</a>
+</nav>
+<div style="flex: 1 1 auto"></div>
+<div role="group" aria-label="Interface" style="display: flex; align-items: center; gap: 2px; padding: 3px; border: 1px solid #1C232D; border-radius: 10px; background: #0E131A">
+<span class="fq-ui-l" style="font-size: 11px; color: #8B97A6; padding: 0 6px; text-transform: uppercase; letter-spacing: 0.08em">UI</span>
+<span aria-current="true" style="height: 30px; padding: 0 12px; border-radius: 7px; background: #1A2A26; color: #3DDBB0; font-size: 13px; font-weight: 600; display: flex; align-items: center">Default</span>
+<a href="/terminal/faq?ui=terminal" onClick="{{toTerminal}}" title="Switch to the Terminal interface" style="height: 30px; padding: 0 12px; border-radius: 7px; color: #A9B4C2; font-size: 13px; font-family: 'JetBrains Mono', monospace; text-decoration: none; display: flex; align-items: center">Terminal</a>
+</div>
+</div>
+</header>
+
+<main class="fq-main" style="max-width: 1280px; margin: 0 auto; padding: 28px 24px 56px; display: flex; flex-wrap: wrap; gap: 32px; align-items: flex-start">
+<nav aria-label="Topics" class="fq-toc-wrap" style="flex: 0 1 240px; position: sticky; top: 16px; display: flex; flex-direction: column; gap: 14px">
+<sc-for list="{{groups}}" as="g" hint-placeholder-count="4">
+<div style="display: flex; flex-direction: column; gap: 4px">
+<span style="font-size: 11px; color: #8B97A6; text-transform: uppercase; letter-spacing: 0.08em">{{g.name}}</span>
+<sc-for list="{{g.items}}" as="it" hint-placeholder-count="3">
+<a href="{{it.href}}" class="fq-toc" onClick="{{it.open}}" style="padding: 2px 0; color: {{it.fg}}; font-size: 13px; text-decoration: none">{{it.q}}</a>
+</sc-for>
+</div>
+</sc-for>
+</nav>
+
+<div style="flex: 1 1 560px; min-width: 0; display: flex; flex-direction: column; gap: 16px">
+<section style="display: flex; flex-direction: column; gap: 6px">
+<h1 class="fq-h1" style="margin: 0; font-family: 'Space Grotesk', sans-serif; font-size: 30px; font-weight: 600; letter-spacing: -0.01em">How the numbers work</h1>
+<p style="margin: 0; color: #A9B4C2; max-width: 680px">Short answers on yield, grades and fees. The “?” next to a column or number opens the matching answer here.</p>
+</section>
+<label style="display: flex">
+<span style="position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0)">Search questions</span>
+<input type="search" value="{{q}}" onInput="{{onQ}}" placeholder="Search: grade, fee, unstable…" style="flex: 1; min-width: 0; height: 42px; padding: 0 14px; border-radius: 10px; border: 1px solid #1C232D; background: #0E131A; color: #E6EDF3">
+</label>
+<div style="border: 1px solid #1C232D; border-radius: 14px; background: #0E131A; overflow: hidden">
+<sc-for list="{{items}}" as="f" hint-placeholder-count="8">
+<div id="{{f.id}}" style="border-bottom: 1px solid #141A22; scroll-margin-top: 16px">
+<button type="button" class="fq-q" onClick="{{f.toggle}}" aria-expanded="{{f.on}}" aria-controls="{{f.aid}}" style="width: 100%; display: flex; align-items: center; gap: 12px; padding: 16px 20px; border: 0; background: {{f.bg}}; color: #E6EDF3; text-align: left">
+<span class="fq-g" style="font-size: 11px; color: #8B97A6; width: 56px; flex: none; text-transform: uppercase; letter-spacing: 0.06em">{{f.g}}</span>
+<span style="flex: 1; font-weight: 600; font-size: 15px">{{f.q}}</span>
+<span aria-hidden="true" style="color: #8B97A6; font-size: 18px">{{f.sign}}</span>
+</button>
+<sc-if value="{{f.on}}" hint-placeholder-val="{{ false }}">
+<div id="{{f.aid}}" class="fq-ans" style="padding: 0 20px 18px 88px; display: flex; flex-direction: column; gap: 10px">
+<p style="margin: 0; color: #C9D1D9; max-width: 720px">{{f.a}}</p>
+<sc-if value="{{f.ex}}" hint-placeholder-val="{{ false }}">
+<code style="align-self: flex-start; max-width: 100%; overflow-x: auto; padding: 6px 10px; border-radius: 8px; background: #0A0E13; border: 1px solid #1C232D; font-family: 'JetBrains Mono', monospace; font-size: 12px; color: #A9B4C2">{{f.ex}}</code>
+</sc-if>
+</div>
+</sc-if>
+</div>
+</sc-for>
+<sc-if value="{{none}}" hint-placeholder-val="{{ false }}">
+<p style="margin: 0; padding: 28px 20px; text-align: center; color: #8B97A6">No question matches “{{q}}”.</p>
+</sc-if>
+</div>
+</div>
+</main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":1500}}'>
+// One list for /faq and /terminal/faq; ids are the #anchors other pages link to ("?" next to columns).
+const FAQ = [
+  { id: 'apy', g: 'Yield', q: 'What is APY here?', a: 'The reward yield a staker received over the window, valued in τ at today’s price and annualized. Every fee is already taken out, so it is what you actually get.', ex: '30D APY = (1 + 30-day yield)^(365/30) − 1' },
+  { id: 'price', g: 'Yield', q: 'Why doesn’t APY include the alpha price move?', a: 'Annualizing a price move turns noise into absurd numbers: +24% in a month would read as ~1,300% a year. Price is shown separately, and the τ return below combines both without annualizing.' },
+  { id: 'net', g: 'Yield', q: 'What is “Net in τ · 30D”?', a: 'What 30 days of staking returned in τ: alpha rewards plus the change in the alpha price, not annualized. It can be negative when the alpha price fell more than the rewards paid.', ex: 'net = (1 + reward growth) × (1 + price change) − 1' },
+  { id: 'root', g: 'Yield', q: 'Root or a subnet?', a: 'On Root your principal stays in τ and rewards come as a basket of subnet alpha, so there is no price risk on what you staked. In a subnet your principal is that subnet’s alpha, so it moves with its price; yields are usually higher.' },
+  { id: 'best', g: 'Grades', q: 'What is “the best” a validator is compared with?', a: 'The median of the top 3 validators in the same place. On Root: by 30-day APY, among validators with 1,000 τ or more and 21+ days of history. On a subnet: the top 3 earning pools of 100 τ or more, leaving out the validator being graded; if there are too few, pools of 10 τ or more are used and the grade is marked “Thin benchmark”.' },
+  { id: 'payout', g: 'Grades', q: 'What does “Payout vs best” mean?', a: 'The validator’s daily yield divided by the best validators’ daily yield in the same place. 100% means it pays as much as the best; 80% means you get a fifth less. Shown up to 100%; it can run slightly higher on a good week.' },
+  { id: 'grades', g: 'Grades', q: 'How are grades set?', a: 'A pays at least 95% of the best, B at least 85%, C at least 70%, D less. F means it paid nothing (APY under 0.01%). On a subnet the grade uses the weaker of the 7-day and 30-day payout. On Root it uses the 30-day APY, and an A also needs 90%+ of the best on at least 2 of every 3 recent days.' },
+  { id: 'badges', g: 'Grades', q: 'What do the badges mean?', a: 'Not earning: nothing reached stakers. High fee: keeps 15% or more of rewards. Unstable (subnet): 7-day and 30-day payout differ by more than 15 points. Unstable (Root): at 90%+ of the best on fewer than half of recent days. Thin benchmark: few comparable validators, so the grade is rough. New / Small: not graded yet.' },
+  { id: 'ungraded', g: 'Grades', q: 'Why do some validators have no grade?', a: 'On Root, validators with under 1,000 τ staked (Small) or under 21 days of history (New) are not graded. On a subnet, a pool needs enough history and a benchmark to compare with.' },
+  { id: 'fee', g: 'Fees', q: 'How do fees work, and why aren’t they in the grade?', a: 'The total fee is the validator’s take plus any childkey take. It is already inside the APY, so it is shown next to the grade instead of being counted twice. A total of 15% or more gets the High fee badge.', ex: 'total = 1 − (1 − take) × (1 − childkey take)' },
+  { id: 'data', g: 'Data', q: 'Where does the data come from, and how fresh is it?', a: 'Read directly from the Bittensor chain (finney). The latest state is sampled every hour and daily history is kept for up to 400 days. The block and time of the last read are shown at the top of each page.' },
+  { id: 'windows', g: 'Data', q: 'Why do some windows (90D, 180D, 365D) appear only sometimes?', a: 'Longer windows appear once that much history is stored. 1D, 7D and 30D are always there.' },
+];
+
+const idOf = () => { try { const h = decodeURIComponent((window.location.hash || '').slice(1)); return FAQ.some((f) => f.id === h) ? h : null; } catch (e) { return null; } };
+
+// Remember the Terminal interface (per viewer) and open its FAQ, keeping the open answer.
+function toTerminalUI(e) {
+  if (e && (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || e.button === 1)) return;
+  if (e) e.preventDefault();
+  try { localStorage.setItem('vy.ui', 'terminal'); } catch (err) { /* storage blocked: the link still works */ }
+  window.location.href = '/terminal/faq' + window.location.hash;
+}
+
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    const id = typeof window !== 'undefined' ? idOf() : null;
+    this.state = { open: id ? [id] : ['grades'], q: '' };
+  }
+  componentDidMount() {
+    this.onHash = () => { const id = idOf(); if (id) this.focus(id); };
+    window.addEventListener('hashchange', this.onHash);
+    const id = idOf();
+    if (id) this.focus(id);
+  }
+  componentWillUnmount() { window.removeEventListener('hashchange', this.onHash); }
+  // open an answer and bring it into view
+  focus(id) {
+    const S = this.state;
+    this.setState({ open: S.open.includes(id) ? S.open : S.open.concat(id), q: '' });
+    window.requestAnimationFrame(() => { const el = document.getElementById(id); if (el) el.scrollIntoView({ block: 'start' }); });
+  }
+  renderVals() {
+    const S = this.state, q = S.q.trim().toLowerCase();
+    const isOn = (id) => S.open.includes(id);
+    const shown = FAQ.filter((f) => !q || (f.q + ' ' + f.a).toLowerCase().includes(q));
+    const names = [...new Set(FAQ.map((f) => f.g))];
+    return {
+      toTerminal: (e) => toTerminalUI(e),
+      q: S.q, onQ: (e) => this.setState({ q: e.target.value }), none: shown.length === 0,
+      groups: names.map((n) => ({ name: n, items: FAQ.filter((f) => f.g === n).map((f) => ({ q: f.q, href: '#' + f.id, fg: isOn(f.id) ? '#3DDBB0' : '#A9B4C2' })) })),
+      items: shown.map((f) => ({ id: f.id, aid: 'a-' + f.id, g: f.g, q: f.q, a: f.a, ex: f.ex || '', on: isOn(f.id), sign: isOn(f.id) ? '−' : '+', bg: isOn(f.id) ? '#111821' : 'transparent',
+        toggle: () => this.setState({ open: isOn(f.id) ? S.open.filter((x) => x !== f.id) : S.open.concat(f.id) }) })),
+    };
+  }
+}
+</script>
+</body>
+</html>
