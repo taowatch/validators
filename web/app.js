@@ -11,7 +11,7 @@ const GRADE = {
 const BADGE = {
   'Not earning': { bg: '#3A1716', fg: '#FF8A80', tip: 'No rewards reached stakers over the window' },
   'High fee': { bg: '#33210F', fg: '#F5A524', tip: 'Keeps 15% or more of rewards (take + childkey take)' },
-  'Unstable': { bg: '#2E2814', fg: '#E8C35A', tip: 'Its 7-day and 30-day payout differ by more than 15 points', rootTip: 'Paid at least 90% of the best on fewer than half of recent days' },
+  'Unstable': { bg: '#2E2814', fg: '#E8C35A', tip: 'Its 7-day and 30-day payout differ by more than 15 points', rootTip: 'Paid at least 90% of the best on fewer than half of the last 30 days' },
   // a warning like the ones above (hidden by "Hide warnings"), so it gets a warning colour
   'Thin benchmark': { bg: '#2E2814', fg: '#E8C35A', tip: 'Few comparable validators here, so the comparison is rough' },
   'New': { bg: '#1A212B', fg: '#A9B4C2', tip: 'Not enough history to grade yet' },
@@ -79,6 +79,13 @@ function switchUI(to, e) {
   window.location.href = (to === 'terminal' ? '/terminal' : '/') + (window.location.hash || '');
 }
 
+// rank by 30-day APY among graded validators in this place; it stays with the validator when
+// the list is filtered or re-sorted. Ungraded and not-earning ones get none.
+function rankMap(rows) {
+  const m = new Map();
+  rows.filter((r) => r.g && r.g !== 'F' && r.a30 != null).sort((a, b) => b.a30 - a.a30).forEach((r, i) => m.set(r.hk, i + 1));
+  return m;
+}
 class Component extends DCLogic {
   constructor(props) {
     super(props);
@@ -341,6 +348,7 @@ class Component extends DCLogic {
     const bests = sorted(subs.map((s) => s.best)), dps = sorted(subs.map((s) => s.dp30));
 
     let all = this.rowsFor(D, alpha, sn);
+    const rankOf = rankMap(all);
     const q = S.q.trim().toLowerCase();
     if (q) all = all.filter((r) => (r.name || '').toLowerCase().includes(q) || r.hk.toLowerCase().includes(q));
     // chip counts follow the search and "hide warnings" (same rule as the Terminal UI)
@@ -358,7 +366,9 @@ class Component extends DCLogic {
       const pr = F ? 0 : r.pr;
       const barC = pr == null ? '#4A5565' : pr >= 95 ? accent : pr >= 85 ? '#8FB0FF' : pr >= 70 ? '#E8C35A' : '#F5A524';
       const href = '#v/' + r.hk + (r.nu != null ? '/' + r.nu : '');
+      const rk = rankOf.get(r.hk);
       return {
+        rank: rk || '—', rankColor: rk && rk <= 3 ? accent : '#6B7684',
         name: r.name, hkShort: r.name === short(r.hk) ? '' : short(r.hk), av: this.ava(r.img, r.hk, r.name), grade: r.g || '—', gBg: G ? G.bg : '#1A212B', gFg: G ? G.fg : '#8B97A6',
         gradeTip: G ? G.tip : 'Not graded yet',
         badges: r.b.map((b) => { const B = BADGE[b] || { bg: '#1A212B', fg: '#A9B4C2', tip: '' }; return { label: b, bg: B.bg, fg: B.fg, tip: !alpha && B.rootTip ? B.rootTip : B.tip }; }),
@@ -370,7 +380,7 @@ class Component extends DCLogic {
         cardRight: alpha ? (pr == null ? '—' : Math.min(100, Math.round(pr)) + '%') + ' of best' : '7D ' + pct(r.a7, 2),
         cardSub: 'fee ' + pct(r.fee, 1) + ' · ' + fmtK(r.stake) + ' τ' + (r.b.length ? ' · ' + r.b.join(', ') : ''),
         cardSubColor: r.fee >= 15 || hasWarn(r.b) ? '#F5A524' : '#8B97A6',
-        href, aria: r.name + ', grade ' + (r.g || 'not graded') + ', earns ' + (F ? 'nothing' : pct(r.a30, 1)) + ', fee ' + pct(r.fee, 1),
+        href, aria: (rk ? 'rank ' + rk + ', ' : '') + r.name + ', grade ' + (r.g || 'not graded') + ', earns ' + (F ? 'nothing' : pct(r.a30, 1)) + ', fee ' + pct(r.fee, 1),
         open: (e) => this.open(r.hk, r.nu, e),
       };
     });
@@ -458,7 +468,7 @@ class Component extends DCLogic {
       amt: S.amt, onAmt: (e) => this.setState({ amt: e.target.value }),
       showAll: () => this.setState({ all: true }),
       clearFilters: () => this.setState({ q: '', grade: 'all', hideWarn: false, all: false }),
-      showPay: alpha, gridCols: alpha ? 'minmax(260px, 2.2fr) 140px minmax(190px, 1.4fr) 150px 130px' : 'minmax(300px, 2.6fr) 160px 150px 150px',
+      showPay: alpha, gridCols: alpha ? '36px minmax(240px, 2.2fr) 140px minmax(190px, 1.4fr) 150px 130px' : '36px minmax(280px, 2.6fr) 160px 150px 150px',
       stakeTip: alpha ? 'Alpha staked with this validator, valued in τ at today’s price' : 'τ staked with this validator',
       earnTip: alpha ? 'Yearly yield in this subnet’s alpha, after all fees, from the last 30 days. Alpha price moves are not included.' : 'Yearly yield in τ after all fees, from the last 30 days.',
       rootBench: D.root.bench == null ? '—' : D.root.bench.toFixed(1),
@@ -549,10 +559,10 @@ class Component extends DCLogic {
     } else verdict.push(Object.assign({ text: 'Not enough comparable data to grade on ' + where + ' yet.' }, INFO));
     if (L.fee >= 15) verdict.push(Object.assign({ text: 'High fee: keeps ' + pct(L.fee, 1) + ' of rewards. Most of the gap to the best comes from this.' }, WARN));
     if (isRoot) {
-      if (L.hit != null) verdict.push(Object.assign({ text: 'Paid at least 90% of the best on ' + Math.round(L.hit) + '% of days.' }, L.hit >= 67 ? OK : WARN));
+      if (L.hit != null) verdict.push(Object.assign({ text: 'Paid at least 90% of the best on ' + Math.round(L.hit) + '% of the last 30 days.', faq: L.hit >= 67 ? null : '/faq#unstable' }, L.hit >= 67 ? OK : WARN));
     } else if (L.pr7 != null && L.pr30 != null && L.g !== 'F') {
       const unstable = (L.b || []).includes('Unstable');
-      verdict.push(Object.assign({ text: (unstable ? 'Unsteady: ' : 'Steady: ') + '7-day payout ' + Math.round(L.pr7) + '%, 30-day ' + Math.round(L.pr30) + '% of the best.' }, unstable ? WARN : OK));
+      verdict.push(Object.assign({ text: (unstable ? 'Unsteady: ' : 'Steady: ') + '7-day payout ' + Math.round(L.pr7) + '%, 30-day ' + Math.round(L.pr30) + '% of the best.', faq: unstable ? '/faq#unstable' : null }, unstable ? WARN : OK));
     }
     if (!isRoot && L.kind30 === 'thin') verdict.push(Object.assign({ text: 'Few large validators on ' + L.label + ', so this comparison is rough.' }, INFO));
 
@@ -561,7 +571,7 @@ class Component extends DCLogic {
     const kpis = [
       { label: 'You earn · APY 30D', value: L.g === 'F' ? '0%' : pct(L.a30, isRoot ? 2 : 1), sub: isRoot ? 'in τ · best here ' + pct(rootBench, 2) : '7D ' + pct(L.a7, 1) + ' · in alpha', color: L.g === 'F' ? '#FF8A80' : '#E6EDF3', tip: isRoot ? 'Yearly yield in τ after fees' : 'Yearly yield in this subnet’s alpha after fees; price moves not included', faq: '/faq#apy' },
     ].concat(isRoot ? [
-      { label: 'Days at 90%+ of best', value: L.hit == null ? '—' : Math.round(L.hit) + '%', sub: 'an A needs 67% or more', color: L.hit == null ? '#E6EDF3' : L.hit >= 67 ? accent : '#F5A524', tip: 'Share of recent days this validator paid at least 90% of the best root validators', faq: '/faq#grades' },
+      { label: 'Days at 90%+ of best', value: L.hit == null ? '—' : Math.round(L.hit) + '%', sub: 'an A needs 67% or more', color: L.hit == null ? '#E6EDF3' : L.hit >= 67 ? accent : '#F5A524', tip: 'Share of the last 30 days this validator paid at least 90% of the best root validators', faq: '/faq#grades' },
     ] : [
       { label: 'Net in τ · 30D', value: sgn(net30, 1), sub: 'rewards + alpha price ' + sgn(L.dp30, 1), color: net30 == null ? '#E6EDF3' : net30 >= 0 ? accent : '#FF8A80', tip: 'What 30 days here returned in τ, not annualized', faq: '/faq#net' },
       { label: 'Payout vs best', value: L.g === 'F' ? '0%' : L.pr == null ? '—' : Math.min(100, Math.round(L.pr)) + '%', sub: L.rank ? '#' + L.rank + ' of ' + L.of + ' on ' + L.label : 'best here ' + pct(L.bench, 1), color: G ? G.fg : '#E6EDF3', tip: 'Daily yield ÷ the best validators’ daily yield here, leaving this one out', faq: '/faq#payout' },
@@ -580,7 +590,7 @@ class Component extends DCLogic {
       const per = L.per || [];
       const n = per.length, step = n > 8 ? 2 : 1;
       bars = per.map((v, i) => mk(i === n - 1 ? 'last 7D' : (n - 1 - i) % step ? '' : (n - 1 - i) * 7 + 'D ago', v));
-      chartNote = 'each bar: 7-day yield ÷ best root validators';
+      chartNote = 'each bar: the 7 days ending on that day, yield ÷ best root validators';
     } else {
       bars = [mk('30 days', L.pr30), mk('last 7 days', L.pr7)];
       chartNote = 'longer history appears as data builds up';

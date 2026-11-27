@@ -4,6 +4,8 @@ const ALPHA_URL = '/api/alpha';
 // BasketRate stood still Nov 7–11 2026; rolling windows ending in that stretch are distorted
 const PAUSE_TS = [Date.UTC(2026, 10, 7), Date.UTC(2026, 10, 12)];
 const RANGES = [30, 90, 180, 365];
+// FAQ answers behind the "?" next to root table headers
+const FAQ_COL = { flow: '/faq#flows', sd: '/faq#stability', trend: '/faq#window' };
 const ALPHA_MINS = [[0, 'All'], [1000, '≥ 1K τ'], [10000, '≥ 10K τ'], [100000, '≥ 100K τ']];
 const EFF_DIRS = { rank: -1, name: 1, tao: -1, ns: -1, t: 1, cfg: 1, et: 1, eff: -1, cons: -1, a: -1, px: -1 };
 function effColor(e, accent) { return e == null ? '#8B97A6' : e >= 95 ? accent : e >= 80 ? '#E6EDF3' : '#F59E3B'; }
@@ -103,6 +105,19 @@ function flowOver(sh, days, ts, s, r) {
     if (s0 != null && s0 > 0) return { flow: s - s0, pct: (s - s0) / s0 * 100, days: Math.max(1, Math.round((ts - days[i]) / 864e5)) };
   }
   return null;
+}
+// σ of the rolling 7D APY over the last w days: points ending inside the window (x.d[j] ends
+// on day j + 7), minus those whose 7 days overlap the BasketRate pause; under 5 points says nothing
+function sdOver(dd, days, w) {
+  const N = days.length - 1, xs = [];
+  for (let j = Math.max(0, N - 7 - w + 1); j < dd.length; j++) {
+    const v = dd[j], t = days[j + 7];
+    if (v == null || t == null || (t > PAUSE_TS[0] && t < PAUSE_TS[1] + 7 * 864e5)) continue;
+    xs.push(v);
+  }
+  if (xs.length < 5) return null;
+  const m = xs.reduce((a, b) => a + b, 0) / xs.length;
+  return Math.sqrt(xs.reduce((a, b) => a + (b - m) ** 2, 0) / xs.length);
 }
 // `count` evenly spaced axis labels over n points
 function xLabels(n, count, labelOf) {
@@ -251,12 +266,14 @@ class Component extends DCLogic {
       const ini = ((x.n || '').replace(/[^A-Za-z0-9]/g, '').slice(0, 2) || x.hk.slice(1, 3)).toUpperCase();
       // flows and sparklines per range; stake history may start with nulls (no sample yet),
       // so a flow runs from the first stored day inside the range
-      const fl = {}, sp = {};
+      const fl = {}, sp = {}, fw = {}, sdw = {};
       ranges.forEach((r) => { fl[r] = flowOver(x.sh || [], d.days, d.ts, x.s, r); sp[r] = linePath((x.d || []).slice(Math.max(0, N - r)), 100, 28, 0, 10); });
+      // stake flow over each APY window, so the flow card and column follow "Rank by"
+      win.forEach((w) => { fw[w] = flowOver(x.sh || [], d.days, d.ts, x.s, w); sdw[w] = sdOver(x.d || [], d.days, w); });
       return Object.assign({}, x, {
         d: x.d || [], d30: x.d30 || [], sh: x.sh || [],
         name: label, named: !!x.n, short: x.hk.slice(0, 8) + '…' + x.hk.slice(-6), ini,
-        monoBg: 'hsl(' + h + ' 34% 20%)', monoFg: 'hsl(' + h + ' 70% 78%)', fl, sp, rk: {},
+        monoBg: 'hsl(' + h + ' 34% 20%)', monoFg: 'hsl(' + h + ' 70% 78%)', fl, fw, sdw, sp, rk: {},
       });
     });
     const big = v.filter((x) => x.s >= 1000);
@@ -268,14 +285,17 @@ class Component extends DCLogic {
       st[k] = { ranked, best: ranked[0] || null, wApy: den > 0 ? ranked.reduce((a, x) => a + x[k] * x.s, 0) / den : null };
       meds[k] = median(big.map((x) => x[k]));
     });
+    // network median of the same rolling 7D series, drawn under each sparkline
+    const medSp = {};
+    ranges.forEach((r) => { medSp[r] = linePath((d.med || []).slice(Math.max(0, N - r)), 100, 28, 0, 10); });
     const flowSpan = {};
-    ranges.forEach((r) => { flowSpan[r] = Math.max(0, ...v.map((x) => (x.fl[r] ? x.fl[r].days : 0))) || r; });
+    win.forEach((w) => { flowSpan[w] = Math.max(0, ...v.map((x) => (x.fw[w] ? x.fw[w].days : 0))) || w; });
     // 1D is shown as a raw 24h return, never annualized or used for ranking
     const rkeys = keys.filter((k) => k !== 'a1');
     return Object.assign({}, d, {
       // default window: 30D, or the longest one with data while history is still syncing
       dflt: st.a30 && st.a30.best ? 'a30' : rkeys.slice().reverse().find((k) => st[k].best) || rkeys[rkeys.length - 1],
-      N, win, keys, rkeys, ranges, st, meds, flowSpan, med: d.med || [], byHk: new Map(v.map((x) => [x.hk, x])), v,
+      N, win, keys, rkeys, ranges, st, meds, flowSpan, medSp, med: d.med || [], byHk: new Map(v.map((x) => [x.hk, x])), v,
       totalStake: v.reduce((a, x) => a + x.s, 0), bigCount: big.length, maxS: Math.max(1, ...v.map((x) => x.s)),
     });
   }
@@ -358,7 +378,7 @@ class Component extends DCLogic {
     // efficiency window chips, shared by the alpha tab, the efficiency tab and alpha pages
     if (A) {
       const ew = this.ewOf(A);
-      Object.assign(base, { hasEw: A.ewin.length > 1, ewins: segChips(A.ewin, ew, wl, accent, (w) => this.setState({ ew: w })) });
+      Object.assign(base, { hasEw: A.ewin.length > 1, ewins: segChips(A.ewin, ew, wl, accent, (w) => this.setState({ ew: w, win: 'a' + w })) });
     } else Object.assign(base, { hasEw: false, ewins: [] });
     if (!D) return Object.assign(base, { listView: false, detailView: false });
     const t = new Date(D.ts);
@@ -384,16 +404,17 @@ class Component extends DCLogic {
       (!q || x.name.toLowerCase().includes(q) || x.hk.toLowerCase().includes(q) || (x.ck || '').toLowerCase().includes(q)));
     const rankOf = new Map();
     list.filter((x) => x[win] != null).sort((a, b) => b[win] - a[win]).forEach((x, i) => rankOf.set(x.hk, i + 1));
-    const fo = (x) => x.fl[rng];
-    const named = { rank: (x) => x[win], name: (x) => x.name.toLowerCase(), stake: (x) => x.s, take: (x) => x.t, sd: (x) => x.sd, flow: (x) => (fo(x) ? fo(x).flow : null), nom: (x) => x.nom };
+    const wd = +win.slice(1), fo = (x) => x.fw[wd];
+    const named = { rank: (x) => x[win], name: (x) => x.name.toLowerCase(), stake: (x) => x.s, take: (x) => x.t, sd: (x) => x.sdw[wd], flow: (x) => (fo(x) ? fo(x).flow : null), nom: (x) => x.nom };
     const sk = named[S.sortKey] || D.rkeys.includes(S.sortKey) || S.sortKey === 'r1' ? S.sortKey : 'rank';
     const get = named[sk] || ((x) => x[sk]);
     const sorted = list.slice().sort((a, b) => { const va = get(a), vb = get(b); if (va == null && vb == null) return 0; if (va == null) return 1; if (vb == null) return -1; return (va < vb ? -1 : va > vb ? 1 : 0) * S.dir; });
     const shown = S.showAll ? sorted : sorted.slice(0, 50);
-    const medY = (28 - Math.max(0, Math.min(10, m || 0)) / 10 * 28).toFixed(1);
+    const medSp = D.medSp[rng], lastOf = (a) => { for (let i = a.length - 1; i >= 0; i--) if (a[i] != null) return a[i]; return null; };
+    const medNow = lastOf(D.med);
     const logMax = Math.log10(D.maxS);
     const cell = (x, k) => (k === 'a1' ? { t: ret3(x.r1), color: GREY, weight: 400 } : { t: pct(x[k]), color: apyColor(x[k], D.meds[k], accent), weight: k === win ? 700 : 400 });
-    const span = D.flowSpan[rng];
+    const span = D.flowSpan[wd];
 
     const rows = shown.map((x) => {
       const r = rankOf.get(x.hk), f = fo(x);
@@ -405,10 +426,10 @@ class Component extends DCLogic {
         stake: fmtInt(x.s), stakeUsd: '≈ ' + usd(x.s * this.px), stakeBar: x.s >= 1 ? Math.max(2, Math.log10(x.s) / logMax * 100).toFixed(1) : '0',
         take: pct(x.t * 100, 0), takeBg: x.t >= 0.15 ? '#2A1D0E' : x.t === 0 ? '#12281F' : '#161C25', takeFg: x.t >= 0.15 ? ORANGE : x.t === 0 ? accent : '#C9D1D9',
         apys: D.keys.map((k) => cell(x, k)),
-        spark: x.sp[rng], medY, sparkColor: x[win] != null && m != null && x[win] < m - 1 ? ORANGE : accent,
+        spark: x.sp[rng], medSp, sparkColor: lastOf(x.d) != null && medNow != null && lastOf(x.d) < medNow - 1 ? ORANGE : accent,
         flow: f ? signed(f.flow, fmtK) + ' τ' : '—', flowPct: f ? signed(f.pct, (n) => n.toFixed(1) + '%') + (f.days < span ? ' · ' + f.days + 'D' : '') : '',
         flowColor: !f || Math.abs(f.flow) < 0.5 ? MUTED : f.flow > 0 ? accent : ORANGE,
-        sd: x.sd == null ? '—' : x.sd.toFixed(2) + ' pp', sdColor: x.sd == null ? MUTED : x.sd > 3 ? ORANGE : '#C9D1D9',
+        sd: x.sdw[wd] == null ? '—' : x.sdw[wd].toFixed(2) + ' pp', sdColor: x.sdw[wd] == null ? MUTED : x.sdw[wd] > 3 ? ORANGE : '#C9D1D9',
         nom: fmtInt(x.nom),
         card: { sub: pct(x.t * 100, 0) + ' take · ' + fmtK(x.s) + ' τ', val: pct(x[win]), valColor: apyColor(x[win], m, accent), vsub: 'APY ' + winLabel },
         open: () => this.open(x.hk),
@@ -417,7 +438,7 @@ class Component extends DCLogic {
 
     const defs = [['rank', '#', 'flex-start'], ['name', 'Validator', 'flex-start'], ['stake', 'Root stake', 'flex-end'], ['take', 'Take', 'flex-end']]
       .concat(D.keys.map((k) => (k === 'a1' ? ['r1', '24h τ', 'flex-end'] : [k, 'APY ' + wl(+k.slice(1)), 'flex-end'])))
-      .concat([[null, 'Trend ' + rangeLabel(rng, D.N), 'flex-start'], ['flow', 'Flow ' + span + 'D', 'flex-end'], ['sd', 'Stability σ', 'flex-end'], ['nom', 'Nominator', 'flex-end']]);
+      .concat([[null, 'Trend ' + rangeLabel(rng, D.N), 'flex-start'], ['flow', 'Flow ' + span + 'D', 'flex-end'], ['sd', 'Stability ' + winLabel, 'flex-end'], ['nom', 'Nominator', 'flex-end']]);
     const cols = defs.map(([key, label, justify]) => {
       const active = key && sk === key;
       return {
@@ -426,10 +447,11 @@ class Component extends DCLogic {
         arrow: active ? (S.dir < 0 ? '↓' : '↑') : '',
         aria: 'Sort by ' + label,
         sort: key ? () => this.sortBy(key) : null,
+        faq: FAQ_COL[key || 'trend'] || null, faqAria: FAQ_COL[key || 'trend'] ? 'What is ' + label + '?' : '',
       };
     });
     const extra = D.keys.length - 3;
-    const grid = '52px minmax(220px, 2.4fr) minmax(150px, 1.3fr) 64px ' + D.keys.map((k) => (k === win ? '86px' : '78px')).join(' ') + ' 112px 116px 80px 84px';
+    const grid = '52px minmax(220px, 2.4fr) minmax(150px, 1.3fr) 64px ' + D.keys.map((k) => (k === win ? '86px' : '78px')).join(' ') + ' 112px 116px 112px 84px';
 
     const sw = D.st[win], best = sw.best;
     const stats = [
@@ -506,12 +528,12 @@ class Component extends DCLogic {
       winLabel, medTxt: pct(m), countTxt: fmtInt(sorted.length), empty: sorted.length === 0,
       hasMore: !S.showAll && sorted.length > 50, showAll: () => this.setState({ showAll: true }),
       q: S.q, onQ: (e) => this.setState({ q: e.target.value, showAll: false }),
-      wins: segChips(D.win.filter((w) => w >= 7), +win.slice(1), wl, accent, (w) => this.setState({ win: 'a' + w })),
+      wins: segChips(D.win.filter((w) => w >= 7), +win.slice(1), wl, accent, (w) => this.setState({ win: 'a' + w, ew: w })),
       hasRngs: D.ranges.length > 1, rngs: segChips(D.ranges, rng, (r) => rangeLabel(r, D.N), accent, (r) => this.setState({ rng: r })),
       mins: MINS.map(([v, l]) => ({ label: l, on: S.min === v, bg: S.min === v ? '#16231F' : 'transparent', border: S.min === v ? accent : '#232C38', fg: S.min === v ? accent : '#A9B4C2', pick: () => this.setState({ min: v, showAll: false }) })),
       hideTake: S.hideTake, toggleTake: () => this.setState({ hideTake: !S.hideTake }),
       takeChip: { bg: S.hideTake ? '#16231F' : 'transparent', border: S.hideTake ? accent : '#232C38', fg: S.hideTake ? accent : '#A9B4C2', mark: S.hideTake ? '✓' : '' },
-      cols, rows, grid, minW: 1180 + extra * 90,
+      cols, rows, grid, minW: 1212 + extra * 90,
     };
   }
 
@@ -702,6 +724,7 @@ class Component extends DCLogic {
     const cols = defs.map(([key, label, justify]) => ({
       label, justify, color: sk === key ? accent : MUTED, arrow: sk === key ? (S.effDir < 0 ? '↓' : '↑') : '', aria: 'Sort by ' + label,
       title: titles[key] || '',
+      faq: key === 'eff' || key === 'et' ? '/faq#efficiency' : null, faqAria: 'What is ' + label + '?',
       sort: () => (sk === key ? this.setState({ effDir: -S.effDir }) : this.setState({ effSort: key, effDir: dirOf(EFF_DIRS, key) })),
     }));
     const grid = '52px minmax(200px, 2fr) 104px 66px 80px 92px 104px 160px ' + (hasCons ? '150px ' : '') + '90px 84px';
@@ -741,7 +764,9 @@ class Component extends DCLogic {
   detailAlpha(hk, accent) {
     const A = this.state.alpha, v = A && A.byHk.get(hk);
     if (!v || !v.pairs.length) return { has: false };
-    const ew = this.ewOf(A), L = wl(ew), ak = 'a' + ew, ek = 'eff' + ew, rk = 'rk' + ew;
+    // same window as the root KPIs above it
+    const D = this.state.data, rw = D ? +this.winKey(D).slice(1) : null;
+    const ew = A.ewin.includes(rw) ? rw : this.ewOf(A), L = wl(ew), ak = 'a' + ew, ek = 'eff' + ew, rk = 'rk' + ew;
     const dpk = A.win.includes(ew) ? 'dp' + ew : 'dp30', PL = dpk.slice(2) + 'D';
     const shown = v.pairs.filter((p) => p.tao >= 1).slice(0, 20);
     const e = v[ek], et = v['et' + ew], ec = effCell(e, v[ak], accent);
@@ -842,12 +867,12 @@ class Component extends DCLogic {
     const sw = D.st[win], rk = x.rk[win];
     const rankTxt = rk ? 'Root rank #' + rk + ' / ' + sw.ranked.length + ' by APY ' + L + ' · top ' + Math.max(1, Math.ceil(rk / sw.ranked.length * 100)) + '%' : 'root: unranked (' + L + ')';
     const dv = (v, m) => v == null || m == null ? { sub: 'not enough data', subColor: MUTED } : { sub: signed(v - m, (n) => n.toFixed(2)) + ' pp vs median', subColor: v >= m ? accent : ORANGE };
-    const r = this.chartRng(D), f = x.fl[r];
+    const r = this.chartRng(D), wd = +win.slice(1), f = x.fw[wd], fr = x.fl[r], sdv = x.sdw[wd];
     const order = [win].concat(D.rkeys.filter((k) => k !== win).reverse());
     const rootRet = (k) => { const v = x['r' + k.slice(1)]; return v == null ? '' : signed(v, (n) => n.toFixed(2) + '%') + ' τ over ' + wl(+k.slice(1)) + ' · '; };
     const kpis = order.map((k) => { const d = dv(x[k], D.meds[k]); return { label: 'APY ' + wl(+k.slice(1)), value: pct(x[k]), color: k === win ? accent : TEXT, sub: rootRet(k) + d.sub, subColor: rootRet(k) ? '#A9B4C2' : d.subColor }; }).concat([
       { label: 'Root stake', value: fmtK(x.s) + ' τ', color: TEXT, sub: f ? signed(f.pct, (n) => n.toFixed(1) + '%') + ' over ' + f.days + ' days' : 'no history yet', subColor: f && f.flow > 0 ? accent : f && f.flow < 0 ? ORANGE : MUTED },
-      { label: 'Stability σ', value: x.sd == null ? '—' : x.sd.toFixed(2) + ' pp', color: TEXT, sub: 'std dev of 7D APY (lower = steadier)', subColor: MUTED },
+      { label: 'Stability σ ' + L, value: sdv == null ? '—' : sdv.toFixed(2) + ' pp', color: TEXT, sub: 'std dev of the 7D APY over ' + L + ' (lower = steadier)', subColor: MUTED },
     ]);
     if (D.keys.includes('a1')) kpis.splice(order.length, 0, { label: 'Last 24h', value: ret3(x.r1) + ' τ', color: TEXT, sub: 'τ earned per τ staked, not annualized', subColor: MUTED });
 
@@ -898,9 +923,9 @@ class Component extends DCLogic {
       line: linePath(sh, 600, 200, slo, shi), area: areaPath(sh, 600, 200, slo, shi), sw: sh.length > 120 ? 1.4 : 2,
       ticks: ticks(slo, shi, 3).map((v) => ({ pos: ((1 - (v - slo) / (shi - slo)) * 100).toFixed(2), label: fmtK(v) })),
       xl: xLabels(sh.length, 4, (j) => dstr(D.days[s0 + j])),
-      title: 'Root stake, ' + (f ? f.days : r) + ' days',
-      delta: f ? signed(f.flow, fmtInt) + ' τ (' + signed(f.pct, (q) => q.toFixed(1) + '%') + ')' : '—',
-      color: f && f.flow > 0 ? accent : f && f.flow < 0 ? ORANGE : MUTED,
+      title: 'Root stake, ' + (fr ? fr.days : r) + ' days',
+      delta: fr ? signed(fr.flow, fmtInt) + ' τ (' + signed(fr.pct, (q) => q.toFixed(1) + '%') + ')' : '—',
+      color: fr && fr.flow > 0 ? accent : fr && fr.flow < 0 ? ORANGE : MUTED,
     };
 
     // basket

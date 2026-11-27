@@ -58,13 +58,13 @@ button:focus-visible,input:focus-visible,a:focus-visible{outline:2px solid #4BE3
 <section aria-label="Questions" style="border: 1px solid #1E2622; background: #0B0E0D">
 <sc-for list="{{items}}" as="f" hint-placeholder-count="10">
 <div id="{{f.id}}" style="border-bottom: 1px solid #111713; scroll-margin-top: 12px">
-<button type="button" class="tm-row tf-q" data-on-click="{{f.toggle}}" aria-expanded="{{f.on}}" aria-controls="{{f.aid}}" style="width: 100%; display: grid; grid-template-columns: 24px 78px minmax(0, 1fr); gap: 8px; padding: 6px 12px; border: 0; background: {{f.bg}}; color: #E8F2EA; text-align: left">
+<button type="button" class="tm-row tf-q" data-on-click="{{f.toggle}}" aria-expanded="{{f.on}}" aria-controls="{{f.aid}}" style="width: 100%; display: grid; grid-template-columns: 24px 100px minmax(0, 1fr); gap: 8px; padding: 6px 12px; border: 0; background: {{f.bg}}; color: #E8F2EA; text-align: left">
 <span aria-hidden="true" style="color: #4BE38A">{{f.sign}}</span>
 <span class="tf-g" style="color: #8A978E">[{{f.g}}]</span>
 <span>{{f.q}}</span>
 </button>
 <sc-if value="{{f.on}}" hint-placeholder-val="{{ false }}">
-<div id="{{f.aid}}" class="tf-ans" style="padding: 2px 12px 10px 122px; display: flex; flex-direction: column; gap: 6px; color: #A9B6AD">
+<div id="{{f.aid}}" class="tf-ans" style="padding: 2px 12px 10px 144px; display: flex; flex-direction: column; gap: 6px; color: #A9B6AD">
 <span>{{f.a}}</span>
 <sc-if value="{{f.ex}}" hint-placeholder-val="{{ false }}">
 <span style="color: #4BE38A; overflow-wrap: anywhere">{{f.ex}}</span>
@@ -86,6 +86,6 @@ button:focus-visible,input:focus-visible,a:focus-visible{outline:2px solid #4BE3
 </div>
 </template>
 <script src="/dc-lite.js?v=0ced284fd338"></script>
-<script src="/terminal-faq.js?v=da52b113f4d5"></script>
+<script src="/terminal-faq.js?v=c00a11e20e30"></script>
 </body>
 </html>

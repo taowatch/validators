@@ -39,14 +39,15 @@ function matchSubnets(subs, raw) {
 }
 const short = (hk) => hk ? hk.slice(0, 6) + '…' + hk.slice(-4) : '';
 const barFgOf = (pr) => pr == null ? '#8A978E' : pr >= 95 ? '#4BE38A' : pr >= 85 ? '#A6E3B8' : pr >= 70 ? '#D8D7A0' : pr > 0 ? '#F2B544' : '#FF6B5E';
+// up to 12 cells sampled back from the newest point; days without data stay blank
 const spark = (xs) => {
-  const v = (xs || []).filter((x) => x != null);
+  const a = xs || [], v = a.filter((x) => x != null);
   if (v.length < 2) return '';
   const lo = Math.min(...v), hi = Math.max(...v), span = hi - lo || 1;
-  const step = Math.max(1, Math.floor(v.length / 12));
+  const step = Math.max(1, Math.ceil(a.length / 12));
   let out = '';
-  for (let i = v.length % step; i < v.length; i += step) out += SPARK[Math.min(7, Math.floor((v[i] - lo) / span * 7.999))];
-  return out.slice(-12);
+  for (let i = a.length - 1; i >= 0; i -= step) out = (a[i] == null ? ' ' : SPARK[Math.min(7, Math.floor((a[i] - lo) / span * 7.999))]) + out;
+  return out;
 };
 const tagOf = (b) => (b || []).map((x) => x === 'High fee' ? '!fee' : x === 'Not earning' ? '!not-earning' : x === 'Unstable' ? '~unstable' : x === 'Thin benchmark' ? '~thin' : x === 'New' ? '?new' : x === 'Small' ? '?small' : x.toLowerCase()).join(' ');
 function usd(n) {
@@ -66,6 +67,13 @@ function switchUI(to, e) {
   window.location.href = (to === 'terminal' ? '/terminal' : '/') + (window.location.hash || '');
 }
 
+// rank by 30-day apy among graded validators in this place; it stays with the validator when
+// the list is filtered or re-sorted. Ungraded and not-earning ones get none.
+function rankMap(rows) {
+  const m = new Map();
+  rows.filter((r) => r.g && r.g !== 'F' && r.a30 != null).sort((a, b) => b.a30 - a.a30).forEach((r, i) => m.set(r.hk, i + 1));
+  return m;
+}
 class Component extends DCLogic {
   constructor(props) {
     super(props);
@@ -420,7 +428,7 @@ class Component extends DCLogic {
     const S = this.state, alpha = this.alpha(), sn = this.snOf(D);
     const cur = D.subnets.find((s) => s.nu === sn) || null;
     const set = (p) => () => this.setState(p);
-    const list = this.listOf(D, alpha, sn);
+    const list = this.listOf(D, alpha, sn), rankOf = rankMap(list);
     const q = S.q.trim().toLowerCase();
     // grade counts follow the search and "hide warnings" (same rule as the default UI)
     const base = list.filter((r) => (!S.hideWarn || !hasWarn(r.b)) && (!q || (r.name || '').toLowerCase().includes(q) || (r.hk || '').toLowerCase().includes(q)));
@@ -448,19 +456,20 @@ class Component extends DCLogic {
     const rowVals = shown.map((r, i) => {
       const F = r.g === 'F', pr = F ? 0 : r.pr;
       const filled = pr == null ? 0 : Math.round(Math.min(pr, 100) / 100 * BARW), filledS = pr == null ? 0 : Math.round(Math.min(pr, 100) / 100 * BARW_S);
-      const tr = alpha ? (r.a7 == null || r.a30 == null ? '' : (r.a7 >= r.a30 ? '▲ ' : '▼ ') + pct(r.a7, 1)) : spark(r.d);
+      const tr = alpha ? (r.a7 == null || r.a30 == null ? '' : (r.a7 >= r.a30 ? '▲ ' : '▼ ') + pct(r.a7, 1)) : spark((r.d || []).slice(-24));
       const href = '#v/' + r.hk + (r.nu != null ? '/' + r.nu : '');
       return {
         id: 'tm-r-' + i, cid: 'tm-c-' + i, href, open: (e) => { this.setState({ cur: i }); this.open(r.hk, r.nu, e); }, focus: () => { if (this.state.cur !== i) this.setState({ cur: i }); },
+        rank: rankOf.get(r.hk) || '-', rankFg: (rankOf.get(r.hk) || 99) <= 3 ? '#4BE38A' : '#8A978E',
         current: i === curI ? 'true' : null, cursor: i === curI ? '>' : '', bg: i === curI ? '#0E1F15' : 'transparent',
         grade: r.g || '-', gFg: r.g ? G[r.g] : '#8A978E', gTip: r.g ? GTIP[r.g] : 'not graded yet',
-        name: r.name, tags: tagOf(r.b) || (r.ck > 0.05 ? 'childkey ' + pct(r.ck, 1) : ''), tagTip: (r.b || []).map((x) => x === 'Unstable' ? (alpha ? 'unstable: 7d and 30d payout differ by more than 15 points' : 'unstable: at 90%+ of the best on fewer than half of recent days') : x).join(' · '), tagFg: hasWarn(r.b) ? '#F2B544' : '#8A978E',
+        name: r.name, tags: tagOf(r.b) || (r.ck > 0.05 ? 'childkey ' + pct(r.ck, 1) : ''), tagTip: (r.b || []).map((x) => x === 'Unstable' ? (alpha ? 'unstable: 7d and 30d payout differ by more than 15 points' : 'unstable: at 90%+ of the best on fewer than half of the last 30 days') : x).join(' · '), tagFg: hasWarn(r.b) ? '#F2B544' : '#8A978E',
         earn: F ? '0.0%' : pct(r.a30, alpha ? 1 : 2), earnFg: F ? '#FF6B5E' : '#E8F2EA',
         bar: '█'.repeat(filled), barRest: '░'.repeat(BARW - filled), barS: '█'.repeat(filledS), barRestS: '░'.repeat(BARW_S - filledS),
         barFg: barFgOf(pr), pr: pr == null ? '  —' : Math.min(100, Math.round(pr)) + '%',
         fee: pct(r.fee, 1), feeFg: r.fee >= 15 ? '#F2B544' : '#D4DDD6', stake: fmtK(r.stake),
         trend: tr || '·', trendTip: alpha ? '7-day APY vs 30-day' : 'rolling 7-day APY, last 30 days', trendAria: alpha ? '7-day APY ' + pct(r.a7, 1) : 'trend',
-        aria: r.name + ', grade ' + (r.g || 'not graded') + ', earns ' + (F ? '0%' : pct(r.a30, 1)) + ', payout ' + (pr == null ? 'unknown' : Math.round(pr) + '% of best') + ', fee ' + pct(r.fee, 1),
+        aria: (rankOf.get(r.hk) ? 'rank ' + rankOf.get(r.hk) + ', ' : '') + r.name + ', grade ' + (r.g || 'not graded') + ', earns ' + (F ? '0%' : pct(r.a30, 1)) + ', payout ' + (pr == null ? 'unknown' : Math.round(pr) + '% of best') + ', fee ' + pct(r.fee, 1),
       };
     });
     const gradeChips = ['A', 'B', 'C', 'D', 'F'].map((k) => {
@@ -507,7 +516,7 @@ class Component extends DCLogic {
       sumNetLabel: alpha ? 'NET τ 30D (BEST)' : 'GRADED', sumNet: alpha ? sgn(cur && cur.net30, 1) : String(D.root.rows.filter((r) => r.g).length),
       sumNetFg: !alpha || !cur || cur.net30 == null ? '#E8F2EA' : cur.net30 >= 0 ? '#4BE38A' : '#FF6B5E',
       sumNetTip: alpha ? 'what the best validator here returned in τ over 30 days: rewards + price, not annualized' : '1,000 τ or more and 21+ days of history',
-      showPay: alpha, gridCols: alpha ? '22px 56px minmax(170px, 1.6fr) 110px minmax(200px, 1.4fr) 76px 96px 110px' : '22px 56px minmax(220px, 2fr) 130px 90px 110px',
+      showPay: alpha, gridCols: alpha ? '22px 32px 56px minmax(170px, 1.6fr) 110px minmax(200px, 1.4fr) 76px 96px 110px' : '22px 32px 56px minmax(220px, 2fr) 130px 90px 110px',
       sumN: String(list.length),
       q: S.q, onQ: (e) => this.setState({ q: e.target.value, cur: 0 }),
       hideWarn: S.hideWarn, toggleWarn: () => this.setState({ hideWarn: !S.hideWarn, cur: 0 }),
@@ -542,8 +551,8 @@ class Component extends DCLogic {
     else if (L.pr != null) { const p = Math.round(L.pr); verdict.push(Object.assign({ text: 'pays ' + p + '% of what the best validators on ' + where + ' pay' + (isRoot ? ' (30-day apy vs the top 3).' : ' (after fees, weaker of 7d and 30d, this one left out).') }, p >= 95 ? OKT : p >= 85 ? INFOT : WARNT)); }
     else verdict.push(Object.assign({ text: 'not enough comparable data to grade on ' + where + ' yet.' }, INFOT));
     if (L.fee >= 15) verdict.push(Object.assign({ text: 'high fee: keeps ' + pct(L.fee, 1) + ' of rewards. most of the gap to the best comes from this.' }, WARNT));
-    if (isRoot) { if (L.hit != null) verdict.push(Object.assign({ text: 'paid at least 90% of the best on ' + Math.round(L.hit) + '% of days.' }, L.hit >= 67 ? OKT : WARNT)); }
-    else if (L.pr7 != null && L.pr30 != null && L.g !== 'F') { const u = (L.b || []).includes('Unstable'); verdict.push(Object.assign({ text: (u ? 'unsteady: ' : 'steady: ') + '7-day payout ' + Math.round(L.pr7) + '%, 30-day ' + Math.round(L.pr30) + '% of the best.' }, u ? WARNT : OKT)); }
+    if (isRoot) { if (L.hit != null) verdict.push(Object.assign({ text: 'paid at least 90% of the best on ' + Math.round(L.hit) + '% of the last 30 days.', faq: L.hit >= 67 ? null : '/terminal/faq#unstable' }, L.hit >= 67 ? OKT : WARNT)); }
+    else if (L.pr7 != null && L.pr30 != null && L.g !== 'F') { const u = (L.b || []).includes('Unstable'); verdict.push(Object.assign({ text: (u ? 'unsteady: ' : 'steady: ') + '7-day payout ' + Math.round(L.pr7) + '%, 30-day ' + Math.round(L.pr30) + '% of the best.', faq: u ? '/terminal/faq#unstable' : null }, u ? WARNT : OKT)); }
     if (!isRoot && L.kind30 === 'thin') verdict.push(Object.assign({ text: 'few large validators on ' + L.label + ', so this comparison is rough.' }, INFOT));
 
     // what 30 days here returned in τ: the 30-day reward growth (un-annualized APY) times the alpha price move
@@ -551,7 +560,7 @@ class Component extends DCLogic {
     const kpis = [
       { label: 'you earn · apy 30d', value: L.g === 'F' ? '0%' : pct(L.a30, isRoot ? 2 : 1), sub: isRoot ? 'in τ · best ' + pct(rootBench, 2) : '7d ' + pct(L.a7, 1) + ' · in alpha', color: L.g === 'F' ? '#FF6B5E' : '#E8F2EA', tip: isRoot ? 'yearly yield in τ after fees' : 'yearly yield in alpha after fees; price moves not included' },
     ].concat(isRoot ? [
-      { label: 'days ≥90% of best', value: L.hit == null ? '—' : Math.round(L.hit) + '%', sub: 'an A needs 67%+', color: L.hit == null ? '#E8F2EA' : L.hit >= 67 ? '#4BE38A' : '#F2B544', tip: 'share of recent days at 90%+ of the best root validators' },
+      { label: 'days ≥90% of best', value: L.hit == null ? '—' : Math.round(L.hit) + '%', sub: 'an A needs 67%+', color: L.hit == null ? '#E8F2EA' : L.hit >= 67 ? '#4BE38A' : '#F2B544', tip: 'share of the last 30 days at 90%+ of the best root validators' },
     ] : [
       { label: 'net in τ · 30d', value: sgn(net30, 1), sub: 'rewards + price ' + sgn(L.dp30, 1), color: net30 == null ? '#E8F2EA' : net30 >= 0 ? '#4BE38A' : '#FF6B5E', tip: 'what 30 days here returned in τ, not annualized' },
       { label: 'payout vs best', value: L.g === 'F' ? '0%' : L.pr == null ? '—' : Math.min(100, Math.round(L.pr)) + '%', sub: L.rank ? '#' + L.rank + '/' + L.of + ' on ' + L.label : 'best ' + pct(L.bench, 1), color: L.g ? G[L.g] : '#E8F2EA', tip: 'daily yield ÷ the best validators’ daily yield here, leaving this one out' },
@@ -565,7 +574,7 @@ class Component extends DCLogic {
       return { label: pad(label, 12), fill: '█'.repeat(n), rest: '░'.repeat(CBARW - n), txt: v == null ? '—' : Math.round(v) + '%', color: barFgOf(v) };
     };
     let bars, chartNote;
-    if (isRoot) { const per = L.per || []; bars = per.map((v, i) => mk(i === per.length - 1 ? 'last 7d' : ((per.length - 1 - i) * 7 + 7) + 'd ago', v)); chartNote = 'each row: 7-day yield ÷ best root validators'; }
+    if (isRoot) { const per = L.per || []; bars = per.map((v, i) => mk(i === per.length - 1 ? 'last 7d' : 'to ' + (per.length - 1 - i) * 7 + 'd ago', v)); chartNote = 'each row: 7 days ending on that day, yield ÷ best root validators'; }
     else { bars = [mk('30 days', L.pr30), mk('last 7 days', L.pr7)]; chartNote = 'per-period alpha history arrives with more data'; }
     const scale = pad('', 13) + '0%' + ' '.repeat(Math.round(CBARW * 90 / 120) - 2) + '90%' + ' '.repeat(Math.max(1, CBARW - Math.round(CBARW * 90 / 120) - 3)) + '120%';
 

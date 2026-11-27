@@ -145,7 +145,7 @@ button:focus-visible,input:focus-visible,select:focus-visible,a:focus-visible{ou
 </div>
 </sc-for>
 </div>
-<p style="margin: 0; padding: 0 12px 10px; color: #8A978E; font-size: 12px"># flows are stake moving in or out, not performance.</p>
+<p style="margin: 0; padding: 0 12px 10px; color: #8A978E; font-size: 12px"># flows are stake moving in or out, not performance. <a href="/terminal/faq#flows">man flows</a></p>
 </section>
 </div>
 
@@ -209,7 +209,7 @@ button:focus-visible,input:focus-visible,select:focus-visible,a:focus-visible{ou
 <sc-if value="{{rMore}}" hint-placeholder-val="{{ true }}">
 <button type="button" class="tm-btn" data-on-click="{{showMore}}" style="height: 30px; padding: 0 10px; border: 1px dashed #2C3A33; background: transparent; color: #A9B6AD">-- more -- ({{rMoreN}})</button>
 </sc-if>
-<span style="margin-left: auto"># apy net of commission · σ = spread of the rolling 7d apy, in pp</span>
+<span style="margin-left: auto"># apy net of commission · stab = σ of the rolling 7d apy over the window, in pp · <a href="/terminal/faq#stability">man stab</a> · <a href="/terminal/faq#window">man window</a></span>
 </div>
 </section>
 </sc-if>
@@ -259,7 +259,7 @@ button:focus-visible,input:focus-visible,select:focus-visible,a:focus-visible{ou
 <div class="tm-table" style="overflow-x: auto">
 <div style="min-width: 860px">
 <div style="display: grid; grid-template-columns: 52px minmax(170px, 1.6fr) 100px 72px 72px minmax(180px, 1.3fr) 64px; gap: 10px; align-items: center; padding: 6px 12px; border-bottom: 1px solid #1E2622; color: #8A978E; font-size: 12px; text-transform: uppercase; letter-spacing: 0.06em">
-<span>#</span><span>validator</span><span style="text-align: right">stake</span><span style="text-align: right">apy 7d</span><span style="text-align: right">apy {{winLbl}}</span><span>yield vs best {{winLbl}}</span><span style="text-align: right">child</span>
+<span>#</span><span>validator</span><span style="text-align: right">stake</span><span style="text-align: right">apy {{owLbl}}</span><span style="text-align: right">apy {{winLbl}}</span><span>yield vs best {{winLbl}}</span><span style="text-align: right">child</span>
 </div>
 <sc-for list="{{pRows}}" as="r" hint-placeholder-count="12">
 <div class="tm-row" style="display: grid; grid-template-columns: 52px minmax(170px, 1.6fr) 100px 72px 72px minmax(180px, 1.3fr) 64px; gap: 10px; align-items: center; padding: 5px 12px; border-bottom: 1px solid #111713; background: {{r.bg}}">
@@ -400,7 +400,7 @@ button:focus-visible,input:focus-visible,select:focus-visible,a:focus-visible{ou
 <sc-if value="{{eMore}}" hint-placeholder-val="{{ true }}">
 <button type="button" class="tm-btn" data-on-click="{{showMore}}" style="height: 30px; padding: 0 10px; border: 1px dashed #2C3A33; background: transparent; color: #A9B6AD">-- more -- ({{eMoreN}})</button>
 </sc-if>
-<span style="margin-left: auto"># 100% = earns what the top pools on its subnets earn; not the fee charged. price = alpha price move, grey: not set by validators.</span>
+<span style="margin-left: auto"># 100% = earns what the top pools on its subnets earn; not the fee charged. price = alpha price move, grey: not set by validators. <a href="/terminal/faq#efficiency">man yield/gap</a></span>
 </div>
 </section>
 </sc-if>
@@ -433,6 +433,6 @@ button:focus-visible,input:focus-visible,select:focus-visible,a:focus-visible{ou
 </div>
 </template>
 <script src="/dc-lite.js?v=0ced284fd338"></script>
-<script src="/terminal-analytics.js?v=fa5a79256ccc"></script>
+<script src="/terminal-analytics.js?v=909960a92ebb"></script>
 </body>
 </html>

@@ -168,6 +168,7 @@ button:focus-visible,input:focus-visible,select:focus-visible,a:focus-visible{ou
 <div style="min-width: 900px">
 <div style="display: grid; grid-template-columns: {{gridCols}}; gap: 10px; align-items: center; padding: 6px 12px; border-bottom: 1px solid #1E2622; color: #8A978E; text-transform: uppercase; letter-spacing: 0.06em">
 <span aria-hidden="true"></span>
+<span style="justify-self: end" title="rank by 30-day apy among graded validators here">#</span>
 <sc-for list="{{cols}}" as="h" hint-placeholder-count="7">
 <sc-if value="{{h.sortable}}" hint-placeholder-val="{{ true }}">
 <button type="button" class="tm-btn" data-on-click="{{h.sort}}" aria-label="{{h.aria}}" aria-pressed="{{h.on}}" aria-sort="{{h.ariaSort}}" style="justify-self: {{h.justify}}; padding: 2px 0; border: 0; border-bottom: 1px solid {{h.uline}}; background: transparent; color: {{h.fg}}; text-transform: uppercase; letter-spacing: 0.06em">{{h.label}} {{h.arrow}}</button>
@@ -180,6 +181,7 @@ button:focus-visible,input:focus-visible,select:focus-visible,a:focus-visible{ou
 <sc-for list="{{rows}}" as="r" hint-placeholder-count="12">
 <div class="tm-row" aria-current="{{r.current}}" style="display: grid; grid-template-columns: {{gridCols}}; gap: 10px; align-items: center; padding: 5px 12px; border-bottom: 1px solid #111713; background: {{r.bg}}">
 <span aria-hidden="true" style="color: #4BE38A; font-weight: 700">{{r.cursor}}</span>
+<span title="rank by 30-day apy among graded validators here" style="text-align: right; color: {{r.rankFg}}">{{r.rank}}</span>
 <span title="{{r.gTip}}" style="color: {{r.gFg}}; font-weight: 700">[{{r.grade}}]</span>
 <span style="min-width: 0; display: flex; flex-direction: column">
 <a id="{{r.id}}" class="tm-name" href="{{r.href}}" data-on-click="{{r.open}}" data-on-focus="{{r.focus}}" aria-label="{{r.aria}}">{{r.name}}</a>
@@ -203,6 +205,7 @@ button:focus-visible,input:focus-visible,select:focus-visible,a:focus-visible{ou
 <sc-for list="{{rows}}" as="r" hint-placeholder-count="8">
 <a id="{{r.cid}}" href="{{r.href}}" data-on-click="{{r.open}}" data-on-focus="{{r.focus}}" aria-label="{{r.aria}}" style="display: block; padding: 8px 12px; border-bottom: 1px solid #111713; background: {{r.bg}}; color: inherit; text-decoration: none">
 <span style="display: flex; align-items: baseline; gap: 8px">
+<span style="color: {{r.rankFg}}; min-width: 2ch; text-align: right">{{r.rank}}</span>
 <span style="color: {{r.gFg}}; font-weight: 700">[{{r.grade}}]</span>
 <span style="flex: 1; min-width: 0; color: #E8F2EA; white-space: nowrap; overflow: hidden; text-overflow: ellipsis">{{r.name}}</span>
 <span style="color: {{r.earnFg}}; font-weight: 700">{{r.earn}}</span>
@@ -299,7 +302,7 @@ button:focus-visible,input:focus-visible,select:focus-visible,a:focus-visible{ou
 <sc-for list="{{d.verdict}}" as="v" hint-placeholder-count="4">
 <div style="display: grid; grid-template-columns: 64px minmax(0, 1fr); gap: 10px">
 <span style="color: {{v.fg}}; font-weight: 700; white-space: pre">[{{v.tag}}]</span>
-<span style="color: #D4DDD6">{{v.text}}</span>
+<span style="color: #D4DDD6">{{v.text}}<sc-if value="{{v.faq}}" hint-placeholder-val="{{ false }}"> <a href="{{v.faq}}">man unstable</a></sc-if></span>
 </div>
 </sc-for>
 </div>
@@ -408,6 +411,6 @@ button:focus-visible,input:focus-visible,select:focus-visible,a:focus-visible{ou
 </div>
 </template>
 <script src="/dc-lite.js?v=0ced284fd338"></script>
-<script src="/terminal.js?v=436e17784d49"></script>
+<script src="/terminal.js?v=0db3009b6186"></script>
 </body>
 </html>

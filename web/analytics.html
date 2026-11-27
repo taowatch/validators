@@ -19,6 +19,8 @@ button:focus-visible,input:focus-visible{outline:2px solid #3DDBB0;outline-offse
 .vr-home:hover span:first-of-type{opacity:.85}.vr-home:focus-visible{outline:2px solid #3DDBB0;outline-offset:4px}
 .vr-chip:hover{border-color:#3A4656 !important;color:#E6EDF3 !important}
 .vr-th:hover{color:#E6EDF3 !important}
+.ch-q{display:inline-flex;align-items:center;justify-content:center;width:15px;height:15px;margin-left:4px;border-radius:50%;border:1px solid #2A3340;color:#8B97A6 !important;font-size:10px;font-weight:600;text-decoration:none;text-transform:none;letter-spacing:0;vertical-align:middle;flex:none}
+.ch-q:hover{border-color:#3DDBB0;color:#3DDBB0 !important}
 .vr-card-btn:hover{background:#151C26 !important}
 .vr-scroll{scrollbar-width:thin;scrollbar-color:#2A3340 transparent}
 @keyframes vrpulse{0%,100%{opacity:.45}50%{opacity:.9}}
@@ -177,7 +179,7 @@ button:focus-visible,input:focus-visible{outline:2px solid #3DDBB0;outline-offse
 
 <div style="background: #0E131A; border: 1px solid #1C232D; border-radius: 14px; padding: 18px 20px 16px; display: flex; flex-direction: column; gap: 10px">
 <div style="display: flex; justify-content: space-between; align-items: baseline; gap: 12px">
-<h2 style="margin: 0; font-family: 'Space Grotesk', sans-serif; font-weight: 600; font-size: 15px">{{flows.title}}</h2>
+<h2 style="margin: 0; font-family: 'Space Grotesk', sans-serif; font-weight: 600; font-size: 15px">{{flows.title}}<a href="/faq#flows" class="ch-q" aria-label="What are stake flows?" title="What are stake flows?">?</a></h2>
 <span style="font-family: 'JetBrains Mono', monospace; font-size: 11px; color: #8B97A6">Δ root stake</span>
 </div>
 <span style="font-size: 11px; color: #8B97A6; text-transform: uppercase; letter-spacing: 0.06em">Inflows</span>
@@ -215,7 +217,7 @@ button:focus-visible,input:focus-visible{outline:2px solid #3DDBB0;outline-offse
 </div></div>
 <sc-if value="{{hasRngs}}" hint-placeholder-val="{{ true }}">
 <div style="display: flex; align-items: center; gap: 8px"><span style="font-size: 12px; color: #8B97A6">Range</span>
-<div role="group" aria-label="Range for trend and stake flow" style="display: flex; gap: 4px; padding: 4px; background: #0A0E13; border: 1px solid #232C38; border-radius: 10px">
+<div role="group" aria-label="Range for trend" style="display: flex; gap: 4px; padding: 4px; background: #0A0E13; border: 1px solid #232C38; border-radius: 10px">
 <sc-for list="{{rngs}}" as="w" hint-placeholder-count="3">
 <button type="button" aria-pressed="{{w.on}}" data-on-click="{{w.pick}}" style="height: 34px; min-width: 46px; padding: 0 10px; border: 0; border-radius: 7px; background: {{w.bg}}; color: {{w.fg}}; font-family: 'JetBrains Mono', monospace; font-size: 12px; font-weight: 600">{{w.label}}</button>
 </sc-for>
@@ -266,6 +268,7 @@ button:focus-visible,input:focus-visible{outline:2px solid #3DDBB0;outline-offse
 <sc-if value="{{c.plain}}" hint-placeholder-val="{{ false }}">
 <span style="color: #8B97A6; font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; white-space: nowrap">{{c.label}}</span>
 </sc-if>
+<sc-if value="{{c.faq}}" hint-placeholder-val="{{ false }}"><a href="{{c.faq}}" class="ch-q" style="align-self: center" aria-label="{{c.faqAria}}" title="{{c.faqAria}}">?</a></sc-if>
 </div>
 </sc-for>
 </div>
@@ -293,7 +296,7 @@ button:focus-visible,input:focus-visible{outline:2px solid #3DDBB0;outline-offse
 <span style="justify-self: stretch; text-align: right; font-family: 'JetBrains Mono', monospace; font-size: 13px; color: {{c.color}}; font-weight: {{c.weight}}">{{c.t}}</span>
 </sc-for>
 <svg viewBox="0 0 100 28" preserveAspectRatio="none" style="width: 112px; height: 28px; overflow: visible" aria-hidden="true">
-<line x1="0" x2="100" y1="{{r.medY}}" y2="{{r.medY}}" stroke="#2A3646" stroke-width="1" stroke-dasharray="2 3" vector-effect="non-scaling-stroke"></line>
+<path d="{{r.medSp}}" fill="none" stroke="#3A4A5E" stroke-width="1" stroke-dasharray="2 3" vector-effect="non-scaling-stroke"></path>
 <path d="{{r.spark}}" fill="none" stroke="{{r.sparkColor}}" stroke-width="1.6" stroke-linejoin="round" vector-effect="non-scaling-stroke"></path>
 </svg>
 <span style="text-align: right; display: flex; flex-direction: column; align-items: flex-end">
@@ -319,7 +322,7 @@ button:focus-visible,input:focus-visible{outline:2px solid #3DDBB0;outline-offse
 <footer class="vr-foot" style="font-size: 12px; color: #8B97A6; display: flex; flex-wrap: wrap; gap: 6px 20px">
 <span>Source: BasketRate, TotalHotkeyAlpha, Delegates, IdentitiesV2 and BetaBasketRuntimeApi on finney.</span>
 <span>APY = (ΔBasketRate / 2³²) × NAV/shares, annualized.</span>
-<span>Trend = rolling 7-day APY over the selected range; dotted line is the network median.</span>
+<span>Trend = rolling 7-day APY over the selected range; dotted line is the network median of the same series. Flow and σ follow the Rank by window.</span>
 </footer>
 </sc-if>
 
@@ -564,6 +567,7 @@ button:focus-visible,input:focus-visible{outline:2px solid #3DDBB0;outline-offse
 <sc-for list="{{ef.cols}}" as="c" hint-placeholder-count="10">
 <div style="display: flex; justify-content: {{c.justify}}">
 <button type="button" class="vr-th" data-on-click="{{c.sort}}" aria-label="{{c.aria}}" title="{{c.title}}" style="background: transparent; border: 0; padding: 0; height: 40px; display: flex; align-items: center; gap: 4px; color: {{c.color}}; font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; white-space: nowrap">{{c.label}}<span style="font-family: 'JetBrains Mono', monospace">{{c.arrow}}</span></button>
+<sc-if value="{{c.faq}}" hint-placeholder-val="{{ false }}"><a href="{{c.faq}}" class="ch-q" style="align-self: center" aria-label="{{c.faqAria}}" title="{{c.faqAria}}">?</a></sc-if>
 </div>
 </sc-for>
 </div>
@@ -992,6 +996,6 @@ button:focus-visible,input:focus-visible{outline:2px solid #3DDBB0;outline-offse
 </div>
 </template>
 <script src="/dc-lite.js?v=0ced284fd338"></script>
-<script src="/analytics.js?v=594e1bed3536"></script>
+<script src="/analytics.js?v=1d68b569a48b"></script>
 </body>
 </html>

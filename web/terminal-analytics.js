@@ -27,7 +27,22 @@ function matchSubnets(subs, raw) {
 const short = (hk) => (hk ? hk.slice(0, 6) + '…' + hk.slice(-4) : '');
 const median = (xs) => { const a = xs.filter((x) => x != null && isFinite(x)).sort((p, q) => p - q); if (!a.length) return null; const m = a.length >> 1; return a.length % 2 ? a[m] : (a[m - 1] + a[m]) / 2; };
 const bar = (frac, w) => { const n = Math.max(0, Math.min(w, Math.round(frac * w))); return ['█'.repeat(n), '░'.repeat(w - n)]; };
-const spark = (xs) => { const v = (xs || []).filter((x) => x != null); if (v.length < 2) return '·'; const lo = Math.min(...v), hi = Math.max(...v); const st = Math.max(1, Math.floor(xs.length / 16)); let s = ''; for (let i = 0; i < xs.length; i += st) { const x = xs[i]; s += x == null ? ' ' : SPARK[hi > lo ? Math.round(((x - lo) / (hi - lo)) * 7) : 3]; } return s; };
+// up to 16 cells sampled back from the newest point, so the latest day is always drawn; gaps stay blank
+const spark = (xs) => { const a = xs || [], v = a.filter((x) => x != null); if (v.length < 2) return '·'; const lo = Math.min(...v), hi = Math.max(...v); const st = Math.max(1, Math.ceil(a.length / 16)); let s = ''; for (let i = a.length - 1; i >= 0; i -= st) { const x = a[i]; s = (x == null ? ' ' : SPARK[hi > lo ? Math.round(((x - lo) / (hi - lo)) * 7) : 3]) + s; } return s; };
+// BasketRate stood still Nov 7–11 2026; rolling points overlapping it are left out of σ
+const PAUSE_TS = [Date.UTC(2026, 10, 7), Date.UTC(2026, 10, 12)];
+// σ of the rolling 7d apy over the last w days (d[j] ends on day j + 7); under 5 points says nothing
+function sdOver(dd, days, w) {
+  const N = days.length - 1, xs = [];
+  for (let j = Math.max(0, N - 7 - w + 1); j < dd.length; j++) {
+    const v = dd[j], t = days[j + 7];
+    if (v == null || t == null || (t > PAUSE_TS[0] && t < PAUSE_TS[1] + 7 * 864e5)) continue;
+    xs.push(v);
+  }
+  if (xs.length < 5) return null;
+  const m = xs.reduce((a, b) => a + b, 0) / xs.length;
+  return Math.sqrt(xs.reduce((a, b) => a + (b - m) ** 2, 0) / xs.length);
+}
 const vhref = (hk) => '/terminal#v/' + hk;
 function usd(n) {
   if (n == null || !isFinite(n)) return '—';
@@ -137,11 +152,6 @@ class Component extends DCLogic {
   // ---- data: /api/validators (root) + /api/alpha (subnets, validators, pools) ----
   prep(v, a) {
     const root = (v.v || []).map((r) => Object.assign({}, r));
-    root.forEach((r) => {
-      const sh = r.sh || [], first = sh.findIndex((x) => x != null), last = sh[sh.length - 1];
-      r.flow = first >= 0 && last != null ? last - sh[first] : null;
-      r.flowDays = first >= 0 ? sh.length - 1 - first : 0;
-    });
     const subs = (a.subnets || []).map((s) => Object.assign({}, s));
     const av = (a.v || []).map((x) => Object.assign({}, x));
     const pf = a.pf || [];
@@ -157,10 +167,29 @@ class Component extends DCLogic {
     const rwin = v.win || [1, 7, 30];
     let wins = (a.ewin || [7, 30]).filter((w) => w >= 7 && rwin.includes(w));
     if (!wins.length) wins = [7, 30];
+    // stake flow per window (sh is one point per day): from the first stored day inside the window
+    root.forEach((r) => {
+      const sh = r.sh || [], n = sh.length - 1, last = sh[n];
+      r.fw = {}; r.sdw = {};
+      wins.forEach((w) => {
+        r.sdw[w] = sdOver(r.d || [], v.days || [], w);
+        let i = Math.max(0, n - w);
+        while (i < n && sh[i] == null) i++;
+        r.fw[w] = i < n && last != null ? { flow: last - sh[i], days: n - i } : null;
+      });
+    });
     const rootByHk = new Map(root.map((r) => [r.hk, r]));
     return { block: a.block || v.block, ts: a.ts || v.ts, root, subs, av, bySn, rootByHk, wins };
   }
-  winOf(D) { const w = this.state.win; return D && D.wins.includes(w) ? w : D && D.wins.includes(30) ? 30 : D ? D.wins[D.wins.length - 1] : 30; }
+  // default window: 30d, or the longest one with data while history is still syncing
+  winOf(D) {
+    const w = this.state.win;
+    if (!D) return 30;
+    if (D.wins.includes(w)) return w;
+    const has = (x) => D.root.some((r) => r['a' + x] != null);
+    if (D.wins.includes(30) && has(30)) return 30;
+    return D.wins.slice().reverse().find(has) || D.wins[D.wins.length - 1];
+  }
 
   // ---- commands ----
   run() {
@@ -254,7 +283,7 @@ class Component extends DCLogic {
   }
 
   renderVals() {
-    const S = this.state, D = S.data, tab = S.tab, w = this.winOf(D), ak = 'a' + w, ek = 'eff' + w, winLbl = w + 'd';
+    const S = this.state, D = S.data, tab = S.tab, w = this.winOf(D), ak = 'a' + w, ek = 'eff' + w, winLbl = w + 'd', ow = w === 7 ? 30 : 7;
     const minLbl = (MINS.find((m) => m[0] === S.min) || MINS[1])[1];
     const chip = (on) => ({ border: on ? G : LINE, bg: on ? CURBG : 'transparent', fg: on ? G : MID });
     const q = S.q.trim().toLowerCase();
@@ -264,7 +293,7 @@ class Component extends DCLogic {
       tk: this.ticker(), toDefault: (e) => toDefaultUI(e), cmdHint: this.hint(),
       keysHint: S.keys ? '1/2/3 tab · w window · j/k move · enter open · / command · esc clear · t default UI' : 'single-key shortcuts off',
       keysLabel: S.keys ? 'keys: on' : 'keys: off', keysOn: S.keys, toggleKeys: () => this.toggleKeys(),
-      cmd: S.cmd, feedback: S.feedback, fbColor: S.fbOk ? MID : RED, q: S.q, winLbl, minLbl,
+      cmd: S.cmd, feedback: S.feedback, fbColor: S.fbOk ? MID : RED, q: S.q, winLbl, owLbl: ow + 'd', minLbl,
       onCmd: (e) => this.setState({ cmd: e.target.value }), onCmdKey: (e) => { if (e.key === 'Enter') this.run(); else if (e.key === 'Escape') e.target.blur(); }, runCmd: () => this.run(),
       onQ: (e) => this.setState({ q: e.target.value, limit: 40, cur: 0 }), showMore: () => this.setState({ limit: S.limit + 60 }),
       tab1: () => this.setState({ tab: 'root', limit: 40, cur: 0 }), tab2: () => this.setState({ tab: 'alpha', limit: 40, cur: 0 }), tab3: () => this.setState({ tab: 'eff', limit: 40, cur: 0 }),
@@ -330,23 +359,24 @@ class Component extends DCLogic {
         base.sc.note = '# no validator ≥ ' + minLbl + ' τ has ' + winLbl + ' of data yet.';
         base.hist.note = '# waiting for ' + winLbl + ' of samples.';
       }
+      D.root.forEach((r) => { const f = r.fw[w]; r.flow = f ? f.flow : null; r.flowDays = f ? f.days : 0; });
       const fl = D.root.filter((r) => r.flow != null && (r.s || 0) >= S.min);
       const ins = fl.filter((r) => r.flow > 0).sort((a, b) => b.flow - a.flow).slice(0, 5), outs = fl.filter((r) => r.flow < 0).sort((a, b) => a.flow - b.flow).slice(0, 5);
       const fmax = Math.max(1, ...ins.concat(outs).map((r) => Math.abs(r.flow)));
       const span = Math.max(0, ...fl.map((r) => r.flowDays));
       base.flows = { span: span + 'd', rows: ins.concat(outs).map((r) => ({ name: r.n || short(r.hk), val: (r.flow > 0 ? '+' : '−') + fk(Math.abs(r.flow)) + ' τ', fg: r.flow > 0 ? G : AMB, bar: (r.flow > 0 ? '▶' : '◀') + '█'.repeat(Math.max(1, Math.round((Math.abs(r.flow) / fmax) * 14))) })) };
-      const cols = [[null, '#', 'start'], [null, 'validator', 'start'], ['stake', 'stake τ', 'end'], ['take', 'take', 'end'], [null, 'apy 7d', 'end'], ['apy', 'apy ' + winLbl, 'end'], [null, 'trend 7d', 'start'], ['flow', 'flow ' + span + 'd', 'end'], ['sd', 'σ pp', 'end'], ['nom', 'noms', 'end']];
+      const cols = [[null, '#', 'start'], [null, 'validator', 'start'], ['stake', 'stake τ', 'end'], ['take', 'take', 'end'], [null, 'apy ' + ow + 'd', 'end'], ['apy', 'apy ' + winLbl, 'end'], [null, 'trend ' + winLbl, 'start'], ['flow', 'flow ' + span + 'd', 'end'], ['sd', 'stab ' + winLbl, 'end'], ['nom', 'noms', 'end']];
       const key = S.sortR || 'apy';
       base.rCols = this.head(cols, key, S.dirR, (k, dir) => this.setState({ sortR: k === 'apy' ? null : k, dirR: dir, cur: 0 }));
-      const val = { apy: (r) => r[ak], stake: (r) => r.s, take: (r) => r.t, flow: (r) => r.flow, sd: (r) => r.sd, nom: (r) => r.nom }[key];
+      const val = { apy: (r) => r[ak], stake: (r) => r.s, take: (r) => r.t, flow: (r) => r.flow, sd: (r) => r.sdw[w], nom: (r) => r.nom }[key];
       const rows = big.filter((r) => match(r.n, r.hk)).sort((a, b) => { const x = val(a), y = val(b); if (x == null && y == null) return 0; if (x == null) return 1; if (y == null) return -1; return (x - y) * S.dirR; });
       const shown = rows.slice(0, S.limit);
       this.rows = shown.map((r) => r.hk);
       base.rRows = shown.map((r, i) => {
         const rk = rankOf.get(r.hk), name = r.n || short(r.hk);
         return Object.assign({ rank: rk || '—', rankFg: rk && rk <= 3 ? G : DIM, name, hk: short(r.hk), stake: fk(r.s), take: pct(r.t * 100, 0), takeFg: r.t >= 0.15 ? AMB : r.t === 0 ? G : MID,
-          a7: pct(r.a7), a7Fg: MID, a30: pct(r[ak]), a30Fg: r[ak] != null && medA != null && r[ak] >= medA ? G : TXT, a30W: 700,
-          trend: spark(r.d), trendTip: 'rolling 7d apy, last ' + (r.d || []).length + ' days', flow: r.flow == null ? '—' : (r.flow >= 0 ? '+' : '−') + fk(Math.abs(r.flow)), sd: r.sd == null ? '—' : r.sd.toFixed(2), nom: r.nom == null ? '—' : r.nom.toLocaleString('en-US') }, this.rowNav(r.hk, i, name));
+          a7: pct(r['a' + ow]), a7Fg: MID, a30: pct(r[ak]), a30Fg: r[ak] != null && medA != null && r[ak] >= medA ? G : TXT, a30W: 700,
+          trend: spark((r.d || []).slice(-w)), trendTip: 'rolling 7d apy, points ending in the last ' + w + ' days', flow: r.flow == null ? '—' : (r.flow >= 0 ? '+' : '−') + fk(Math.abs(r.flow)), sd: r.sdw[w] == null ? '—' : r.sdw[w].toFixed(2), nom: r.nom == null ? '—' : r.nom.toLocaleString('en-US') }, this.rowNav(r.hk, i, name));
       });
       base.rCount = rows.length + ' validators ≥ ' + minLbl + ' τ · median apy ' + winLbl + ' ' + pct(medA);
       base.rMore = rows.length > S.limit; base.rMoreN = rows.length - S.limit;
@@ -388,7 +418,7 @@ class Component extends DCLogic {
           const tags = [ne ? 'not earning' : '', p['top' + w] ? 'sets reference' : '', p.val.t >= 0.15 ? 'high fee' : ''].filter(Boolean).join(' · ');
           const name = p.val.n || short(p.val.hk);
           return Object.assign({ rank: ne ? '—' : '#' + (i + 1), rankFg: i < 3 && !ne ? G : DIM, name, tags: tags || short(p.val.hk), tagFg: ne ? RED : tags ? AMB : DIM, stake: fk(p.tao) + ' τ',
-            a7: pct(p.a7, 1), a7Fg: MID, a30: pct(p[ak], 1), a30Fg: TXT, bar: ne ? '' : b1, barRest: ne ? '' : b2, barFg: ne ? RED : e == null ? DIM : e >= 90 ? G : e >= 70 ? AMB : RED,
+            a7: pct(p['a' + ow], 1), a7Fg: MID, a30: pct(p[ak], 1), a30Fg: TXT, bar: ne ? '' : b1, barRest: ne ? '' : b2, barFg: ne ? RED : e == null ? DIM : e >= 90 ? G : e >= 70 ? AMB : RED,
             eff: ne ? 'not earning' : e == null ? '—' : e.toFixed(0) + '%', ct: pct(p.ct, 1) }, this.rowNav(p.val.hk, i, name));
         });
         base.pCount = ps.length + ' validators with ≥ 1 τ on SN' + cur.nu + (ps.length > 60 ? ' · showing 60' : '');
@@ -401,7 +431,7 @@ class Component extends DCLogic {
       base.kpis = [
         { label: 'alpha validators', value: String(effList.length), sub: '≥ ' + minLbl + ' τ alpha stake', fg: TXT },
         { label: 'stake at ≥ 90% of best', value: tot > 0 ? Math.round((at90 / tot) * 100) + '%' : '—', sub: 'share of alpha stake, ' + winLbl, fg: G },
-        { label: 'median yield vs best', value: pct(median(ok.map((v) => v[ek])), 1), sub: 'stake-weighted per validator', fg: G },
+        { label: 'median yield vs best', value: pct(median(ok.map((v) => v[ek])), 1), sub: 'stake-weighted per validator, ' + winLbl, fg: G },
         { label: 'not earning', value: String(neList.length), sub: 'earned no alpha in ' + winLbl, fg: neList.length ? RED : TXT },
       ];
       base.es.dots = ok.filter((v) => v[ek] != null).map((v) => {
@@ -415,7 +445,7 @@ class Component extends DCLogic {
       base.noGaps = !gaps.length;
       base.neNote = neList.length > 0;
       base.neTxt = neList.length + ' validator' + (neList.length === 1 ? '' : 's') + ' in this filter earned no alpha over ' + winLbl + ' (not registered or no dividends). they are listed last and left out of the charts.';
-      const cols = [[null, '#', 'start'], [null, 'validator', 'start'], ['tao', 'alpha τ', 'end'], [null, 'subnets', 'end'], ['take', 'listed', 'end'], ['cfg', 'total fee', 'end'], ['eff', 'yield vs best', 'start'], ['gap', 'gap', 'end'], [null, 'price ' + winLbl, 'end']];
+      const cols = [[null, '#', 'start'], [null, 'validator', 'start'], ['tao', 'alpha τ', 'end'], [null, 'subnets', 'end'], ['take', 'listed', 'end'], ['cfg', 'total fee', 'end'], ['eff', 'yield vs best ' + winLbl, 'start'], ['gap', 'gap ' + winLbl, 'end'], [null, 'price ' + winLbl, 'end']];
       const key = S.sortE || 'tao';
       base.eCols = this.head(cols, key, S.dirE, (k, dir) => this.setState({ sortE: k, dirE: dir, cur: 0 }));
       const val = { tao: (v) => v.tao, take: (v) => v.t, cfg: (v) => v.cfg, eff: (v) => (earning(v) ? v[ek] : null), gap: (v) => (earning(v) && v[ek] != null ? 100 - v[ek] : null) }[key];
