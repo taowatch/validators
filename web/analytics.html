@@ -17,6 +17,7 @@ button{font:inherit;cursor:pointer}
 button:focus-visible,input:focus-visible{outline:2px solid #3DDBB0;outline-offset:2px}
 .vr-row:hover{background:#111821 !important}
 .vr-home:hover span:first-of-type{opacity:.85}.vr-home:focus-visible{outline:2px solid #3DDBB0;outline-offset:4px}
+.vr-chk:hover{color:#E6EDF3 !important}
 .vr-chip:hover{border-color:#3A4656 !important;color:#E6EDF3 !important}
 .vr-th:hover{color:#E6EDF3 !important}
 .ch-q{display:inline-flex;align-items:center;justify-content:center;width:15px;height:15px;margin-left:4px;border-radius:50%;border:1px solid #2A3340;color:#8B97A6 !important;font-size:10px;font-weight:600;text-decoration:none;text-transform:none;letter-spacing:0;vertical-align:middle;flex:none}
@@ -35,7 +36,7 @@ button:focus-visible,input:focus-visible{outline:2px solid #3DDBB0;outline-offse
 .vr-dd summary:focus-visible{outline:2px solid #3DDBB0;outline-offset:2px}
 @media (max-width:900px){.vr-wide{display:none !important}.vr-analysis{order:5}.vr-rank{order:4}.vr-foot{order:6}}
 @media (min-width:901px){.vr-narrow{display:none !important}}
-@media (max-width:600px){.vr-kpis{grid-template-columns:repeat(2,minmax(0,1fr)) !important}.vr-kpis>div:last-child:nth-child(odd){grid-column:1/-1}.vr-kpis>div span:last-child{font-size:11px !important}.vr-mini{grid-template-columns:repeat(2,minmax(0,1fr)) !important}.vr-tabs{flex-wrap:nowrap !important;overflow-x:auto;align-self:stretch !important}.vr-tabs button{height:40px !important;padding:0 12px !important;font-size:13px !important;white-space:nowrap;flex:none}.vr-hdr{align-items:flex-start !important}.vr-kpis>div{padding:12px 14px !important}.vr-kv{font-size:20px !important}.vr-avatar{width:44px !important;height:44px !important;font-size:17px !important;border-radius:12px !important}.vr-h1{font-size:26px !important}.vr-hdr{gap:14px !important}}
+@media (max-width:600px){.vr-afq{flex:1 1 100% !important}.vr-afilt>div:last-child{margin-left:0 !important}.vr-kpis{grid-template-columns:repeat(2,minmax(0,1fr)) !important}.vr-kpis>div:last-child:nth-child(odd){grid-column:1/-1}.vr-kpis>div span:last-child{font-size:11px !important}.vr-mini{grid-template-columns:repeat(2,minmax(0,1fr)) !important}.vr-tabs{flex-wrap:nowrap !important;overflow-x:auto;align-self:stretch !important}.vr-tabs button{height:40px !important;padding:0 12px !important;font-size:13px !important;white-space:nowrap;flex:none}.vr-hdr{align-items:flex-start !important}.vr-kpis>div{padding:12px 14px !important}.vr-kv{font-size:20px !important}.vr-avatar{width:44px !important;height:44px !important;font-size:17px !important;border-radius:12px !important}.vr-h1{font-size:26px !important}.vr-hdr{gap:14px !important}}
 .vr-swu{height:36px;padding:0 14px;border-radius:999px;background:#F5C542;color:#0A0E13 !important;text-decoration:none;display:flex;align-items:center;font-weight:600;white-space:nowrap}
 .vr-swu:hover{background:#FFD866}
 .vr-ava{overflow:hidden}
@@ -412,10 +413,32 @@ button:focus-visible,input:focus-visible{outline:2px solid #3DDBB0;outline-offse
 </div>
 
 <div id="rankings" style="background: #0E131A; border: 1px solid #1C232D; border-radius: 14px; overflow: hidden">
-<div style="padding: 14px 20px; display: flex; flex-wrap: wrap; justify-content: space-between; gap: 8px; border-bottom: 1px solid #1C232D">
+<div style="padding: 14px 20px 0; display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 4px 12px">
 <h3 style="margin: 0; font-family: 'Space Grotesk', sans-serif; font-weight: 600; font-size: 15px">{{al.title}}</h3>
-<span style="font-size: 12px; color: #8B97A6">APY = alpha rewards, annualized, net of take · yield vs best = APY ÷ the subnet's best pools</span>
+<span style="font-size: 12px; color: #8B97A6">{{al.countTxt}}</span>
 </div>
+<div class="vr-afilt" style="padding: 12px 20px 14px; display: flex; flex-wrap: wrap; gap: 10px 14px; align-items: center; border-bottom: 1px solid #1C232D">
+<label class="vr-afq" style="flex: 0 1 260px; min-width: 180px; position: relative; display: flex; align-items: center">
+<span style="position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0)">Search validators on this subnet</span>
+<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#8B97A6" stroke-width="2" stroke-linecap="round" style="position: absolute; left: 11px" aria-hidden="true"><circle cx="11" cy="11" r="7"></circle><path d="M20 20l-3.5-3.5"></path></svg>
+<input type="search" aria-label="Search validators on this subnet by name or hotkey" value="{{aq}}" data-on-change="{{onAq}}" placeholder="Find a validator" style="width: 100%; height: 36px; box-sizing: border-box; padding: 0 12px 0 32px; background: #0A0E13; border: 1px solid #232C38; border-radius: 9px; color: #E6EDF3; font: inherit; font-size: 13px">
+</label>
+<div style="display: flex; align-items: center; gap: 8px"><span style="font-size: 12px; color: #8B97A6">Min stake τ</span>
+<div role="group" aria-label="Minimum alpha stake" style="display: flex; gap: 2px; padding: 3px; background: #0A0E13; border: 1px solid #232C38; border-radius: 9px">
+<sc-for list="{{al.mins}}" as="m" hint-placeholder-count="4">
+<button type="button" aria-pressed="{{m.on}}" data-on-click="{{m.pick}}" style="height: 28px; padding: 0 9px; border: 0; border-radius: 6px; background: {{m.seg}}; color: {{m.segFg}}; font-family: 'JetBrains Mono', monospace; font-size: 11px; font-weight: 600; white-space: nowrap">{{m.label}}</button>
+</sc-for>
+</div></div>
+<div style="display: flex; gap: 14px; margin-left: auto">
+<button type="button" aria-pressed="{{hideTake}}" data-on-click="{{toggleTake}}" class="vr-chk" style="height: 32px; padding: 0; border: 0; background: transparent; color: {{al.takeFg}}; font-size: 12px; display: flex; align-items: center; gap: 7px; white-space: nowrap">
+<span aria-hidden="true" style="width: 14px; height: 14px; border-radius: 4px; border: 1.5px solid {{al.takeBox}}; background: {{al.takeBg}}; color: #0A0E13; display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 700; line-height: 1">{{takeChip.mark}}</span>Hide take &gt; 10%</button>
+<button type="button" aria-pressed="{{al.hideNe}}" data-on-click="{{al.toggleNe}}" class="vr-chk" style="height: 32px; padding: 0; border: 0; background: transparent; color: {{al.neFg}}; font-size: 12px; display: flex; align-items: center; gap: 7px; white-space: nowrap">
+<span aria-hidden="true" style="width: 14px; height: 14px; border-radius: 4px; border: 1.5px solid {{al.neBox}}; background: {{al.neBg}}; color: #0A0E13; display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 700; line-height: 1">{{al.neMark}}</span>Hide not earning</button>
+</div>
+</div>
+<sc-if value="{{al.noRows}}" hint-placeholder-val="{{ false }}">
+<div style="padding: 40px 20px; text-align: center; color: #8B97A6">No validators match. <button type="button" class="vr-chip" data-on-click="{{al.clear}}" style="margin-left: 8px; height: 32px; padding: 0 12px; border-radius: 999px; border: 1px solid #232C38; background: transparent; color: #E6EDF3; font-size: 12px">Clear filters</button></div>
+</sc-if>
 <div class="vr-narrow">
 <sc-for list="{{al.rows}}" as="r" hint-placeholder-count="6">
 <button type="button" class="vr-row" data-on-click="{{r.open}}" aria-label="{{r.aria}}" style="width: 100%; display: flex; align-items: center; gap: 12px; padding: 12px 16px; background: transparent; border: 0; border-bottom: 1px solid #161C25; color: inherit; text-align: left">
@@ -434,7 +457,7 @@ button:focus-visible,input:focus-visible{outline:2px solid #3DDBB0;outline-offse
 <div class="vr-scroll vr-wide" style="overflow-x: auto">
 <div style="min-width: {{al.minW}}px">
 <div style="display: grid; grid-template-columns: {{al.grid}}; gap: 12px; align-items: center; padding: 0 20px; height: 38px; background: #0B1016; border-bottom: 1px solid #1C232D; font-size: 11px; font-weight: 600; color: #8B97A6; text-transform: uppercase; letter-spacing: 0.06em">
-<span title="Rank by alpha APY on this subnet">#</span><span>Validator</span><span style="text-align: right">Alpha stake</span><span style="text-align: right">Take</span><sc-for list="{{al.winCols}}" as="wc" hint-placeholder-count="3"><span style="text-align: right; color: {{wc.color}}">{{wc.label}}</span></sc-for><span title="{{al.effTip}}">Yield vs best</span><span style="text-align: right">Child take</span>
+<span title="Rank by alpha APY on this subnet; it stays the same when you filter">#</span><span>Validator</span><span style="text-align: right">Alpha stake</span><span style="text-align: right">Take</span><sc-for list="{{al.winCols}}" as="wc" hint-placeholder-count="3"><span style="text-align: right; color: {{wc.color}}">{{wc.label}}</span></sc-for><span title="{{al.effTip}}">Yield vs best</span><span style="text-align: right">Child take</span>
 </div>
 <sc-for list="{{al.rows}}" as="r" hint-placeholder-count="8">
 <button type="button" class="vr-row" data-on-click="{{r.open}}" aria-label="{{r.aria}}" style="width: 100%; display: grid; grid-template-columns: {{al.grid}}; gap: 12px; align-items: center; padding: 0 20px; height: 56px; background: transparent; border: 0; border-bottom: 1px solid #161C25; color: inherit; text-align: left">
@@ -457,6 +480,7 @@ button:focus-visible,input:focus-visible{outline:2px solid #3DDBB0;outline-offse
 </sc-for>
 </div>
 </div>
+<p style="margin: 0; padding: 10px 20px; border-top: 1px solid #1C232D; font-size: 12px; color: #8B97A6">APY = alpha rewards, annualized, net of take · yield vs best = APY ÷ the subnet's best pools · # is the rank on the whole subnet and stays the same when you filter</p>
 </div>
 </div>
 </sc-if>
@@ -996,6 +1020,6 @@ button:focus-visible,input:focus-visible{outline:2px solid #3DDBB0;outline-offse
 </div>
 </template>
 <script src="/dc-lite.js?v=0ced284fd338"></script>
-<script src="/analytics.js?v=1d68b569a48b"></script>
+<script src="/analytics.js?v=ce701e14fe6c"></script>
 </body>
 </html>

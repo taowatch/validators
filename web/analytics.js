@@ -7,6 +7,7 @@ const RANGES = [30, 90, 180, 365];
 // FAQ answers behind the "?" next to root table headers
 const FAQ_COL = { flow: '/faq#flows', sd: '/faq#stability', trend: '/faq#window' };
 const ALPHA_MINS = [[0, 'All'], [1000, '≥ 1K τ'], [10000, '≥ 10K τ'], [100000, '≥ 100K τ']];
+const ALPHA_SEG = [[0, 'All'], [1000, '1K+'], [10000, '10K+'], [100000, '100K+']];
 const EFF_DIRS = { rank: -1, name: 1, tao: -1, ns: -1, t: 1, cfg: 1, et: 1, eff: -1, cons: -1, a: -1, px: -1 };
 function effColor(e, accent) { return e == null ? '#8B97A6' : e >= 95 ? accent : e >= 80 ? '#E6EDF3' : '#F59E3B'; }
 function mono(hk) { const h = hue(hk); return { monoBg: 'hsl(' + h + ' 34% 20%)', monoFg: 'hsl(' + h + ' 70% 78%)' }; }
@@ -154,7 +155,7 @@ class Component extends DCLogic {
 
   constructor(props) {
     super(props);
-    this.state = { data: null, err: null, q: '', win: null, rng: 30, crng: null, ew: null, min: 1000, sortKey: 'rank', dir: -1, hideTake: false, sel: null, hov: null, hovIdx: null, amt: '1,000', showAll: false, copied: false, px: null, pxLive: false, pxDir: 0, tab: 'root', sn: null, effMin: 1000, effSort: 'tao', effDir: -1, ehov: null, alpha: null, alphaErr: null };
+    this.state = { data: null, err: null, q: '', win: null, rng: 30, crng: null, ew: null, min: 1000, sortKey: 'rank', dir: -1, hideTake: false, sel: null, hov: null, hovIdx: null, amt: '1,000', showAll: false, copied: false, px: null, pxLive: false, pxDir: 0, tab: 'root', sn: null, effMin: 1000, aMin: 0, aq: '', hideNe: false, effSort: 'tao', effDir: -1, ehov: null, alpha: null, alphaErr: null };
   }
 
   connectPrice() {
@@ -528,6 +529,7 @@ class Component extends DCLogic {
       winLabel, medTxt: pct(m), countTxt: fmtInt(sorted.length), empty: sorted.length === 0,
       hasMore: !S.showAll && sorted.length > 50, showAll: () => this.setState({ showAll: true }),
       q: S.q, onQ: (e) => this.setState({ q: e.target.value, showAll: false }),
+      aq: S.aq, onAq: (e) => this.setState({ aq: e.target.value }),
       wins: segChips(D.win.filter((w) => w >= 7), +win.slice(1), wl, accent, (w) => this.setState({ win: 'a' + w, ew: w })),
       hasRngs: D.ranges.length > 1, rngs: segChips(D.ranges, rng, (r) => rangeLabel(r, D.N), accent, (r) => this.setState({ rng: r })),
       mins: MINS.map(([v, l]) => ({ label: l, on: S.min === v, bg: S.min === v ? '#16231F' : 'transparent', border: S.min === v ? accent : '#232C38', fg: S.min === v ? accent : '#A9B4C2', pick: () => this.setState({ min: v, showAll: false }) })),
@@ -656,7 +658,23 @@ class Component extends DCLogic {
     const line = px == null ? 'Price history for ' + PL + ' is not available yet.' :
       (Math.abs(px) < 0.05 ? 'The SN' + cur.nu + ' alpha price was flat against τ over ' + PL : 'Everyone staking on SN' + cur.nu + ' ' + (px >= 0 ? 'gained ' : 'lost ') + Math.abs(px).toFixed(1) + '% to the alpha price over ' + PL) +
       (yRef == null ? '.' : '; rewards in the best pools added ' + signed(yRef, (n) => n.toFixed(1) + '%') + (net == null ? '' : ' → net ' + signed(net, (n) => n.toFixed(1) + '%') + ' in τ') + '. The price part is the same for every validator below; the columns compare rewards only.');
-    const pairs = cur.pairs.filter((p) => p.tao >= 1).sort((x, y) => (y[ak] ?? -1e9) - (x[ak] ?? -1e9));
+    const all = cur.pairs.filter((p) => p.tao >= 1);
+    // filters for the table only; ranks (rk*) come from the data, so they stay put
+    const aq = S.aq.trim().toLowerCase();
+    const notEarning = (p) => p[ek] == null && idle(p[ak]);
+    const pairs = all.filter((p) => p.tao >= S.aMin && (!S.hideTake || p.v.t <= 0.10) && (!S.hideNe || !notEarning(p)) &&
+      (!aq || this.vname(p.v.hk, p.v.n).toLowerCase().includes(aq) || p.v.hk.toLowerCase().includes(aq)))
+      .sort((x, y) => (y[ak] ?? -1e9) - (x[ak] ?? -1e9));
+    const box = (on) => ({ box: on ? accent : '#3A4656', bg: on ? accent : 'transparent', fg: on ? TEXT : '#A9B4C2', mark: on ? '✓' : '' });
+    const tk = box(S.hideTake), nb = box(S.hideNe);
+    const filt = {
+      mins: ALPHA_SEG.map(([v, l]) => ({ label: l, on: S.aMin === v, seg: S.aMin === v ? accent : 'transparent', segFg: S.aMin === v ? '#0A0E13' : '#A9B4C2', pick: () => this.setState({ aMin: v }) })),
+      takeBox: tk.box, takeBg: tk.bg, takeFg: tk.fg,
+      hideNe: S.hideNe, neBox: nb.box, neBg: nb.bg, neFg: nb.fg, neMark: nb.mark, toggleNe: () => this.setState({ hideNe: !S.hideNe }),
+      countTxt: (pairs.length === all.length ? fmtInt(all.length) : fmtInt(pairs.length) + ' of ' + fmtInt(all.length)) + ' validators',
+      noRows: pairs.length === 0,
+      clear: () => this.setState({ aq: '', aMin: 0, hideTake: false, hideNe: false }),
+    };
     const rows = pairs.map((p) => {
       const name = this.vname(p.v.hk, p.v.n), m = mono(p.v.hk), e = p[ek], r = p[rk], ec = effCell(e, p[ak], accent);
       return Object.assign({}, m, ec, {
@@ -669,7 +687,7 @@ class Component extends DCLogic {
         open: () => this.openAny(p.v.hk),
       });
     });
-    return Object.assign(empty, { noSn: false, hasCur: true, noCur: false, noCurTxt: '', cur: { sn: 'SN' + cur.nu, name: cur.name || 'Subnet ' + cur.nu, kpis, line }, rows, title: 'Validators on SN' + cur.nu + ', ranked by alpha APY ' + L });
+    return Object.assign(empty, filt, { noSn: false, hasCur: true, noCur: false, noCurTxt: '', cur: { sn: 'SN' + cur.nu, name: cur.name || 'Subnet ' + cur.nu, kpis, line }, rows, title: 'Validators on SN' + cur.nu + ', ranked by alpha APY ' + L });
   }
 
   // stake-weighted alpha price change of a validator's subnets (pools ≥ 10 τ), cached per window
