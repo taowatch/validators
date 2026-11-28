@@ -307,6 +307,7 @@ pub fn build(vals: &Value, alpha: &Value) -> Rated {
         ps.sort_by(|&a, &b| pools[b].tao.total_cmp(&pools[a].tao));
         let best_pools: Vec<f64> = idx.iter().map(|&i| &pools[i]).filter(|p| p.tao >= 100.0).filter_map(|p| p.a30).filter(|a| *a >= MIN_EARNING).collect();
         let nbest = best_pools.len().min(3);
+        let best_pools7: Vec<f64> = idx.iter().map(|&i| &pools[i]).filter(|p| p.tao >= 100.0).filter_map(|p| p.a7).filter(|a| *a >= MIN_EARNING).collect();
         let rows: Vec<Value> = ps
             .iter()
             .map(|&i| {
@@ -324,6 +325,7 @@ pub fn build(vals: &Value, alpha: &Value) -> Rated {
                 "nu": nu, "name": s(sm, "name").map(str::to_string).unwrap_or_else(|| format!("Subnet {nu}")), "logo": sm.get("logo"),
                 "price": sm.get("price"), "dp7": sm.get("dp7"), "dp30": sm.get("dp30"),
                 "best": ro(subnet_ref(best_pools), 2), "nbest": nbest, "nv": ps.len(), "net30": sm.get("r30"), "tao": tao,
+                "best7": ro(subnet_ref(best_pools7), 2), "net7": sm.get("r7"),
             }),
         ));
     }

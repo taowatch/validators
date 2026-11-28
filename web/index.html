@@ -19,6 +19,11 @@ button:focus-visible,input:focus-visible,select:focus-visible,a:focus-visible{ou
 .ch-row:hover{background:#111821 !important}
 .ch-chip:hover{border-color:#3A4656 !important;color:#E6EDF3 !important}
 .ch-mode:hover{border-color:#2E3A49 !important}
+.sp-tag{font-size:11px;padding:2px 8px;border-radius:999px;white-space:nowrap}
+.sp-card:hover{border-color:#2E3A49 !important}
+.sp-dot:hover{outline:2px solid #E6EDF3}
+.sp-chk:hover{color:#E6EDF3 !important}
+.sp-th:hover{color:#E6EDF3 !important}
 .ch-skip{position:absolute;left:-9999px;top:8px;padding:8px 12px;border-radius:8px;background:#3DDBB0;color:#0A0E13;font-weight:600;z-index:10}
 .ch-skip:focus{left:16px}
 @keyframes chpulse{0%,100%{opacity:.45}50%{opacity:.9}}
@@ -52,6 +57,9 @@ button:focus-visible,input:focus-visible,select:focus-visible,a:focus-visible{ou
 .ch-long{display:none !important}
 .ch-short{display:block}
 .ch-snsel{min-width:0 !important;flex:1 1 100% !important}
+.sp-picks{grid-template-columns:1fr !important}
+.sp-ctl{flex-direction:column;align-items:stretch !important}
+.sp-seg{overflow-x:auto}.sp-seg button{flex:1 0 auto;padding:0 8px !important;font-size:12px !important}
 .ch-sum{padding:12px 14px !important;gap:10px 20px !important}
 .ch-sum-v{font-size:15px !important}
 .ch-chips{flex-wrap:nowrap !important;overflow-x:auto}
@@ -147,8 +155,18 @@ button:focus-visible,input:focus-visible,select:focus-visible,a:focus-visible{ou
 </section>
 
 <sc-if value="{{alphaOn}}" hint-placeholder-val="{{ false }}">
+<nav aria-label="Steps" style="display: flex; flex-wrap: wrap; align-items: center; gap: 8px 10px; font-size: 13px">
+<sc-if value="{{sp.on}}" hint-placeholder-val="{{ true }}">
+<span aria-current="step" style="display: flex; align-items: center; gap: 8px; color: #E6EDF3; font-weight: 600"><span aria-hidden="true" style="width: 22px; height: 22px; border-radius: 999px; background: {{accent}}; color: #0A0E13; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700">1</span>Pick a subnet</span>
+</sc-if>
+<sc-if value="{{sp.off}}" hint-placeholder-val="{{ false }}">
+<button type="button" class="ch-chip" data-on-click="{{toSubnets}}" style="height: 30px; padding: 0 12px 0 6px; border-radius: 999px; border: 1px solid #1C232D; background: transparent; color: #A9B4C2; display: flex; align-items: center; gap: 8px; font-size: 13px"><span aria-hidden="true" style="width: 20px; height: 20px; border-radius: 999px; background: #12281F; color: {{accent}}; display: flex; align-items: center; justify-content: center; font-size: 11px">✓</span>← All subnets</button>
+</sc-if>
+<span aria-hidden="true" style="color: #3A4656">──</span>
+<span style="display: flex; align-items: center; gap: 8px; color: {{sp.step2Fg}}; font-weight: {{sp.step2W}}"><span aria-hidden="true" style="width: 22px; height: 22px; border-radius: 999px; border: 1px solid {{sp.step2Bd}}; background: {{sp.step2Bg}}; color: {{sp.step2NumFg}}; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700">2</span>Pick a validator on it</span>
+</nav>
 <section aria-label="Subnet" style="display: flex; flex-wrap: wrap; align-items: center; gap: 10px">
-<label for="ch-sn" style="font-size: 13px; color: #A9B4C2">Subnet</label>
+<label for="ch-sn" style="font-size: 13px; color: #A9B4C2">{{sp.snLabel}}</label>
 <div class="ch-snsel" style="position: relative; min-width: 380px; display: flex; align-items: center; gap: 8px; height: 40px; padding: 0 10px; border-radius: 10px; border: 1px solid {{snBorder}}; background: #0E131A">
 <sc-if value="{{snCur}}" hint-placeholder-val="{{ false }}">
 <span class="ch-ava" aria-hidden="true" style="width: 22px; height: 22px; border-radius: 6px; background: {{snCur.av.bg}}; color: {{snCur.av.fg}}; font-size: 9px">
@@ -182,6 +200,218 @@ button:focus-visible,input:focus-visible,select:focus-visible,a:focus-visible{ou
 </section>
 </sc-if>
 
+<sc-if value="{{sp.on}}" hint-placeholder-val="{{ false }}">
+<section aria-label="What moved stake value on subnets" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(min(240px, 100%), 1fr)); gap: 12px">
+<sc-for list="{{sp.facts}}" as="f" hint-placeholder-count="3">
+<div style="padding: 14px 16px; border-radius: 12px; border: 1px solid #1C232D; background: #0E131A; display: flex; flex-direction: column; gap: 4px">
+<span style="font-size: 12px; color: #8B97A6">{{f.label}}</span>
+<span style="font-family: 'JetBrains Mono', monospace; font-size: 18px; color: {{f.color}}">{{f.value}}</span>
+<span style="font-size: 12px; color: #8B97A6">{{f.sub}}</span>
+</div>
+</sc-for>
+</section>
+
+<section aria-label="Your stake" style="padding: 16px 20px; border-radius: 14px; border: 1px solid #1C232D; background: #0E131A; display: flex; flex-direction: column; gap: 14px">
+<div class="sp-ctl" style="display: flex; flex-wrap: wrap; gap: 12px 20px; align-items: center">
+<label style="display: flex; align-items: center; gap: 8px">
+<span style="font-size: 13px; color: #A9B4C2">I want to stake</span>
+<span style="display: flex; align-items: center; height: 40px; padding: 0 12px; border-radius: 10px; border: 1px solid #232C38; background: #0A0E13">
+<input type="text" inputmode="decimal" value="{{amt}}" data-on-input="{{onAmt}}" aria-label="Amount of TAO to stake" style="width: 90px; border: 0; outline: none; background: transparent; color: #E6EDF3; font-family: 'JetBrains Mono', monospace; font-size: 15px; text-align: right">
+<span style="margin-left: 6px; color: #8B97A6">τ</span>
+</span>
+</label>
+<sc-if value="{{sp.hasWins}}" hint-placeholder-val="{{ true }}">
+<div style="display: flex; align-items: center; gap: 8px"><span style="font-size: 13px; color: #A9B4C2">Look back</span>
+<div role="group" aria-label="Look-back window" class="sp-seg" style="display: flex; gap: 2px; padding: 3px; background: #0A0E13; border: 1px solid #232C38; border-radius: 10px">
+<sc-for list="{{sp.wins}}" as="w" hint-placeholder-count="2">
+<button type="button" aria-pressed="{{w.on}}" data-on-click="{{w.pick}}" style="height: 32px; min-width: 52px; padding: 0 10px; border: 0; border-radius: 7px; background: {{w.bg}}; color: {{w.fg}}; font-family: 'JetBrains Mono', monospace; font-size: 12px; font-weight: 600">{{w.label}}</button>
+</sc-for>
+</div></div>
+</sc-if>
+<div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap"><span style="font-size: 13px; color: #A9B4C2">I care most about</span>
+<div role="group" aria-label="What matters most" class="sp-seg" style="display: flex; gap: 2px; padding: 3px; background: #0A0E13; border: 1px solid #232C38; border-radius: 10px">
+<sc-for list="{{sp.modes}}" as="m" hint-placeholder-count="3">
+<button type="button" aria-pressed="{{m.on}}" data-on-click="{{m.pick}}" style="height: 32px; padding: 0 12px; border: 0; border-radius: 7px; background: {{m.bg}}; color: {{m.fg}}; font-size: 13px; font-weight: 600; white-space: nowrap">{{m.label}}</button>
+</sc-for>
+</div></div>
+</div>
+<p style="margin: 0; font-size: 13px; color: #A9B4C2">{{sp.modeNote}}</p>
+</section>
+
+<section aria-label="Root for comparison" style="padding: 14px 20px; border-radius: 14px; border: 1px solid #1E2C44; background: #0D1320; display: flex; flex-wrap: wrap; gap: 8px 24px; align-items: center">
+<span style="font-size: 12px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: #7AA2F7">Root, for comparison</span>
+<span><span style="font-family: 'JetBrains Mono', monospace; font-size: 16px; color: #E6EDF3">{{sp.root.ret}}</span> <span style="color: #8B97A6">in τ over {{sp.winLbl}}</span></span>
+<span style="color: #8B97A6">{{sp.root.apy}} APY · paid in τ · no price risk · on {{sp.amtTxt}} τ ≈ <b style="color: #E6EDF3">{{sp.root.tao}} τ</b></span>
+<button type="button" class="ch-chip" data-on-click="{{pickRoot}}" style="margin-left: auto; height: 32px; padding: 0 12px; border-radius: 999px; border: 1px solid #1E2C44; background: transparent; color: #7AA2F7; font-size: 13px">See Root validators ›</button>
+</section>
+
+<section aria-label="Top picks" style="display: flex; flex-direction: column; gap: 12px">
+<div style="display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 6px 12px">
+<h2 style="margin: 0; font-family: 'Space Grotesk', sans-serif; font-size: 20px; font-weight: 600">{{sp.picksTitle}}</h2>
+<span style="font-size: 12px; color: #8B97A6">Past {{sp.winLbl}}, not a forecast</span>
+</div>
+<div class="sp-picks" style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px">
+<sc-for list="{{sp.picks}}" as="p" hint-placeholder-count="3">
+<div class="sp-card" style="padding: 18px; border-radius: 14px; border: 1px solid #1C232D; background: #0E131A; display: flex; flex-direction: column; gap: 14px; min-width: 0">
+<div style="display: flex; align-items: center; gap: 10px; min-width: 0">
+<span style="flex: none; width: 26px; height: 26px; border-radius: 999px; background: {{p.medalBg}}; color: {{p.medalFg}}; display: flex; align-items: center; justify-content: center; font-family: 'Space Grotesk', sans-serif; font-weight: 700; font-size: 13px">{{p.n}}</span>
+<span class="ch-ava" aria-hidden="true" style="width: 26px; height: 26px; border-radius: 7px; background: {{p.av.bg}}; color: {{p.av.fg}}; font-size: 10px">
+<sc-if value="{{p.av.img}}" hint-placeholder-val="{{ false }}"><img src="{{p.av.src}}" alt="" referrerpolicy="no-referrer" loading="lazy" decoding="async" data-on-error="{{p.av.err}}"></sc-if>
+<sc-if value="{{p.av.mono}}" hint-placeholder-val="{{ true }}">{{p.av.ini}}</sc-if>
+</span>
+<span style="flex: none; padding: 2px 7px; border-radius: 6px; background: #12281F; color: #3DDBB0; font-family: 'JetBrains Mono', monospace; font-size: 12px; font-weight: 700">{{p.sn}}</span>
+<span style="font-family: 'Space Grotesk', sans-serif; font-size: 18px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap">{{p.name}}</span>
+</div>
+<div style="display: flex; flex-direction: column; gap: 6px">
+<div style="display: flex; justify-content: space-between; font-size: 13px"><span style="color: #A9B4C2">Rewards</span><span style="font-family: 'JetBrains Mono', monospace; color: {{accent}}">{{p.rew}} <span style="color: #8B97A6">({{p.apy}} APY)</span></span></div>
+<div style="display: flex; justify-content: space-between; font-size: 13px"><span style="color: #A9B4C2">Alpha price</span><span style="font-family: 'JetBrains Mono', monospace; color: {{p.pxColor}}">{{p.px}}</span></div>
+<div style="display: flex; justify-content: space-between; font-size: 13px; padding-top: 6px; border-top: 1px solid #1C232D"><span style="color: #E6EDF3; font-weight: 600">Net in τ</span><span style="font-family: 'JetBrains Mono', monospace; font-weight: 700; color: {{p.netColor}}">{{p.net}}</span></div>
+<div style="display: flex; justify-content: space-between; font-size: 12px"><span style="color: #8B97A6">vs Root</span><span style="font-family: 'JetBrains Mono', monospace; color: {{p.vsColor}}">{{p.vs}}</span></div>
+</div>
+<div style="display: flex; flex-wrap: wrap; gap: 6px">
+<sc-for list="{{p.tags}}" as="t" hint-placeholder-count="2"><span class="sp-tag" title="{{t.tip}}" style="background: {{t.bg}}; color: {{t.fg}}">{{t.t}}</span></sc-for>
+</div>
+<p style="margin: 0; font-size: 12px; color: #8B97A6">{{p.cushion}}</p>
+<div style="margin-top: auto; padding-top: 12px; border-top: 1px solid #1C232D; display: flex; align-items: center; gap: 10px">
+<span style="flex: 1; min-width: 0; display: flex; flex-direction: column"><span style="font-size: 11px; color: #8B97A6">Best validator here</span><span style="font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap">{{p.bv}}</span><span style="font-size: 11px; color: #8B97A6">{{p.bvSub}}</span></span>
+<sc-if value="{{p.bvOk}}" hint-placeholder-val="{{ true }}">
+<button type="button" data-on-click="{{p.list}}" style="flex: none; padding: 0; border: 0; background: transparent; color: #3DDBB0; text-decoration: underline; font-size: 13px; white-space: nowrap">All validators</button>
+<a href="{{p.href}}" data-on-click="{{p.go}}" style="flex: none; height: 36px; padding: 0 14px; border-radius: 10px; background: {{accent}}; color: #0A0E13; text-decoration: none; display: flex; align-items: center; font-weight: 600; font-size: 13px">Stake ›</a>
+</sc-if>
+<sc-if value="{{p.bvNo}}" hint-placeholder-val="{{ false }}">
+<button type="button" data-on-click="{{p.list}}" style="flex: none; height: 36px; padding: 0 14px; border-radius: 10px; border: 0; background: {{accent}}; color: #0A0E13; font-weight: 600; font-size: 13px">Validators ›</button>
+</sc-if>
+</div>
+</div>
+</sc-for>
+</div>
+<sc-if value="{{sp.noPicks}}" hint-placeholder-val="{{ false }}">
+<div style="padding: 28px; border-radius: 14px; border: 1px dashed #2A3340; color: #A9B4C2; text-align: center">No subnet fits right now. Try another look-back or priority.</div>
+</sc-if>
+</section>
+
+<sc-if value="{{wide}}" hint-placeholder-val="{{ true }}">
+<section aria-label="Rewards against price" style="padding: 18px 20px; border-radius: 14px; border: 1px solid #1C232D; background: #0E131A; display: flex; flex-direction: column; gap: 12px">
+<div style="display: flex; flex-wrap: wrap; justify-content: space-between; gap: 6px 16px; align-items: baseline">
+<h2 style="margin: 0; font-family: 'Space Grotesk', sans-serif; font-size: 16px; font-weight: 600">Rewards against price, {{sp.winLbl}}</h2>
+<span style="font-size: 12px; color: #8B97A6">Each dot is a subnet, sized by alpha staked · above the line you gained τ, below it the price drop ate the rewards · click a dot to open it</span>
+</div>
+<div style="display: grid; grid-template-columns: 44px 1fr; gap: 8px">
+<div aria-hidden="true" style="position: relative; height: 360px; font-family: 'JetBrains Mono', monospace; font-size: 11px; color: #8B97A6">
+<sc-for list="{{sp.ch.yt}}" as="t" hint-placeholder-count="5"><span style="position: absolute; right: 0; bottom: calc({{t.y}}% - 7px)">{{t.l}}</span></sc-for>
+</div>
+<div style="position: relative; height: 360px; border-left: 1px solid #232C38; border-bottom: 1px solid #232C38">
+<svg viewBox="0 0 100 100" preserveAspectRatio="none" style="position: absolute; inset: 0; width: 100%; height: 100%" aria-hidden="true">
+<path d="{{sp.ch.loss}}" fill="#2A1414" fill-opacity="0.55"></path>
+<path d="{{sp.ch.even}}" stroke="#F87171" stroke-width="1" stroke-dasharray="4 3" fill="none" vector-effect="non-scaling-stroke"></path>
+<line x1="{{sp.ch.zx}}" x2="{{sp.ch.zx}}" y1="0" y2="100" stroke="#232C38" stroke-width="1" vector-effect="non-scaling-stroke"></line>
+</svg>
+<span aria-hidden="true" style="position: absolute; left: 8px; bottom: 8px; font-size: 11px; color: #F87171">lost τ</span>
+<span aria-hidden="true" style="position: absolute; right: 8px; top: 8px; font-size: 11px; color: #3DDBB0">gained τ</span>
+<span title="Root: {{sp.root.apy}} APY in τ" style="position: absolute; left: calc({{sp.ch.zx}}% - 6px); bottom: calc({{sp.ch.ry}}% - 6px); width: 12px; height: 12px; transform: rotate(45deg); background: #7AA2F7"></span>
+<span aria-hidden="true" style="position: absolute; left: calc({{sp.ch.zx}}% + 10px); bottom: calc({{sp.ch.ry}}% - 7px); font-size: 11px; color: #7AA2F7">Root</span>
+<sc-for list="{{sp.ch.dots}}" as="d" hint-placeholder-count="20">
+<button type="button" class="sp-dot" title="{{d.tip}}" aria-label="{{d.tip}}" data-on-click="{{d.pick}}" style="position: absolute; left: calc({{d.x}}% - {{d.h}}px); bottom: calc({{d.y}}% - {{d.h}}px); width: {{d.s}}px; height: {{d.s}}px; border-radius: 50%; padding: 0; border: 1px solid {{d.stroke}}; background: {{d.fill}}"></button>
+</sc-for>
+</div>
+<span></span>
+<div aria-hidden="true" style="position: relative; height: 18px; font-family: 'JetBrains Mono', monospace; font-size: 11px; color: #8B97A6">
+<sc-for list="{{sp.ch.xt}}" as="t" hint-placeholder-count="5"><span style="position: absolute; left: {{t.x}}%; transform: translateX(-50%)">{{t.l}}</span></sc-for>
+</div>
+</div>
+<div style="display: flex; flex-wrap: wrap; gap: 6px 18px; font-size: 12px; color: #8B97A6">
+<span>↑ Rewards APY (best pools)</span><span>→ Alpha price vs τ, {{sp.winLbl}}</span><span><span style="display: inline-block; width: 9px; height: 9px; border-radius: 50%; background: {{accent}}; vertical-align: middle"></span> top picks</span><span>{{sp.ch.clip}}</span>
+</div>
+</section>
+</sc-if>
+
+<section id="subnets" aria-label="All subnets" style="border: 1px solid #1C232D; border-radius: 14px; background: #0E131A; overflow: hidden">
+<div style="padding: 14px 20px 0; display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 4px 12px">
+<h2 style="margin: 0; font-family: 'Space Grotesk', sans-serif; font-size: 16px; font-weight: 600">All subnets <span style="font-family: Inter, sans-serif; font-weight: 400; font-size: 13px; color: #8B97A6">· pick one to see its validators</span></h2>
+<span style="font-size: 12px; color: #8B97A6">{{sp.countTxt}}</span>
+</div>
+<div style="padding: 12px 20px 14px; display: flex; flex-wrap: wrap; gap: 10px 14px; align-items: center; border-bottom: 1px solid #1C232D">
+<label style="flex: 1 1 200px; max-width: 260px; position: relative; display: flex; align-items: center">
+<span style="position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0)">Filter subnets</span>
+<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#8B97A6" stroke-width="2" stroke-linecap="round" style="position: absolute; left: 11px" aria-hidden="true"><circle cx="11" cy="11" r="7"></circle><path d="M20 20l-3.5-3.5"></path></svg>
+<input type="search" aria-label="Filter subnets by number or name" value="{{sp.q}}" data-on-input="{{sp.onQ}}" placeholder="51 or name" style="width: 100%; height: 36px; box-sizing: border-box; padding: 0 12px 0 32px; background: #0A0E13; border: 1px solid #232C38; border-radius: 9px; color: #E6EDF3; font-size: 13px">
+</label>
+<div style="display: flex; align-items: center; gap: 8px"><span style="font-size: 12px; color: #8B97A6">Pool depth τ</span>
+<div role="group" aria-label="Minimum alpha staked" style="display: flex; gap: 2px; padding: 3px; background: #0A0E13; border: 1px solid #232C38; border-radius: 9px">
+<sc-for list="{{sp.depths}}" as="m" hint-placeholder-count="4">
+<button type="button" aria-pressed="{{m.on}}" data-on-click="{{m.pick}}" style="height: 28px; padding: 0 9px; border: 0; border-radius: 6px; background: {{m.bg}}; color: {{m.fg}}; font-family: 'JetBrains Mono', monospace; font-size: 11px; font-weight: 600; white-space: nowrap">{{m.label}}</button>
+</sc-for>
+</div></div>
+<button type="button" class="sp-chk" aria-pressed="{{sp.hideThin}}" data-on-click="{{sp.toggleThin}}" style="margin-left: auto; height: 32px; padding: 0; border: 0; background: transparent; color: {{sp.thin.fg}}; font-size: 12px; display: flex; align-items: center; gap: 7px; white-space: nowrap">
+<span aria-hidden="true" style="width: 14px; height: 14px; border-radius: 4px; border: 1.5px solid {{sp.thin.box}}; background: {{sp.thin.bg}}; color: #0A0E13; display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 700; line-height: 1">{{sp.thin.mark}}</span>Hide thin reference</button>
+</div>
+
+<sc-if value="{{wide}}" hint-placeholder-val="{{ true }}">
+<div style="overflow-x: auto">
+<div style="min-width: 1180px">
+<div role="group" aria-label="Sort subnets" style="display: grid; grid-template-columns: {{sp.grid}}; gap: 12px; padding: 0 20px; height: 40px; align-items: center; background: #0B1016; border-bottom: 1px solid #1C232D; font-size: 11px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: #8B97A6">
+<sc-for list="{{sp.cols}}" as="c" hint-placeholder-count="10">
+<button type="button" class="sp-th" data-on-click="{{c.pick}}" aria-pressed="{{c.on}}" aria-label="{{c.aria}}" title="{{c.tip}}" style="padding: 0; border: 0; background: transparent; font: inherit; letter-spacing: inherit; text-transform: inherit; color: {{c.color}}; text-align: {{c.al}}; justify-self: {{c.js}}; white-space: nowrap">{{c.label}}<span aria-hidden="true">{{c.arrow}}</span></button>
+</sc-for>
+</div>
+<sc-for list="{{sp.rows}}" as="r" hint-placeholder-count="12">
+<button type="button" class="ch-row" data-on-click="{{r.pick}}" aria-label="{{r.aria}}" style="width: 100%; display: grid; grid-template-columns: {{sp.grid}}; gap: 12px; padding: 0 20px; height: 56px; align-items: center; border: 0; border-bottom: 1px solid #161C25; background: {{r.bg}}; color: inherit; text-align: left">
+<span style="font-family: 'JetBrains Mono', monospace; font-size: 13px; font-weight: 600; color: {{r.rankColor}}">{{r.rank}}</span>
+<span style="display: flex; align-items: center; gap: 10px; min-width: 0">
+<span class="ch-ava" aria-hidden="true" style="width: 26px; height: 26px; border-radius: 7px; background: {{r.av.bg}}; color: {{r.av.fg}}; font-size: 10px">
+<sc-if value="{{r.av.img}}" hint-placeholder-val="{{ false }}"><img src="{{r.av.src}}" alt="" referrerpolicy="no-referrer" loading="lazy" decoding="async" data-on-error="{{r.av.err}}"></sc-if>
+<sc-if value="{{r.av.mono}}" hint-placeholder-val="{{ true }}">{{r.av.ini}}</sc-if>
+</span>
+<span style="flex: none; min-width: 44px; font-family: 'JetBrains Mono', monospace; font-size: 12px; font-weight: 700; color: #3DDBB0">{{r.sn}}</span>
+<span style="display: flex; flex-direction: column; min-width: 0"><span style="font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap">{{r.name}}</span><span style="display: flex; gap: 4px; overflow: hidden"><sc-for list="{{r.tags}}" as="t" hint-placeholder-count="1"><span class="sp-tag" title="{{t.tip}}" style="font-size: 10px; padding: 0 6px; background: {{t.bg}}; color: {{t.fg}}">{{t.t}}</span></sc-for></span></span>
+</span>
+<span style="text-align: right; font-family: 'JetBrains Mono', monospace; font-size: 12px; color: {{accent}}">{{r.apy}}</span>
+<span style="text-align: right; font-family: 'JetBrains Mono', monospace; font-size: 12px; color: #C9D1D9">{{r.rew}}</span>
+<span style="text-align: right; font-family: 'JetBrains Mono', monospace; font-size: 12px; color: {{r.pxColor}}">{{r.px}}</span>
+<span style="text-align: right; font-family: 'JetBrains Mono', monospace; font-size: 13px; font-weight: 700; color: {{r.netColor}}">{{r.net}}</span>
+<span style="text-align: right; font-family: 'JetBrains Mono', monospace; font-size: 12px; color: {{r.vsColor}}">{{r.vs}}</span>
+<span style="text-align: right; font-family: 'JetBrains Mono', monospace; font-size: 12px">{{r.tao}} <span style="color: #8B97A6">τ</span></span>
+<span style="text-align: right; font-family: 'JetBrains Mono', monospace; font-size: 12px; color: {{r.shareColor}}" title="{{r.shareTip}}">{{r.share}}</span>
+<span style="display: flex; align-items: center; gap: 8px; min-width: 0"><span style="flex: 1; display: flex; flex-direction: column; min-width: 0"><span style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 13px">{{r.bv}}</span><span style="font-size: 11px; color: #8B97A6">{{r.bvSub}}</span></span><span aria-hidden="true" style="flex: none; color: #8B97A6; font-size: 16px">›</span></span>
+</button>
+</sc-for>
+</div>
+</div>
+</sc-if>
+
+<sc-if value="{{narrow}}" hint-placeholder-val="{{ false }}">
+<div>
+<sc-for list="{{sp.rows}}" as="r" hint-placeholder-count="8">
+<button type="button" class="ch-row" data-on-click="{{r.pick}}" aria-label="{{r.aria}}" style="width: 100%; padding: 12px 16px; border: 0; border-bottom: 1px solid #161C25; background: {{r.bg}}; color: inherit; text-align: left; display: flex; flex-direction: column; gap: 6px">
+<span style="display: flex; align-items: center; gap: 8px; width: 100%">
+<span style="flex: none; width: 26px; font-family: 'JetBrains Mono', monospace; font-size: 12px; font-weight: 600; color: {{r.rankColor}}">{{r.rank}}</span>
+<span style="flex: none; font-family: 'JetBrains Mono', monospace; font-size: 12px; font-weight: 700; color: #3DDBB0">{{r.sn}}</span>
+<span style="flex: 1; min-width: 0; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap">{{r.name}}</span>
+<span style="flex: none; font-family: 'JetBrains Mono', monospace; font-size: 15px; font-weight: 700; color: {{r.netColor}}">{{r.net}}</span>
+</span>
+<span style="padding-left: 34px; display: flex; justify-content: space-between; gap: 8px; font-family: 'JetBrains Mono', monospace; font-size: 11px; color: #8B97A6">
+<span>rewards <span style="color: {{accent}}">{{r.rew}}</span> · price <span style="color: {{r.pxColor}}">{{r.px}}</span></span><span>{{r.tao}} τ ›</span>
+</span>
+</button>
+</sc-for>
+</div>
+</sc-if>
+
+<sc-if value="{{sp.noRows}}" hint-placeholder-val="{{ false }}">
+<div style="padding: 40px 20px; text-align: center; color: #8B97A6">No subnet matches these filters.</div>
+</sc-if>
+<sc-if value="{{sp.hasMore}}" hint-placeholder-val="{{ true }}">
+<div style="padding: 14px; display: flex; justify-content: center; border-top: 1px solid #1C232D">
+<button type="button" class="ch-chip" data-on-click="{{sp.showAll}}" style="height: 36px; padding: 0 16px; border-radius: 999px; border: 1px solid #2A3340; background: transparent; color: #E6EDF3">Show all {{sp.total}}</button>
+</div>
+</sc-if>
+<p style="margin: 0; padding: 10px 20px; border-top: 1px solid #1C232D; font-size: 12px; color: #8B97A6">Rewards = what the best pools on the subnet paid in alpha, net of take · Price = alpha price against τ · Net in τ = both together · Your share = your stake as a share of all alpha staked there; above 1% your own stake moves the price noticeably.</p>
+</section>
+
+<p style="margin: 0; font-size: 12px; color: #8B97A6; max-width: 900px">Past results, not advice. Alpha prices can move more in a week than rewards pay in a month. Root pays less but holds its value in τ. <a href="/faq#price">How the alpha price affects you ›</a></p>
+</sc-if>
+
+<sc-if value="{{showList}}" hint-placeholder-val="{{ true }}">
 <section aria-label="Summary" class="ch-sum" style="padding: 18px 20px; border-radius: 14px; border: 1px solid #1C232D; background: #0E131A; display: flex; flex-wrap: wrap; gap: 16px 40px; align-items: flex-start">
 <div style="display: flex; align-items: center; gap: 12px; min-width: 200px">
 <sc-if value="{{sumAva}}" hint-placeholder-val="{{ false }}">
@@ -344,6 +574,8 @@ button:focus-visible,input:focus-visible,select:focus-visible,a:focus-visible{ou
 <span style="color: #8B97A6">{{calc.vs}}</span>
 <a href="{{calc.href}}" data-on-click="{{calc.open}}" style="margin-left: auto; font-weight: 500">Open {{calc.name}} ›</a>
 </section>
+</sc-if>
+
 </sc-if>
 
 <p style="margin: 0; font-size: 12px; color: #8B97A6">A ≥ 95% of the best · B ≥ 85% · C ≥ 70% · D below · F earned nothing. <a href="/faq#grades">How grades work ›</a> · Data as of block #{{blockTxt}} ({{timeTxt}}).</p>
@@ -521,6 +753,6 @@ button:focus-visible,input:focus-visible,select:focus-visible,a:focus-visible{ou
 </div>
 </template>
 <script src="/dc-lite.js?v=0ced284fd338"></script>
-<script src="/app.js?v=ce29bcb5cf50"></script>
+<script src="/app.js?v=f2f46de5975b"></script>
 </body>
 </html>

@@ -17,6 +17,15 @@ const hasWarn = (b) => (b || []).some((x) => WARN.includes(x));
 const PX_EVERY = 2000;
 // single-key shortcuts can be switched off (WCAG 2.1.4), remembered per viewer
 const keysStored = () => { try { return localStorage.getItem('vy.keys') !== 'off'; } catch (e) { return true; } };
+// "subnet" step 1: how the subnet list is ranked
+const SP_MODES = {
+  balanced: { label: 'balanced', note: 'rewards minus any price drop over the window (price gains are not counted, they often fade); subnets with 10K τ+ staked and 3+ good pools.' },
+  rewards: { label: 'rewards', note: 'highest rewards only; subnets with 10K τ+ staked and 3+ good pools. the price can still swing a lot.' },
+  net: { label: 'net τ', note: 'what stakers ended up with in τ: rewards + price move. often led by a price jump that may not repeat.' },
+};
+const SP_DEPTHS = [[0, 'all'], [10000, '10k+'], [50000, '50k+'], [100000, '100k+']];
+const SP_PAGE = 30;
+const quantile = (xs, q) => { const a = xs.filter((x) => x != null).sort((x, y) => x - y); return a.length ? a[Math.round(q * (a.length - 1))] : null; };
 const SORTS = [['grade', 'grade'], ['earn', 'you earn 30d'], ['payout', 'payout vs best'], ['fee', 'fee'], ['stake', 'stake']];
 const SORT_KEY = { grade: (r) => r.g ? 'ABCDF'.indexOf(r.g) : null, earn: (r) => r.g === 'F' ? 0 : r.a30, payout: (r) => r.g === 'F' ? 0 : r.pr, fee: (r) => r.fee, stake: (r) => r.stake };
 const fmtInt = (n) => n == null ? '—' : Math.round(n).toLocaleString('en-US');
@@ -78,7 +87,7 @@ class Component extends DCLogic {
   constructor(props) {
     super(props);
     this.state = {
-      data: null, err: null, mode: 'root', sn: null, grades: [], hideWarn: false, q: '', sort: null, dir: -1, cur: 0, limit: PAGE, allSn: false, snQ: '',
+      data: null, err: null, mode: 'root', sn: null, grades: [], spW: 30, spMode: 'balanced', spQ: '', spDepth: 10000, spThin: true, spSort: null, spDir: -1, spAll: false, hideWarn: false, q: '', sort: null, dir: -1, cur: 0, limit: PAGE, allSn: false, snQ: '',
       psort: null, pdir: -1, cmd: '', feedback: 'type help for commands · keys: j/k move, enter open, / command, s sort, g grade, t default UI', fbOk: true, amt: '1,000',
       view: 'list', hk: null, wantNu: null, det: null, detErr: null, loc: null, amtD: '1,000', copied: null,
       px: null, pxLive: false, pxDir: 0, keys: keysStored(),
@@ -261,6 +270,112 @@ class Component extends DCLogic {
     else if (k === 'g') { e.preventDefault(); this.cycleGrade(); }
     else if (k === 'Escape') { e.preventDefault(); this.clearAll(); }
   }
+  pickSubnet(nu) {
+    this.setState({ mode: 'alpha', sn: nu, cur: 0, limit: PAGE, grades: [], q: '' });
+    if (typeof window !== 'undefined') window.requestAnimationFrame(() => { const el = document.querySelector('nav[aria-label="Steps"]'); if (el) el.scrollIntoView({ block: 'start' }); });
+  }
+  // best validator per subnet: grade A, 1,000 τ or more, lowest total fee, then highest APY
+  bestOn(D) {
+    if (this._bvData === D) return this._bv;
+    const C = D.pcols || [], ix = (k) => C.indexOf(k), m = new Map();
+    const [iN, iH, iT, iF, iA, iP, iG] = ['n', 'hk', 'tao', 'fee', 'a30', 'pr', 'g'].map(ix);
+    Object.keys(D.pools || {}).forEach((nu) => {
+      const ok = (D.pools[nu] || []).filter((r) => r[iG] === 'A' && r[iT] >= 1000);
+      ok.sort((a, b) => (a[iF] - b[iF]) || ((b[iA] || 0) - (a[iA] || 0)));
+      if (ok[0]) m.set(+nu, { name: ok[0][iN] || (ok[0][iH].slice(0, 6) + '…' + ok[0][iH].slice(-4)), hk: ok[0][iH], fee: ok[0][iF], pr: ok[0][iP] });
+    });
+    this._bvData = D; this._bv = m;
+    return m;
+  }
+  // step 1 of "subnet": which subnet, judged on rewards, price and pool depth against root
+  subnetPick(D, on) {
+    if (!on) return { on: false };
+    const S = this.state, GR = '#4BE38A', RD = '#FF6B5E', AM = '#F2B544';
+    const subs = D.subnets || [];
+    const hasWins = subs.some((s) => s.best7 != null);
+    const w = hasWins ? S.spW : 30, wl = w + 'd';
+    const amt = Math.max(0, parseFloat(String(S.amt).replace(/[^0-9.]/g, '')) || 0);
+    const rootApy = D.root.bench, rootRet = rootApy == null ? 0 : rootApy * w / 365;
+    const bvs = this.bestOn(D);
+    const all = subs.map((s) => {
+      const apy = w === 7 ? s.best7 : s.best, px = w === 7 ? s.dp7 : s.dp30, net = w === 7 ? s.net7 : s.net30;
+      return { s, nu: s.nu, name: s.name, apy, px, net, rew: apy == null ? null : apy * w / 365, tao: s.tao || 0, nref: s.nbest || 0, bv: bvs.get(s.nu) || null };
+    }).filter((x) => x.apy != null && x.apy >= 0.01);
+    const share = (x) => (amt > 0 && x.tao > 0 ? amt / (x.tao + amt) * 100 : 0);
+    const col = (n) => (n == null ? '#8A978E' : n > 0.05 ? GR : n < -0.05 ? RD : '#D4DDD6');
+    const key = { balanced: (x) => x.rew + Math.min(0, x.px || 0), rewards: (x) => x.apy, net: (x) => x.net }[S.spMode];
+    const pool = all.filter((x) => x.tao >= 10000 && x.nref >= 3 && key(x) != null).sort((a, b) => key(b) - key(a));
+    const rankOf = new Map(pool.map((x, i) => [x.nu, i + 1])), top = new Set(pool.slice(0, 3).map((x) => x.nu));
+    const tagList = (x) => {
+      const t = [];
+      if ((x.px || 0) <= -15) t.push('price falling');
+      else if ((x.px || 0) >= 15) t.push('price jumped');
+      if (w === 30 && Math.abs(x.s.dp7 || 0) >= 10) t.push('swinging');
+      if (x.tao < 10000) t.push('shallow pool');
+      if (x.nref < 3) t.push('thin ref');
+      return t;
+    };
+    const tagStr = (x) => tagList(x).map((t) => '[' + t + ']').join(' ');
+    const bvSub = (b) => (b ? 'fee ' + pct(b.fee, 0) + ' ' + Math.min(100, Math.round(b.pr || 0)) + '%' : '');
+    const facts = [
+      { k: 'rewards', v: sgn(quantile(all.map((x) => x.rew), 0.25)) + ' .. ' + sgn(quantile(all.map((x) => x.rew), 0.75)), sub: 'middle half of subnets, in alpha over ' + wl, fg: GR },
+      { k: 'price', v: sgn(quantile(all.map((x) => x.px), 0.25), 0) + ' .. ' + sgn(quantile(all.map((x) => x.px), 0.75), 0), sub: 'middle half, alpha vs τ over ' + wl + ' · usually the bigger part', fg: AM },
+      { k: 'beat root', v: all.filter((x) => x.net != null && x.net > rootRet).length + '/' + all.length, sub: 'subnets that ended ahead of root in τ', fg: '#7AA2F7' },
+    ];
+    const picks = pool.slice(0, 3).map((x, i) => {
+      const b = x.bv;
+      return {
+        n: i + 1, nFg: i === 0 ? GR : '#A9B6AD', border: i === 0 ? '#2E6B47' : '#1E2622', sn: 'SN' + x.nu, name: x.name,
+        rew: sgn(x.rew), apy: pct(x.apy, 0), px: sgn(x.px), pxFg: col(x.px), net: sgn(x.net), netFg: col(x.net),
+        vs: x.net == null ? '—' : sgn(x.net - rootRet), vsFg: x.net != null && x.net >= rootRet ? GR : RD,
+        tags: (tagStr(x) + (share(x) >= 1 ? ' [big for this pool]' : '')).trim() || (x.tao >= 50000 ? '[deep pool]' : ''), tagFg: tagList(x).length || share(x) >= 1 ? AM : '#7AA2F7',
+        cushion: (x.apy * 30 / 365).toFixed(1) + '%',
+        bv: b ? b.name : 'no grade-A validator yet', bvSub: bvSub(b), bvOk: !!b, href: b ? '#v/' + b.hk + '/' + x.nu : '#',
+        go: (e) => { if (b) this.open(b.hk, x.nu, e); }, list: () => this.pickSubnet(x.nu),
+      };
+    });
+    const q = S.spQ.trim().toLowerCase().replace(/^sn\s*/, '');
+    let list = all.filter((x) => x.tao >= S.spDepth && (!S.spThin || x.nref >= 3) && (!q || String(x.nu).startsWith(q) || (x.name || '').toLowerCase().includes(q)));
+    const val = { rank: (x) => (rankOf.has(x.nu) ? -rankOf.get(x.nu) : -1e6), apy: (x) => x.apy, rew: (x) => x.rew, px: (x) => x.px, net: (x) => x.net, tao: (x) => x.tao };
+    const sk = S.spSort || 'rank', dir = S.spSort ? S.spDir : -1;
+    list = list.slice().sort((a, b) => { const p = val[sk](a), r = val[sk](b); if (p == null && r == null) return 0; if (p == null) return 1; if (r == null) return -1; return (p - r) * dir; });
+    const shown = S.spAll ? list : list.slice(0, SP_PAGE);
+    const COLS = [['rank', '#', 'end', 'rank for "' + SP_MODES[S.spMode].label + '"'], [null, 'sn', 'start', ''], [null, 'name', 'start', ''],
+      ['apy', 'apy', 'end', 'rewards of the best pools, annualized, in alpha'], ['rew', 'rew ' + wl, 'end', 'rewards over the window, not annualized'], ['px', 'px ' + wl, 'end', 'alpha price vs τ'],
+      ['net', 'net ' + wl, 'end', 'rewards + price move, in τ'], [null, 'vs root', 'end', 'net τ minus what root paid'], ['tao', 'staked', 'end', 'all alpha staked on the subnet, valued in τ'], [null, 'share', 'end', 'your stake as a share of the pool'], [null, 'best validator', 'start', 'grade A, 1,000 τ+, lowest fee']];
+    const rows = shown.map((x) => {
+      const rk = rankOf.get(x.nu), sh = share(x);
+      return {
+        rank: rk || '-', rankFg: rk && rk <= 3 ? GR : '#8A978E', bg: top.has(x.nu) ? '#0E1F15' : 'transparent', nu: x.nu, name: x.name,
+        tags: tagStr(x), tagFg: AM, apy: pct(x.apy, 0), rew: sgn(x.rew), px: sgn(x.px), pxFg: col(x.px), net: sgn(x.net), netFg: col(x.net),
+        vs: x.net == null ? '—' : sgn(x.net - rootRet), vsFg: x.net != null && x.net >= rootRet ? GR : RD, tao: fmtK(x.tao),
+        share: sh >= 0.01 ? sh.toFixed(2) + '%' : '<0.01%', shareFg: sh >= 1 ? AM : '#A9B6AD', shareTip: fmtInt(amt) + ' τ would be ' + sh.toFixed(2) + '% of the pool',
+        bv: x.bv ? x.bv.name : '-', bvSub: bvSub(x.bv),
+        aria: 'SN' + x.nu + ' ' + x.name + ', rewards ' + pct(x.apy, 0) + ' apy, net ' + sgn(x.net) + ' in τ over ' + wl + ': open its validators',
+        pick: () => this.pickSubnet(x.nu),
+      };
+    });
+    const chip = (on2) => ({ border: on2 ? GR : '#2C3A33', bg: on2 ? '#0E1F15' : 'transparent', fg: on2 ? GR : '#A9B6AD' });
+    return {
+      on: true, winLbl: wl, amtTxt: fmtInt(amt), facts, hasWins, modeNote: SP_MODES[S.spMode].note, modeLbl: SP_MODES[S.spMode].label,
+      wins: [7, 30].map((v) => Object.assign(chip(w === v), { label: v + 'd', on: w === v, pick: () => this.setState({ spW: v }) })),
+      modes: Object.keys(SP_MODES).map((k) => Object.assign(chip(S.spMode === k), { label: SP_MODES[k].label, on: S.spMode === k, pick: () => this.setState({ spMode: k, spSort: null }) })),
+      root: { ret: sgn(rootRet, 2), apy: pct(rootApy, 1), tao: (amt * rootRet / 100).toFixed(2) },
+      picks, noPicks: picks.length === 0,
+      depths: SP_DEPTHS.map(([v, l]) => Object.assign(chip(S.spDepth === v), { label: l, on: S.spDepth === v, pick: () => this.setState({ spDepth: v, spAll: false }) })),
+      hideThin: S.spThin, toggleThin: () => this.setState({ spThin: !S.spThin, spAll: false }),
+      thinLabel: S.spThin ? '[x] hide thin ref' : '[ ] hide thin ref', thinBorder: S.spThin ? GR : '#2C3A33', thinFg: S.spThin ? GR : '#A9B6AD',
+      q: S.spQ, onQ: (e) => this.setState({ spQ: e.target.value, spAll: false }),
+      grid: '30px 52px minmax(140px, 1.4fr) 56px 76px 72px 80px 76px 72px 60px minmax(130px, 1fr)',
+      cols: COLS.map(([k, label, justify, tip]) => {
+        const on2 = !!k && sk === k && (k !== 'rank' || !S.spSort);
+        return { label, justify, tip, sortable: !!k, plain: !k, on: on2, fg: on2 ? GR : '#8A978E', uline: on2 ? GR : 'transparent', arrow: k ? (on2 ? (k === 'rank' ? '▲' : S.spDir < 0 ? '▼' : '▲') : '↕') : '',
+          aria: 'Sort subnets by ' + label, sort: k ? () => this.setState({ spSort: k === 'rank' ? null : k, spDir: S.spSort === k ? -S.spDir : -1, spAll: false }) : null };
+      }),
+      rows, noRows: rows.length === 0, hasMore: !S.spAll && list.length > SP_PAGE, moreN: list.length - shown.length, showAll: () => this.setState({ spAll: true }),
+      countTxt: list.length + ' of ' + all.length + ' subnets · click one to see its validators',
+    };
+  }
   move(d) {
     const n = this.rows.length;
     if (!n) return;
@@ -336,11 +451,12 @@ class Component extends DCLogic {
     const bad = (m) => this.setState({ feedback: 'error: ' + m, fbOk: false });
     if (!t.length) return;
     const c = t[0];
-    if (c === 'help' || c === '?') return this.setState({ feedback: 'root · sn <netuid|name> · grade a b … | grade (all) · sort grade|earn|payout|fee|stake [asc] (on a validator page: its places) · v <name> · warn on|off · keys on|off · clear · anything else searches', fbOk: true, cmd: '' });
+    if (c === 'help' || c === '?') return this.setState({ feedback: 'root · subnets · sn <netuid|name> · grade a b … | grade (all) · sort grade|earn|payout|fee|stake [asc] (on a validator page: its places) · v <name> · warn on|off · keys on|off · clear · anything else searches', fbOk: true, cmd: '' });
     if (c === 'root') return ok('root validators', { mode: 'root' });
+    if (c === 'subnets') return ok('pick a subnet', { mode: 'alpha', sn: null, grades: [] });
     if (c === 'sn' || c === 'subnet') {
       const arg = t.slice(1).join(' ');
-      if (!arg) return bad('sn <netuid or name>, e.g. sn 51 or sn lium');
+      if (!arg) return ok('pick a subnet', { mode: 'alpha', sn: null, grades: [] });
       if (!D) return bad('no data yet');
       if (/^(sn)?\d+$/.test(arg.replace(/\s+/g, ''))) {
         const n = Number(arg.replace(/\s+/g, '').replace(/^sn/, ''));
@@ -410,7 +526,7 @@ class Component extends DCLogic {
       chooseCur: S.view === 'list' ? 'page' : null, chooseBorder: S.view === 'list' ? '#2C3A33' : 'transparent',
       blockTxt: D && D.block ? '#' + fmtInt(D.block) : '…',
       age: ageMin == null ? '…' : ageMin < 120 ? ageMin + 'm' : ageMin < 2880 ? Math.round(ageMin / 60) + 'h' : Math.round(ageMin / 1440) + 'd',
-      modeTxt: S.view === 'detail' ? 'validator' : this.alpha() ? 'subnet ' + (D ? this.snOf(D) : '') : 'root',
+      modeTxt: S.view === 'detail' ? 'validator' : this.alpha() ? (S.sn == null ? 'subnets' : 'subnet ' + S.sn) : 'root',
       keysHint: !S.keys ? 'single-key shortcuts off' : S.view === 'detail' ? 'h/l prev/next place · s sort places · c copy · esc back · t default UI' : 'j/k move · enter open · / command · s sort · g grade · esc clear · t default UI',
       keysLabel: S.keys ? 'keys: on' : 'keys: off', keysOn: S.keys, toggleKeys: () => this.toggleKeys(),
       loading: false, failed: false, err: '', isList: false, isDetail: false, d: {},
@@ -425,7 +541,7 @@ class Component extends DCLogic {
   }
 
   list(D) {
-    const S = this.state, alpha = this.alpha(), sn = this.snOf(D);
+    const S = this.state, alpha = this.alpha(), sn = this.snOf(D), picking = alpha && S.sn == null;
     const cur = D.subnets.find((s) => s.nu === sn) || null;
     const set = (p) => () => this.setState(p);
     const list = this.listOf(D, alpha, sn), rankOf = rankMap(list);
@@ -441,7 +557,8 @@ class Component extends DCLogic {
       rows = rows.map((r, i) => [r, i]).sort((a, b) => { const x = key(a[0]), y = key(b[0]); if (x == null && y == null) return a[1] - b[1]; if (x == null) return 1; if (y == null) return -1; return (x - y) * dir || a[1] - b[1]; }).map((x) => x[0]);
     }
     const total = rows.length, shown = rows.slice(0, S.limit), curI = Math.min(S.cur, Math.max(0, shown.length - 1));
-    this.rows = shown;
+    // step 1 (subnet list) has no validator rows for j/k and enter
+    this.rows = picking ? [] : shown;
     const sel = shown[curI] || null;
 
     const cols = [['grade', 'grade', 'start'], [null, 'validator', 'start'], ['earn', 'you earn 30d', 'end'], ['payout', 'payout vs best', 'start'], ['fee', 'fee', 'end'], ['stake', 'stake tao', 'end'], [null, '7d vs 30d', 'start']].filter(([k, label]) => alpha || (k !== 'payout' && label !== '7d vs 30d')).map(([k, label, justify]) => {
@@ -479,11 +596,11 @@ class Component extends DCLogic {
     });
     const snHits = matchSubnets(D.subnets, S.snQ);
     const snAll = snHits.map((s) => {
-      const on = alpha && s.nu === sn;
+      const on = alpha && !picking && s.nu === sn;
       return { nu: s.nu, name: s.name, best: pct(s.best, 1), dp: sgn(s.dp30, 1), on, mark: on ? '>' : ' ', snFg: on ? '#4BE38A' : '#A9B6AD', bg: on ? '#0E1F15' : 'transparent',
         pick: () => this.setState({ mode: 'alpha', sn: s.nu, cur: 0, limit: PAGE, grades: [] }) };
     });
-    const flags = [alpha ? '--subnet ' + sn : '--root'];
+    const flags = [picking ? '--pick-subnet --rank ' + S.spMode.replace(' ', '') : alpha ? '--subnet ' + sn : '--root'];
     if (S.grades.length) flags.push('--grade ' + S.grades.join(','));
     if (S.hideWarn) flags.push('--hide-warnings');
     if (S.sort) flags.push('--sort ' + S.sort + (S.dir < 0 ? '' : ':asc'));
@@ -499,7 +616,9 @@ class Component extends DCLogic {
       rootOn: !alpha, alphaOn: alpha,
       rootBorder: !alpha ? '#4BE38A' : '#2C3A33', rootBg: !alpha ? '#0E1F15' : 'transparent', rootFg: !alpha ? '#4BE38A' : '#D4DDD6',
       alphaBorder: alpha ? '#4BE38A' : '#2C3A33', alphaBg: alpha ? '#0E1F15' : 'transparent', alphaFg: alpha ? '#4BE38A' : '#D4DDD6',
-      pickRoot: set({ mode: 'root', cur: 0, limit: PAGE, grades: [] }), pickAlpha: set({ mode: 'alpha', cur: 0, limit: PAGE, grades: [] }),
+      pickRoot: set({ mode: 'root', cur: 0, limit: PAGE, grades: [] }), pickAlpha: set({ mode: 'alpha', sn: null, cur: 0, limit: PAGE, grades: [] }),
+      toSubnets: set({ sn: null, cur: 0, limit: PAGE, grades: [], q: '' }),
+      listOn: !picking, snSide: alpha && !picking, tp: this.subnetPick(D, picking),
       snQ: S.snQ, snQTrim: S.snQ.trim(), snNone: snAll.length === 0,
       snCount: S.snQ.trim() ? snAll.length + '/' + D.subnets.length : D.subnets.length + '',
       snFilterBorder: S.snQ.trim() ? '#4BE38A' : '#2C3A33',

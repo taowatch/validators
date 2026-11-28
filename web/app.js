@@ -32,6 +32,15 @@ const PRICE_WS = 'wss://data-stream.binance.vision/ws/taousdt@ticker';
 const PRICE_SNAPSHOT = { c: 185.10, P: 3.989, h: 186.10, l: 169.10, q: 16169472.5, E: 1795663101480 };
 const HASH_RE = /^#v\/([1-9A-HJ-NP-Za-km-z]{40,60})(?:\/(\d+))?$/;
 const PAGE = 40;
+// "Stake in a subnet" step 1: how the subnet list is ranked
+const SP_MODES = {
+  balanced: { label: 'Balanced', note: 'Rewards minus any price drop over the window (price gains are not counted: they often fade), among subnets with 10K τ or more staked and a solid reference (3+ good pools).' },
+  rewards: { label: 'Highest rewards', note: 'Highest rewards only, among subnets with 10K τ or more staked and a solid reference. The price can still swing a lot; check the price column before you stake.' },
+  net: { label: 'Best result in τ', note: 'What stakers actually ended up with in τ: rewards plus the price move. Often led by a price jump that may not repeat.' },
+};
+const SP_DEPTHS = [[0, 'All'], [10000, '10K+'], [50000, '50K+'], [100000, '100K+']];
+const SP_PAGE = 20;
+const quantile = (xs, q) => { const a = xs.filter((x) => x != null).sort((x, y) => x - y); return a.length ? a[Math.round(q * (a.length - 1))] : null; };
 const STAKE_US = '5FFSBkNiymQWHaxc8dTmfTT7iHoz6YDexVG4xR2yLrffVR86';
 // sortable columns: `best` = direction that puts the best first (1 = high values first)
 const SORTS = {
@@ -93,6 +102,7 @@ class Component extends DCLogic {
       data: null, err: null, mode: 'root', sn: null, q: '', snQ: '', snOpen: false, snAct: 0, grade: 'all', hideWarn: false, all: false, calcHk: null, amt: '1,000',
       view: 'list', hk: null, wantNu: null, det: null, detErr: null, loc: null, amtD: '1,000', copied: null, allPlaces: false, pSortKey: null, pSortDir: 1,
       px: null, pxLive: false, pxDir: 0, sortKey: null, sortDir: 1, badImg: 0,
+      spW: 30, spMode: 'balanced', spQ: '', spDepth: 10000, spThin: true, spSort: null, spDir: -1, spAll: false,
       // one layout at a time: the table, or cards below 900px
       narrow: typeof window !== 'undefined' && !!window.matchMedia && window.matchMedia(NARROW).matches,
     };
@@ -347,6 +357,7 @@ class Component extends DCLogic {
     const med = (xs) => xs.length ? xs[Math.floor(xs.length / 2)] : null;
     const bests = sorted(subs.map((s) => s.best)), dps = sorted(subs.map((s) => s.dp30));
 
+    const picking = alpha && S.sn == null;
     let all = this.rowsFor(D, alpha, sn);
     const rankOf = rankMap(all);
     const q = S.q.trim().toLowerCase();
@@ -461,7 +472,10 @@ class Component extends DCLogic {
       rootBorder: !alpha ? accent : '#1C232D', rootBg: !alpha ? '#0F1A17' : '#0E131A',
       alphaBorder: alpha ? accent : '#1C232D', alphaBg: alpha ? '#0F1A17' : '#0E131A',
       pickRoot: () => this.setState({ mode: 'root', all: false, calcHk: null, grade: 'all' }),
-      pickAlpha: () => this.setState({ mode: 'alpha', all: false, calcHk: null, grade: 'all' }),
+      pickAlpha: () => this.setState({ mode: 'alpha', sn: null, all: false, calcHk: null, grade: 'all' }),
+      toSubnets: () => this.setState({ sn: null, q: '', all: false, calcHk: null, grade: 'all' }),
+      showList: !picking,
+      sp: this.subnetPick(D, accent, picking),
       q: S.q, onQ: (e) => this.setState({ q: e.target.value, all: false }),
       hideWarn: S.hideWarn, toggleWarn: () => this.setState({ hideWarn: !S.hideWarn, all: false }),
       warnBorder: S.hideWarn ? accent : '#1C232D', warnFg: S.hideWarn ? accent : '#A9B4C2',
@@ -473,7 +487,7 @@ class Component extends DCLogic {
       earnTip: alpha ? 'Yearly yield in this subnet’s alpha, after all fees, from the last 30 days. Alpha price moves are not included.' : 'Yearly yield in τ after all fees, from the last 30 days.',
       rootBench: D.root.bench == null ? '—' : D.root.bench.toFixed(1),
       alphaRange: bests.length ? Math.round(med(bests)) + '% median APY' : '—', medDp: sgn(med(dps), 1),
-      ...this.snPicker(subs, cur, accent),
+      ...this.snPicker(subs, picking ? null : cur, accent),
       snHint,
       sumKicker, sumTitle, sumNote,
       sumStats: sumStats.map((st) => Object.assign({ faq: '', faqAria: 'About ' + st.label }, st)),
@@ -485,7 +499,142 @@ class Component extends DCLogic {
   }
 
   pickSubnet(nu) {
+    const first = this.state.sn == null;
     this.setState({ mode: 'alpha', sn: nu, snQ: '', snOpen: false, snAct: 0, q: '', all: false, calcHk: null, grade: 'all' });
+    // coming from the subnet list: bring the steps and the validator list into view
+    if (first && typeof window !== 'undefined') window.requestAnimationFrame(() => { const el = document.querySelector('nav[aria-label="Steps"]'); if (el) el.scrollIntoView({ block: 'start', behavior: REDUCED() ? 'auto' : 'smooth' }); });
+  }
+
+  // best validator per subnet: grade A, 1,000 τ or more, lowest total fee, then highest APY
+  bestOn(D) {
+    if (this._bvData === D) return this._bv;
+    const C = D.pcols || [], ix = (k) => C.indexOf(k), m = new Map();
+    const [iN, iH, iT, iF, iA, iP, iG] = ['n', 'hk', 'tao', 'fee', 'a30', 'pr', 'g'].map(ix);
+    Object.keys(D.pools || {}).forEach((nu) => {
+      const ok = (D.pools[nu] || []).filter((r) => r[iG] === 'A' && r[iT] >= 1000);
+      ok.sort((a, b) => (a[iF] - b[iF]) || ((b[iA] || 0) - (a[iA] || 0)));
+      if (ok[0]) m.set(+nu, { name: ok[0][iN] || short(ok[0][iH]), hk: ok[0][iH], fee: ok[0][iF], pr: ok[0][iP] });
+    });
+    this._bvData = D; this._bv = m;
+    return m;
+  }
+
+  // step 1 of "Stake in a subnet": which subnet, judged on rewards, price and pool depth against Root
+  subnetPick(D, accent, on) {
+    const S = this.state;
+    const step = { on, off: !on, snLabel: on ? 'Know the subnet?' : 'Subnet',
+      step2Fg: on ? '#8B97A6' : '#E6EDF3', step2W: on ? 400 : 600, step2Bd: on ? '#2A3340' : accent, step2Bg: on ? 'transparent' : accent, step2NumFg: on ? '#8B97A6' : '#0A0E13' };
+    if (!on) return step;
+    const GREEN = '#3DDBB0', RED = '#FF8A80', ORANGE = '#F5A524', BLUE = '#7AA2F7';
+    const subs = D.subnets || [];
+    const hasWins = subs.some((s) => s.best7 != null);
+    const w = hasWins ? S.spW : 30, wl = w + 'D';
+    const amt = Math.max(0, parseFloat(String(S.amt).replace(/[^0-9.]/g, '')) || 0);
+    const rootApy = D.root.bench, rootRet = rootApy == null ? 0 : rootApy * w / 365;
+    const bvs = this.bestOn(D);
+    const all = subs.map((s) => {
+      const apy = w === 7 ? s.best7 : s.best, px = w === 7 ? s.dp7 : s.dp30, net = w === 7 ? s.net7 : s.net30;
+      return { s, nu: s.nu, name: s.name, apy, px, net, rew: apy == null ? null : apy * w / 365, tao: s.tao || 0, nref: s.nbest || 0, bv: bvs.get(s.nu) || null };
+    }).filter((x) => x.apy != null && x.apy >= 0.01);
+    const share = (x) => (amt > 0 && x.tao > 0 ? amt / (x.tao + amt) * 100 : 0);
+    const col = (n) => (n == null ? '#8B97A6' : n > 0.05 ? GREEN : n < -0.05 ? RED : '#C9D1D9');
+    const key = { balanced: (x) => x.rew + Math.min(0, x.px || 0), rewards: (x) => x.apy, net: (x) => x.net }[S.spMode];
+    const pool = all.filter((x) => x.tao >= 10000 && x.nref >= 3 && key(x) != null).sort((a, b) => key(b) - key(a));
+    const rankOf = new Map(pool.map((x, i) => [x.nu, i + 1]));
+    const tags = (x) => {
+      const t = [];
+      if (x.net != null && x.net > rootRet) t.push({ t: 'Beat Root', bg: '#12281F', fg: GREEN, tip: 'Ended ahead of Root in τ over ' + wl });
+      if ((x.px || 0) <= -15) t.push({ t: 'Price falling', bg: '#3A1716', fg: RED, tip: 'Alpha lost ' + Math.abs(x.px).toFixed(0) + '% against τ over ' + wl });
+      else if ((x.px || 0) >= 15) t.push({ t: 'Price jumped', bg: '#2E2814', fg: '#E8C35A', tip: 'Alpha gained ' + x.px.toFixed(0) + '% over ' + wl + '; jumps often fade' });
+      if (w === 30 && Math.abs(x.s.dp7 || 0) >= 10) t.push({ t: 'Swinging', bg: '#2E2814', fg: '#E8C35A', tip: 'Price moved ' + sgn(x.s.dp7, 0) + ' in the last 7 days alone' });
+      if (x.tao < 10000) t.push({ t: 'Shallow pool', bg: '#33210F', fg: ORANGE, tip: 'Under 10K τ staked: entering and leaving moves the price' });
+      if (x.nref < 3) t.push({ t: 'Thin reference', bg: '#1A212B', fg: '#A9B4C2', tip: 'Fewer than 3 pools of 100 τ or more earned, so the rewards figure is rough' });
+      return t;
+    };
+    const bvSub = (b) => (b ? 'fee ' + pct(b.fee, 0) + ' · ' + Math.min(100, Math.round(b.pr || 0)) + '% of best' : 'none graded A yet');
+    const facts = [
+      { label: 'Rewards, middle half of subnets', value: sgn(quantile(all.map((x) => x.rew), 0.25)) + ' to ' + sgn(quantile(all.map((x) => x.rew), 0.75)), sub: 'paid in alpha over ' + wl, color: accent },
+      { label: 'Alpha price, middle half', value: sgn(quantile(all.map((x) => x.px), 0.25), 0) + ' to ' + sgn(quantile(all.map((x) => x.px), 0.75), 0), sub: 'against τ over ' + wl + ' · usually the bigger part', color: ORANGE },
+      { label: 'Subnets that beat Root in τ', value: all.filter((x) => x.net != null && x.net > rootRet).length + ' of ' + all.length, sub: 'Root paid ' + sgn(rootRet, 2) + ' in τ over ' + wl, color: BLUE },
+    ];
+    const picks = pool.slice(0, 3).map((x, i) => {
+      const b = x.bv, href = b ? '#v/' + b.hk + '/' + x.nu : '#';
+      return {
+        n: i + 1, medalBg: i === 0 ? accent : '#1A212B', medalFg: i === 0 ? '#0A0E13' : '#C9D1D9', av: this.ava(x.s.logo, 'SN' + x.nu, x.name),
+        sn: 'SN' + x.nu, name: x.name, rew: sgn(x.rew), apy: pct(x.apy, 0), px: sgn(x.px), pxColor: col(x.px),
+        net: sgn(x.net), netColor: col(x.net), vs: x.net == null ? '—' : sgn(x.net - rootRet) + ' pts', vsColor: x.net != null && x.net >= rootRet ? GREEN : RED,
+        tags: tags(x).filter((t) => t.t !== 'Beat Root')
+          .concat(share(x) >= 1 ? [{ t: 'Big for this pool', bg: '#33210F', fg: ORANGE, tip: fmtInt(amt) + ' τ is ' + share(x).toFixed(1) + '% of all alpha staked here; your own stake moves the price' }] : [])
+          .concat(x.tao >= 50000 ? [{ t: 'Deep pool', bg: '#16223A', fg: '#8FB0FF', tip: fmtK(x.tao) + ' τ staked here' }] : []),
+        cushion: 'Rewards absorb a price drop of ~' + (x.apy * 30 / 365).toFixed(1) + '% a month.',
+        bv: b ? b.name : 'No grade-A validator yet', bvSub: b ? bvSub(b) : '', bvOk: !!b, bvNo: !b, href,
+        go: (e) => { if (b) this.open(b.hk, x.nu, e); }, list: () => this.pickSubnet(x.nu),
+      };
+    });
+    // chart: x = price change, y = rewards APY, both clipped to the frame
+    const XMIN = -50, XMAX = 50, YMAX = Math.min(200, Math.max(40, Math.ceil((quantile(all.map((x) => x.apy), 0.95) || 100) / 20) * 20));
+    const X = (v) => (Math.max(XMIN, Math.min(XMAX, v)) - XMIN) / (XMAX - XMIN) * 100;
+    const Y = (v) => Math.max(0, Math.min(YMAX, v)) / YMAX * 100;
+    const ev = []; for (let v = XMIN; v <= 0; v += 1) ev.push(X(v).toFixed(2) + ' ' + (100 - Y(-v * 365 / w)).toFixed(2));
+    const even = 'M' + ev.join(' L'), top = new Set(pool.slice(0, 3).map((x) => x.nu));
+    const ch = {
+      zx: X(0).toFixed(2), ry: Y(rootApy || 0).toFixed(2), even, loss: even + ' L' + X(0).toFixed(2) + ' 100 L0 100 Z',
+      yt: [0, 0.25, 0.5, 0.75, 1].map((f) => ({ y: f * 100, l: Math.round(f * YMAX) + '%' })),
+      xt: [-50, -25, 0, 25, 50].map((v) => ({ x: X(v), l: sgn(v, 0) })),
+      clip: (() => { const n = all.filter((x) => x.px == null || x.px < XMIN || x.px > XMAX || x.apy > YMAX).length; return n ? n + ' subnets past the edges are pinned to them' : ''; })(),
+      dots: all.slice().sort((a, b) => b.tao - a.tao).map((x) => {
+        const sz = Math.max(6, Math.min(30, Math.sqrt(x.tao) / 14)), t = top.has(x.nu), up = x.net != null && x.net > rootRet;
+        return { x: X(x.px || 0).toFixed(2), y: Y(x.apy).toFixed(2), s: sz.toFixed(0), h: (sz / 2).toFixed(1),
+          fill: t ? accent : up ? 'rgba(61,219,176,0.22)' : 'rgba(255,138,128,0.18)', stroke: t ? '#E6EDF3' : up ? 'rgba(61,219,176,0.6)' : 'rgba(255,138,128,0.5)',
+          tip: 'SN' + x.nu + ' ' + x.name + ': rewards ' + pct(x.apy, 0) + ' APY, price ' + sgn(x.px) + ', net ' + sgn(x.net) + ' in τ, ' + fmtK(x.tao) + ' τ staked',
+          pick: () => this.pickSubnet(x.nu) };
+      }),
+    };
+    // table
+    const q = S.spQ.trim().toLowerCase().replace(/^sn\s*/, '');
+    let list = all.filter((x) => x.tao >= S.spDepth && (!S.spThin || x.nref >= 3) && (!q || String(x.nu) === q || String(x.nu).startsWith(q) || (x.name || '').toLowerCase().includes(q)));
+    const COLS = [
+      ['rank', '#', 'Rank for “' + SP_MODES[S.spMode].label + '”', 'start'], [null, 'Subnet', '', 'start'],
+      ['apy', 'Rewards APY', 'What the best pools paid, annualized, in alpha', 'end'], ['rew', 'Rewards ' + wl, 'Rewards over the window, not annualized', 'end'],
+      ['px', 'Price ' + wl, 'Alpha price against τ', 'end'], ['net', 'Net in τ ' + wl, 'Rewards plus price move', 'end'], ['net', 'vs Root', 'Net in τ minus what Root paid', 'end'],
+      ['tao', 'Alpha staked', 'All alpha staked on the subnet, valued in τ', 'end'], ['tao', 'Your share', 'Your stake as a share of all alpha staked there', 'end'], [null, 'Best validator', 'Grade A, 1,000 τ or more, lowest fee', 'start'],
+    ];
+    const val = { rank: (x) => (rankOf.has(x.nu) ? -rankOf.get(x.nu) : -1e6), apy: (x) => x.apy, rew: (x) => x.rew, px: (x) => x.px, net: (x) => x.net, tao: (x) => x.tao };
+    const sk = S.spSort || 'rank', dir = S.spSort ? S.spDir : -1;
+    list = list.slice().sort((a, b) => { const p = val[sk](a), r = val[sk](b); if (p == null && r == null) return 0; if (p == null) return 1; if (r == null) return -1; return (p - r) * dir; });
+    const shown = S.spAll ? list : list.slice(0, SP_PAGE);
+    const rows = shown.map((x) => {
+      const rk = rankOf.get(x.nu), sh = share(x);
+      return {
+        rank: rk || '—', rankColor: rk && rk <= 3 ? accent : '#6B7684', bg: top.has(x.nu) ? '#0F1A17' : 'transparent', av: this.ava(x.s.logo, 'SN' + x.nu, x.name),
+        aria: 'SN' + x.nu + ' ' + x.name + ', rewards ' + pct(x.apy, 0) + ' APY, net ' + sgn(x.net) + ' in τ over ' + wl + ': see its validators',
+        sn: 'SN' + x.nu, name: x.name, tags: tags(x).slice(0, 2), apy: pct(x.apy, 0), rew: sgn(x.rew), px: sgn(x.px), pxColor: col(x.px),
+        net: sgn(x.net), netColor: col(x.net), vs: x.net == null ? '—' : sgn(x.net - rootRet), vsColor: x.net != null && x.net >= rootRet ? GREEN : RED,
+        tao: fmtK(x.tao), share: sh >= 0.01 ? sh.toFixed(2) + '%' : '< 0.01%', shareColor: sh >= 1 ? ORANGE : '#A9B4C2', shareTip: fmtInt(amt) + ' τ would be ' + sh.toFixed(2) + '% of the pool',
+        bv: x.bv ? x.bv.name : '—', bvSub: bvSub(x.bv), pick: () => this.pickSubnet(x.nu),
+      };
+    });
+    const seg = (on2) => ({ bg: on2 ? accent : 'transparent', fg: on2 ? '#0A0E13' : '#A9B4C2' });
+    const box = (on2) => ({ box: on2 ? accent : '#3A4656', bg: on2 ? accent : 'transparent', fg: on2 ? '#E6EDF3' : '#A9B4C2', mark: on2 ? '✓' : '' });
+    return Object.assign(step, {
+      winLbl: wl, amtTxt: fmtInt(amt), facts, modeNote: SP_MODES[S.spMode].note, hasWins,
+      wins: [7, 30].map((v) => Object.assign(seg(w === v), { label: v + 'D', on: w === v, pick: () => this.setState({ spW: v }) })),
+      modes: Object.keys(SP_MODES).map((k) => Object.assign(seg(S.spMode === k), { label: SP_MODES[k].label, on: S.spMode === k, pick: () => this.setState({ spMode: k, spSort: null }) })),
+      root: { ret: sgn(rootRet, 2), apy: pct(rootApy, 1), tao: (amt * rootRet / 100).toFixed(2) },
+      picksTitle: 'Top 3 · ' + SP_MODES[S.spMode].label.toLowerCase() + ', last ' + wl, picks, noPicks: picks.length === 0, ch,
+      q: S.spQ, onQ: (e) => this.setState({ spQ: e.target.value, spAll: false }),
+      depths: SP_DEPTHS.map(([v, l]) => Object.assign(seg(S.spDepth === v), { label: l, on: S.spDepth === v, pick: () => this.setState({ spDepth: v, spAll: false }) })),
+      hideThin: S.spThin, thin: box(S.spThin), toggleThin: () => this.setState({ spThin: !S.spThin, spAll: false }),
+      grid: '36px minmax(220px, 1.6fr) 96px 92px 84px 104px 80px 104px 84px minmax(160px, 1fr)',
+      cols: COLS.map(([k, label, tip, js]) => {
+        const isOn = !!k && sk === k && (k !== 'net' || label !== 'vs Root') && (k !== 'tao' || label !== 'Your share');
+        return { label, tip, js, al: js === 'end' ? 'right' : 'left', color: isOn ? '#E6EDF3' : '#8B97A6', on: isOn, arrow: isOn && S.spSort ? (S.spDir < 0 ? ' ↓' : ' ↑') : '',
+          aria: k ? 'Sort subnets by ' + label : label,
+          pick: k ? () => this.setState({ spSort: k === 'rank' ? null : k, spDir: S.spSort === k ? -S.spDir : -1, spAll: false }) : null };
+      }),
+      rows, noRows: rows.length === 0, hasMore: !S.spAll && list.length > SP_PAGE, total: list.length, showAll: () => this.setState({ spAll: true }),
+      countTxt: list.length + ' of ' + all.length + ' subnets',
+    });
   }
 
   // searchable subnet picker (combobox + listbox)
